@@ -53,6 +53,14 @@ jobs:
         run: python ci/audio_preflight_evidence.py build/audio_preflight_smoke
         env:
           ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
+      - name: Record Windows stream-lifecycle evidence
+        if: runner.os == 'Windows'
+        run: python ci/audio_stream_evidence.py build/Release/audio_stream_lifecycle_smoke.exe
+      - name: Record macOS stream-lifecycle evidence
+        if: runner.os == 'macOS'
+        run: python ci/audio_stream_evidence.py build/audio_stream_lifecycle_smoke
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -61,5 +69,6 @@ jobs:
             device-lifecycle-evidence.json
             device-fence-evidence.json
             audio-preflight-evidence.json
+            audio-stream-lifecycle-evidence.json
           if-no-files-found: warn
           retention-days: 30

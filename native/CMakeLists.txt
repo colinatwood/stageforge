@@ -8,7 +8,9 @@ add_library(stageforge_devices
   device_monitor.cpp
   device_identity.cpp
   device_execution_fence.cpp
-  audio_preflight.cpp)
+  audio_preflight.cpp
+  audio_stream_lifecycle.cpp
+  software_audio_render.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
@@ -23,7 +25,7 @@ if(WIN32)
   endif()
   target_link_libraries(stageforge_devices PUBLIC ole32 uuid)
 elseif(APPLE)
-  target_link_libraries(stageforge_devices PUBLIC "-framework CoreAudio" "-framework CoreMIDI" "-framework CoreFoundation")
+  target_link_libraries(stageforge_devices PUBLIC "-framework CoreAudio" "-framework CoreMIDI" "-framework CoreFoundation" "-framework AudioToolbox" "-framework AudioUnit")
   if(STAGEFORGE_DEVICE_ASAN)
     target_compile_options(stageforge_devices PRIVATE -fsanitize=address -fno-omit-frame-pointer)
   endif()
@@ -37,8 +39,10 @@ add_executable(device_execution_fence_smoke device_execution_fence_smoke.cpp)
 target_link_libraries(device_execution_fence_smoke PRIVATE stageforge_devices)
 add_executable(audio_preflight_smoke audio_preflight_smoke.cpp)
 target_link_libraries(audio_preflight_smoke PRIVATE stageforge_devices)
+add_executable(audio_stream_lifecycle_smoke audio_stream_lifecycle_smoke.cpp)
+target_link_libraries(audio_stream_lifecycle_smoke PRIVATE stageforge_devices)
 if(APPLE AND STAGEFORGE_DEVICE_ASAN)
-  foreach(target device_lifecycle_smoke device_execution_fence_smoke audio_preflight_smoke)
+  foreach(target device_lifecycle_smoke device_execution_fence_smoke audio_preflight_smoke audio_stream_lifecycle_smoke)
     target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(${target} PRIVATE -fsanitize=address)
   endforeach()
@@ -51,3 +55,5 @@ add_test(NAME device_execution_fence COMMAND device_execution_fence_smoke)
 set_tests_properties(device_execution_fence PROPERTIES TIMEOUT 30)
 add_test(NAME audio_preflight COMMAND audio_preflight_smoke)
 set_tests_properties(audio_preflight PROPERTIES TIMEOUT 30)
+add_test(NAME audio_stream_lifecycle COMMAND audio_stream_lifecycle_smoke)
+set_tests_properties(audio_stream_lifecycle PROPERTIES TIMEOUT 30)
