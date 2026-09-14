@@ -1,0 +1,43 @@
+name: StageForge Platform Modules
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  platform-smoke:
+    name: ${{ matrix.name }} checkpoint-69 module smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+            artifact: stageforge-module-linux
+          - os: windows-latest
+            name: Windows x64
+            artifact: stageforge-module-windows
+          - os: macos-14
+            name: macOS Apple Silicon
+            artifact: stageforge-module-macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run exact checkpoint module smoke
+        shell: bash
+        env:
+          STAGEFORGE_CI_EVIDENCE: platform-module-smoke.json
+        run: python ci/platform_snapshot_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: platform-module-smoke.json
+          if-no-files-found: error
+          retention-days: 30
