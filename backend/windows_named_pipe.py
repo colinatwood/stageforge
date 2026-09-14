@@ -23,6 +23,7 @@ _DACL_SECURITY_INFORMATION = 0x00000004
 _SE_DACL_PROTECTED = 0x1000
 _ACCESS_ALLOWED_ACE_TYPE = 0x00
 _GENERIC_ALL = 0x10000000
+_FILE_ALL_ACCESS = 0x001F01FF
 _ACL_SIZE_INFORMATION = 2
 _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
@@ -77,14 +78,16 @@ def validate_windows_pipe_acl_facts(policy: "WindowsPipePolicy", facts: dict) ->
         raise PermissionError("Windows named-pipe DACL contains unsupported ACE types")
     if actual != expected:
         raise PermissionError("Windows named-pipe DACL principals do not match configured policy")
-    masks = facts.get("accessMasks", {})
+    masks = {str(k).upper(): int(v) for k, v in facts.get("accessMasks", {}).items()}
     for sid in expected:
-        if int(masks.get(sid, -1)) != _GENERIC_ALL:
-            raise PermissionError("Windows named-pipe DACL access mask does not match configured policy")
+        if masks.get(sid, -1) not in {_GENERIC_ALL, _FILE_ALL_ACCESS}:
+            raise PermissionError(
+                f"Windows named-pipe DACL access mask does not match configured policy for {sid}: {masks.get(sid, -1):#x}"
+            )
     return {
         "daclProtected": True,
         "allowedSids": sorted(actual),
-        "accessMasks": {sid: _GENERIC_ALL for sid in sorted(actual)},
+        "accessMasks": {sid: masks[sid] for sid in sorted(actual)},
     }
 
 
