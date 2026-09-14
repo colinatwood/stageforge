@@ -1,10 +1,10 @@
 # Checkpoint 73 master backlog amendment
 
-This is a verified amendment to apply to the Checkpoint 72 master workbook, not
-a reconstruction of its missing rows. The workbook is referenced in the ChatGPT
-conversation **Continue Soundforge Work** (6aa70e94-4950-83ea-9a55-0a3e1e975a2a),
-but its binary is absent from GitHub main and unavailable through the conversation
-reader. Applying this amendment to the original workbook remains pending.
+Reconciled against the user-supplied `StageForge-Master-Backlog-Checkpoint-73.xlsx`.
+That workbook already contains the Checkpoint 73 closure below. The updated
+[Checkpoint 74 master workbook](backlog/StageForge-Master-Backlog-Checkpoint-74.xlsx)
+preserves that closure and records native device monitor progress without closing
+another backlog row. It is now stored alongside the canonical source.
 
 | Item | Checkpoint 73 status | Scope |
 | --- | --- | --- |
@@ -26,11 +26,10 @@ reader. Applying this amendment to the original workbook remains pending.
 - Both artifacts explicitly set `pluginCompatibilityQualified=false`,
   `physicalHardwareQualified=false`, and `physicalOutputsArmed=false`.
 
-The prior conversation reports Checkpoint 72 totals of 26 open, 5 software,
-19 qualification, 2 decisions, and 23 P0. Closing only PLUG-034 yields provisional
-totals of **25 open, 4 software, 19 qualification, 2 decisions**. Reconcile these
-against the workbook before publishing them as audited master totals. The P0
-total cannot be recalculated without confirming PLUG-034's priority cell.
+The supplied workbook confirms PLUG-034 is P0 and Done. Recalculated totals are
+**25 open, 22 P0, 4 software, 19 qualification, 2 decisions**. These totals remain
+unchanged at Checkpoint 74. DEV-033 and DEV-034 remain In Progress, and licensed
+plugin compatibility remains separately blocked under PLUG-035 and PLUG-036.
 
 Checkpoint 74's device monitor work narrows remaining audio/device software work;
 it does not close another master row.
