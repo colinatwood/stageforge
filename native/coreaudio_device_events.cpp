@@ -26,6 +26,16 @@ public:
         auto status = AudioHardwareCreateAggregateDevice(description, &id_);
         CFRelease(description); CFRelease(value);
         require(status == noErr && id_ != kAudioObjectUnknown, "create empty private aggregate failed");
+        try {
+            AudioObjectPropertyAddress subdevices{kAudioAggregateDevicePropertyFullSubDeviceList,
+                kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            CFArrayRef list = nullptr; UInt32 size = sizeof(list);
+            require(AudioObjectGetPropertyData(id_, &subdevices, 0, nullptr, &size, &list) == noErr,
+                "read aggregate subdevices failed");
+            const bool empty = list && CFArrayGetCount(list) == 0;
+            if (list) CFRelease(list);
+            require(empty, "fixture unexpectedly contains audio subdevices");
+        } catch (...) { close(); throw; }
     }
     Aggregate(const Aggregate&) = delete;
     Aggregate& operator=(const Aggregate&) = delete;
@@ -38,9 +48,9 @@ public:
     ~Aggregate() { try { close(); } catch (...) { std::terminate(); } }
 };
 bool contains(const stageforge::DeviceSnapshot& snapshot, const std::string& hash) {
-    return std::count_if(snapshot.identities.begin(), snapshot.identities.end(), [&](const auto& id) {
+    return std::any_of(snapshot.identities.begin(), snapshot.identities.end(), [&](const auto& id) {
         return id.scope == stageforge::DeviceIdentity::Scope::CoreAudioUID && id.hash == hash;
-    }) == 1;
+    });
 }
 template<class Predicate> void await_condition(Predicate predicate, const char* failure) {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
@@ -76,6 +86,7 @@ int main() {
         monitor.stop();
         std::cout << "{\"fixture\":\"private-empty-coreaudio-aggregate\",\"observedTransitions\":" << transitions
             << ",\"sameUidRecreationPassed\":true,\"listenerRestartPassed\":true,\"fixtureCleanupPassed\":true,"
+            << "\"noAudioSubdevicesPassed\":true,"
             << "\"nativeNotificationDeliveryPassed\":true,\"physicalHotplugQualified\":false,\"audioStreamingQualified\":false}\n";
         return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
