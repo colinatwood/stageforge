@@ -54,7 +54,7 @@ bool wait_revision(DeviceMonitor& monitor, std::uint64_t before, std::chrono::mi
     auto deadline = std::chrono::steady_clock::now() + timeout;
     while (std::chrono::steady_clock::now() < deadline) {
         if (monitor.revision() > before) return true;
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, true);
     }
     return monitor.revision() > before;
 }
@@ -82,9 +82,6 @@ MacEventEvidence exercise_macos_events(DeviceMonitor& monitor) {
     MacEventEvidence evidence;
     auto baseline = monitor.snapshot();
 
-    // CoreMIDI virtual endpoints are software fixtures. Their real CoreMIDI
-    // creation/removal notifications exercise the same registered callback path
-    // used for hardware topology changes without claiming physical hotplug.
     const auto midi_before = persistent_set(baseline, DeviceKind::Midi);
     MIDIClientRef midi_client = 0;
     MIDIEndpointRef source = 0;
@@ -112,9 +109,6 @@ MacEventEvidence exercise_macos_events(DeviceMonitor& monitor) {
     MIDIEndpointDispose(source); source = 0;
     MIDIClientDispose(midi_client); midi_client = 0;
 
-    // Apple's documented aggregate-device API gives us a real CoreAudio device
-    // list mutation while keeping audio I/O stopped. The UID is opaque and the
-    // monitor exports only its SHA-256 derivative.
     const auto audio_before = persistent_set(baseline, DeviceKind::Audio);
     CFStringRef uid = CFStringCreateWithFormat(kCFAllocatorDefault, nullptr, CFSTR("org.stageforge.ci.aggregate.%d"), getpid());
     CFMutableDictionaryRef description = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
