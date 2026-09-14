@@ -5,8 +5,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 BACKEND=ROOT/'backend'
 sys.path.insert(0,str(BACKEND))
-TRACKED=['backend/session_channel.py','backend/local_ipc.py','backend/windows_named_pipe.py','backend/audio_endpoint_evidence.py']
+EXPECTED={'backend/session_channel.py':'084aba7954394bb2732e9770312e25e2d0a23aceaa91d2a2c78513648e695ff7','backend/local_ipc.py':'fb8bb0337c312253400125b7abbc6820c74cf42177ba0461d00767b61e4639cc','backend/windows_named_pipe.py':'0a6581b87a2d153b4090bbdded963872fcac9d665f2ae47e5a74c8355f9f0f8b','backend/audio_endpoint_evidence.py':'7ea22c6d70e4406196e1ac531a82c50eb433761d9fb1cf92a892c5da6c5b6402'}
 def sha(p): return hashlib.sha256((ROOT/p).read_bytes()).hexdigest()
+def verify_snapshot():
+ actual={p:sha(p) for p in EXPECTED}
+ if actual!=EXPECTED: raise RuntimeError(f'checkpoint 69 module hash mismatch: {actual}')
+ return actual
 def windows_pipe():
  from multiprocessing.connection import Client
  from local_ipc import WindowsNamedPipeIpcServer
@@ -38,7 +42,7 @@ def mac_audio():
  endpoints,drivers=macos_endpoint_probe(run)
  return {'coreAudioProbeQualified':True,'endpointCount':len(endpoints),'driverRecordCount':len(drivers),'physicalInterfaceQualified':False}
 def main():
- report={'documentType':'org.upp.github-platform-module-smoke','schemaVersion':1,'host':{'os':platform.system(),'release':platform.release(),'architecture':platform.machine()},'physicalOutputsArmed':False,'physicalHardwareQualified':False,'trackedFiles':{p:sha(p) for p in TRACKED},'checks':{}}
+ report={'documentType':'org.upp.github-platform-module-smoke','schemaVersion':1,'host':{'os':platform.system(),'release':platform.release(),'architecture':platform.machine()},'physicalOutputsArmed':False,'physicalHardwareQualified':False,'trackedFiles':verify_snapshot(),'checks':{}}
  if platform.system()=='Windows': report['checks']['windowsNamedPipe']=windows_pipe()
  elif platform.system()=='Darwin': report['checks']['macosAudioEvidence']=mac_audio()
  else: report['checks']['linuxImportReference']={'qualified':True}
