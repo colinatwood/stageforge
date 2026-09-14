@@ -10,6 +10,7 @@ struct DeviceSnapshot {
     unsigned midi_endpoint_count = 0;
     bool default_input_present = false;
     bool default_output_present = false;
+    bool stable_audio_identity_api_compiled = false;
     std::vector<DeviceRecord> devices;
 };
 
