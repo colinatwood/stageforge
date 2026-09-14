@@ -33,6 +33,8 @@ try:
                 raise RuntimeError(f"missing live endpoint check: {key}")
         if checks["callbacks"] < 16 or checks["frames"] <= 0:
             raise RuntimeError("insufficient live callback evidence")
+        if platform.system() == "Darwin" and checks.get("nativeTopologyStoppedStream") is not True:
+            raise RuntimeError("native software topology did not stop active stream")
     elif any(checks[k] for k in ["nativeCallbacksObserved", "nativeStopDrained", "explicitRestartObserved", "callbacks", "frames"]):
         raise RuntimeError("live I/O claim without endpoint")
     report["status"] = "passed"

@@ -6,6 +6,10 @@
 #include <iostream>
 #include <stdexcept>
 #include <thread>
+#ifdef __APPLE__
+#include <CoreAudio/CoreAudio.h>
+#include <unistd.h>
+#endif
 
 using namespace stageforge;
 namespace {
@@ -24,6 +28,21 @@ void collect(NativePlaybackStream& stream, const DeviceExecutionFence& fence) {
     }
     require(stream.stats().callbacks >= begin + 8, "native endpoint did not deliver callbacks");
 }
+#ifdef __APPLE__
+struct TopologyFixture {
+    AudioDeviceID device = kAudioObjectUnknown;
+    TopologyFixture() {
+        auto uid = CFStringCreateWithFormat(nullptr, nullptr, CFSTR("org.stageforge.playback-event.%d"), getpid());
+        auto description = CFDictionaryCreateMutable(nullptr, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+        CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceNameKey), CFSTR("StageForge Playback Event"));
+        CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceUIDKey), uid);
+        auto status = AudioHardwareCreateAggregateDevice(description, &device);
+        CFRelease(description); CFRelease(uid);
+        require(status == noErr && device != kAudioObjectUnknown, "native topology fixture failed");
+    }
+    ~TopologyFixture() { if (device != kAudioObjectUnknown && AudioHardwareDestroyAggregateDevice(device) != noErr) std::terminate(); }
+};
+#endif
 }
 int main() {
     try {
@@ -49,7 +68,7 @@ int main() {
         other.join(); require(wrong_thread, "owner-thread contract not enforced");
 
         const auto capabilities = probe_default_audio_endpoint(AudioDirection::Playback);
-        bool live = false, stopped = false, restarted = false, config_rejected = false;
+        bool live = false, stopped = false, restarted = false, config_rejected = false, native_event_stopped = false;
         std::uint64_t callbacks = 0, frames = 0;
         if (capabilities.endpoint_present) {
             const char* allowed = std::getenv("STAGEFORGE_ALLOW_SILENT_ENDPOINT_TEST");
@@ -89,6 +108,22 @@ int main() {
             require(fence.explicit_rearm(monitor.snapshot().devices), "explicit rearm failed");
             require(endpoint.prepare(request, fence) && endpoint.start(fence), "native rearm/start failed");
             collect(endpoint, fence); restarted = true;
+#ifdef __APPLE__
+            {
+                // Real software topology notification while the pinned output is
+                // active. This tests conservative invalidation, not physical loss.
+                TopologyFixture topology;
+                auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+                while (endpoint.stats().native_running && std::chrono::steady_clock::now() < deadline) {
+                    CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, true);
+                    endpoint.service(fence);
+                }
+                require(!endpoint.stats().native_running && !endpoint.stats().lifecycle.callback_execution_allowed,
+                        "native topology notification did not stop playback");
+                require(!endpoint.prepare(request, fence), "native invalidation accepted stale armed fence");
+                native_event_stopped = true;
+            }
+#endif
             endpoint.close(); endpoint.close();
             callbacks = endpoint.stats().callbacks; frames = endpoint.stats().frames;
             count = context.calls.load();
@@ -100,6 +135,7 @@ int main() {
             "\"ownerThreadEnforced\":true,\"endpointPresent\":" << capabilities.endpoint_present
             << ",\"nativeCallbacksObserved\":" << live << ",\"nativeStopDrained\":" << stopped
             << ",\"explicitRestartObserved\":" << restarted << ",\"nonExactConfigurationRejected\":" << config_rejected
+            << ",\"nativeTopologyStoppedStream\":" << native_event_stopped
             << ",\"callbacks\":" << callbacks << ",\"frames\":" << frames
             << ",\"manuallyDrivenAudioUnitRender\":false,\"silentTestOnly\":true,\"physicalHardwareQualified\":false}\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
