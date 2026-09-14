@@ -54,7 +54,7 @@ int main() {
         if (capabilities.endpoint_present) {
             const char* allowed = std::getenv("STAGEFORGE_ALLOW_SILENT_ENDPOINT_TEST");
             if (!allowed || std::string(allowed) != "1") throw std::runtime_error("silent endpoint test requires explicit environment opt-in");
-            DeviceMonitor monitor; auto snapshot = monitor.snapshot();
+            DeviceMonitor monitor; monitor.start(); auto snapshot = monitor.snapshot();
             DeviceRecord selected; unsigned matches = 0;
             for (const auto& record : snapshot.devices) {
 #ifdef _WIN32
@@ -104,3 +104,4 @@ int main() {
             << ",\"manuallyDrivenAudioUnitRender\":false,\"silentTestOnly\":true,\"physicalHardwareQualified\":false}\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }
+
