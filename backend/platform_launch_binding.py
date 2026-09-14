@@ -27,75 +27,46 @@ class PlatformLaunchBindingError(RuntimeError):
 
 
 def _sha256_stream(stream) -> str:
-    digest = hashlib.sha256()
+    digest=hashlib.sha256()
     while True:
-        block = stream.read(1024 * 1024)
-        if not block:
-            break
+        block=stream.read(1024*1024)
+        if not block:break
         digest.update(block)
     return digest.hexdigest()
 
 
-def _require_absolute_executable(path: Path) -> Path:
-    path = Path(path)
-    if not path.is_absolute() or not path.is_file():
-        raise PlatformLaunchBindingError("adapter executable must be an absolute regular file")
+def _require_absolute_executable(path:Path)->Path:
+    path=Path(path)
+    if not path.is_absolute() or not path.is_file():raise PlatformLaunchBindingError("adapter executable must be an absolute regular file")
     return path
 
 
 @dataclass
 class BoundProcess:
-    pid: int
-    _popen: subprocess.Popen
-    _cleanup: tempfile.TemporaryDirectory | None = None
-
-    def wait(self, timeout: float | None = None) -> int:
-        result = int(self._popen.wait(timeout=timeout))
-        if self._cleanup is not None:
-            self._cleanup.cleanup()
-            self._cleanup = None
+    pid:int
+    _popen:subprocess.Popen
+    _cleanup:tempfile.TemporaryDirectory|None=None
+    def wait(self,timeout:float|None=None)->int:
+        result=int(self._popen.wait(timeout=timeout))
+        if self._cleanup is not None:self._cleanup.cleanup();self._cleanup=None
         return result
-
-    def terminate(self) -> None:
-        self._popen.terminate()
+    def terminate(self)->None:self._popen.terminate()
 
 
-def _windows_authenticode_evidence(path: Path) -> dict:
-    escaped = str(path).replace("'", "''")
-    script = (
-        f"$p='{escaped}'; $s=Get-AuthenticodeSignature -LiteralPath $p; "
-        "$h=$null; if($s.SignerCertificate){"
-        "$sha=[Security.Cryptography.SHA256]::Create(); try {"
-        "$h=([BitConverter]::ToString($sha.ComputeHash($s.SignerCertificate.RawData))).Replace('-','').ToLowerInvariant()"
-        "} finally {$sha.Dispose()}}; "
-        "[pscustomobject]@{Status=[string]$s.Status; CertificateSha256=$h; Subject=[string]$s.SignerCertificate.Subject} | ConvertTo-Json -Compress"
-    )
-    completed = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        text=True, encoding="utf-8", errors="replace",
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False,
-    )
-    if completed.returncode != 0:
-        raise PlatformLaunchBindingError(f"Authenticode verification command failed: {completed.stderr.strip()[:256]}")
-    try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise PlatformLaunchBindingError("Authenticode verification returned malformed JSON") from exc
-    return {
-        "signatureStatus": str(payload.get("Status") or ""),
-        "publisherCertificateSha256": str(payload.get("CertificateSha256") or "").lower(),
-        "subject": str(payload.get("Subject") or "")[:256],
-    }
+def _windows_authenticode_evidence(path:Path)->dict:
+    escaped=str(path).replace("'","''")
+    script=(f"$p='{escaped}'; $s=Get-AuthenticodeSignature -LiteralPath $p; "$h="$h=$null; if($s.SignerCertificate){$sha=[Security.Cryptography.SHA256]::Create(); try {$h=([BitConverter]::ToString($sha.ComputeHash($s.SignerCertificate.RawData))).Replace('-','').ToLowerInvariant()} finally {$sha.Dispose()}}; [pscustomobject]@{Status=[string]$s.Status; CertificateSha256=$h; Subject=[string]$s.SignerCertificate.Subject} | ConvertTo-Json -Compress")
+    completed=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive","-Command",script],text=True,encoding="utf-8",errors="replace",stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=20,check=False)
+    if completed.returncode!=0:raise PlatformLaunchBindingError(f"Authenticode verification command failed: {completed.stderr.strip()[:256]}")
+    try:payload=json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:raise PlatformLaunchBindingError("Authenticode verification returned malformed JSON") from exc
+    return {"signatureStatus":str(payload.get("Status") or ""),"publisherCertificateSha256":str(payload.get("CertificateSha256") or "").lower(),"subject":str(payload.get("Subject") or "")[:256]}
 
 
-def windows_verify_and_launch(executable: Path, argv: Sequence[str] = (), *, expected_adapter_sha256: str | None = None, expected_publisher_certificate_sha256: str | None = None, env: Mapping[str, str] | None = None) -> tuple[BoundProcess, dict]:
-    if os.name != "nt":
-        raise PlatformLaunchBindingError("Windows launch binding is unavailable on this platform")
-    path = _require_absolute_executable(executable)
-    kernel32 = ctypes.windll.kernel32
-    GENERIC_READ=0x80000000; FILE_SHARE_READ=0x1; OPEN_EXISTING=3; FILE_ATTRIBUTE_NORMAL=0x80
-    INVALID_HANDLE_VALUE=ctypes.c_void_p(-1).value
-
+def windows_verify_and_launch(executable:Path,argv:Sequence[str]=(),*,expected_adapter_sha256:str|None=None,expected_publisher_certificate_sha256:str|None=None,env:Mapping[str,str]|None=None)->tuple[BoundProcess,dict]:
+    if os.name!="nt":raise PlatformLaunchBindingError("Windows launch binding is unavailable on this platform")
+    path=_require_absolute_executable(executable);kernel32=ctypes.windll.kernel32
+    GENERIC_READ=0x80000000;FILE_SHARE_READ=0x1;OPEN_EXISTING=3;FILE_ATTRIBUTE_NORMAL=0x80;INVALID_HANDLE_VALUE=ctypes.c_void_p(-1).value
     class BY_HANDLE_FILE_INFORMATION(ctypes.Structure):
         _fields_=[("dwFileAttributes",ctypes.c_ulong),("ftCreationTimeLow",ctypes.c_ulong),("ftCreationTimeHigh",ctypes.c_ulong),("ftLastAccessTimeLow",ctypes.c_ulong),("ftLastAccessTimeHigh",ctypes.c_ulong),("ftLastWriteTimeLow",ctypes.c_ulong),("ftLastWriteTimeHigh",ctypes.c_ulong),("dwVolumeSerialNumber",ctypes.c_ulong),("nFileSizeHigh",ctypes.c_ulong),("nFileSizeLow",ctypes.c_ulong),("nNumberOfLinks",ctypes.c_ulong),("nFileIndexHigh",ctypes.c_ulong),("nFileIndexLow",ctypes.c_ulong)]
     kernel32.CreateFileW.argtypes=[ctypes.c_wchar_p,ctypes.c_ulong,ctypes.c_ulong,ctypes.c_void_p,ctypes.c_ulong,ctypes.c_ulong,ctypes.c_void_p];kernel32.CreateFileW.restype=ctypes.c_void_p
@@ -113,16 +84,14 @@ def windows_verify_and_launch(executable: Path, argv: Sequence[str] = (), *, exp
         if expected_publisher_certificate_sha256:
             expected=expected_publisher_certificate_sha256.removeprefix("sha256:").lower()
             if signature["publisherCertificateSha256"]!=expected:raise PlatformLaunchBindingError("adapter publisher certificate mismatch")
-        file_id=(int(info.nFileIndexHigh)<<32)|int(info.nFileIndexLow)
-        process=subprocess.Popen([str(path),*map(str,argv)],env=dict(env) if env is not None else None)
+        file_id=(int(info.nFileIndexHigh)<<32)|int(info.nFileIndexLow);process=subprocess.Popen([str(path),*map(str,argv)],env=dict(env) if env is not None else None)
         evidence={"binding":"windows-authenticode-fileid-lock-v1","adapterSha256":"sha256:"+digest,"publisherCertificateSha256":"sha256:"+signature["publisherCertificateSha256"],"signatureStatus":signature["signatureStatus"],"volumeSerial":f"{int(info.dwVolumeSerialNumber):08x}","fileId":f"{file_id:016x}","pid":int(process.pid),"physicalOutputsArmed":False}
         return BoundProcess(int(process.pid),process),evidence
     finally:kernel32.CloseHandle(ctypes.c_void_p(handle))
 
 
-def _codesign_evidence(path: Path) -> dict:
-    completed=subprocess.run(["/usr/bin/codesign","-dvvv","--strict",str(path)],text=True,encoding="utf-8",errors="replace",stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=20,check=False)
-    text=completed.stdout
+def _codesign_evidence(path:Path)->dict:
+    completed=subprocess.run(["/usr/bin/codesign","-dvvv","--strict",str(path)],text=True,encoding="utf-8",errors="replace",stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=20,check=False);text=completed.stdout
     if completed.returncode!=0:raise PlatformLaunchBindingError("macOS code signature verification failed")
     team=re.search(r"^TeamIdentifier=(.+)$",text,re.M);cdhash=re.search(r"^CDHash=([0-9A-Fa-f]+)$",text,re.M)
     if not cdhash:raise PlatformLaunchBindingError("macOS code signature did not expose a CDHash")
@@ -131,18 +100,16 @@ def _codesign_evidence(path: Path) -> dict:
     return {"teamId":team_id,"codeDirectoryHash":cdhash.group(1).lower(),"raw":text[:1024]}
 
 
-def macos_verify_and_launch(executable: Path, argv: Sequence[str] = (), *, expected_adapter_sha256: str | None = None, expected_team_id: str | None = None, expected_code_directory_hash: str | None = None, env: Mapping[str, str] | None = None) -> tuple[BoundProcess, dict]:
+def macos_verify_and_launch(executable:Path,argv:Sequence[str]=(),*,expected_adapter_sha256:str|None=None,expected_team_id:str|None=None,expected_code_directory_hash:str|None=None,env:Mapping[str,str]|None=None)->tuple[BoundProcess,dict]:
     if os.uname().sysname!="Darwin":raise PlatformLaunchBindingError("macOS launch binding is unavailable on this platform")
-    path=_require_absolute_executable(executable)
-    flags=os.O_RDONLY|getattr(os,"O_CLOEXEC",0)|getattr(os,"O_NOFOLLOW",0);fd=os.open(path,flags);temp_dir=None
+    path=_require_absolute_executable(executable);flags=os.O_RDONLY|getattr(os,"O_CLOEXEC",0)|getattr(os,"O_NOFOLLOW",0);fd=os.open(path,flags);temp_dir=None
     try:
         info=os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or not (info.st_mode&0o111):raise PlatformLaunchBindingError("adapter executable is not a regular executable file")
+        if not stat.S_ISREG(info.st_mode) or not(info.st_mode&0o111):raise PlatformLaunchBindingError("adapter executable is not a regular executable file")
         duplicate=os.dup(fd)
         with os.fdopen(duplicate,"rb",closefd=True) as stream:digest=_sha256_stream(stream)
         if expected_adapter_sha256 and digest.lower()!=expected_adapter_sha256.removeprefix("sha256:").lower():raise PlatformLaunchBindingError("adapter SHA-256 mismatch")
-        os.lseek(fd,0,os.SEEK_SET)
-        temp_dir=tempfile.TemporaryDirectory(prefix="stageforge-launch-");staged=Path(temp_dir.name)/"adapter"
+        os.lseek(fd,0,os.SEEK_SET);temp_dir=tempfile.TemporaryDirectory(prefix="stageforge-launch-");staged=Path(temp_dir.name)/path.name
         read_fd=os.dup(fd)
         with os.fdopen(read_fd,"rb",closefd=True) as source,staged.open("wb") as target:shutil.copyfileobj(source,target,length=1024*1024)
         staged.chmod(0o700)
@@ -156,7 +123,7 @@ def macos_verify_and_launch(executable: Path, argv: Sequence[str] = (), *, expec
             wanted_hash=expected_code_directory_hash.removeprefix("cdhash:").lower()
             if not _CDHASH.fullmatch(wanted_hash) or signature["codeDirectoryHash"]!=wanted_hash:raise PlatformLaunchBindingError("adapter macOS code directory hash mismatch")
         process=subprocess.Popen([str(staged),*map(str,argv)],env=dict(env) if env is not None else None)
-        evidence={"binding":"macos-codesign-private-copy-v1","adapterSha256":"sha256:"+digest,"teamId":signature["teamId"],"codeDirectoryHash":"cdhash:"+signature["codeDirectoryHash"],"fileId":f"{int(info.st_dev):x}:{int(info.st_ino):x}","privateStagedCopyVerified":True,"pid":int(process.pid),"physicalOutputsArmed":False}
+        evidence={"binding":"macos-codesign-private-copy-v1","adapterSha256":"sha256:"+digest,"teamId":signature["teamId"],"codeDirectoryHash":"cdhash:"+signature["codeDirectoryHash"],"fileId":f"{int(info.st_dev):x}:{int(info.st_ino):x}","privateStagedCopyVerified":True,"stagedBasename":staged.name,"pid":int(process.pid),"physicalOutputsArmed":False}
         bound=BoundProcess(int(process.pid),process,temp_dir);temp_dir=None;return bound,evidence
     finally:
         os.close(fd)
