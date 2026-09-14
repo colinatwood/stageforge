@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(STAGEFORGE_DEVICE_ASAN "Enable AddressSanitizer for device lifecycle tests" OFF)
 
-add_library(stageforge_devices device_monitor.cpp device_identity.cpp)
+add_library(stageforge_devices device_monitor.cpp device_identity.cpp device_execution_fence.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
