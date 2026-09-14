@@ -61,7 +61,11 @@ def verify_snapshot() -> dict:
 
 def windows_pipe() -> dict:
     from multiprocessing.connection import Client
-    from local_ipc import WindowsNamedPipeIpcServer
+    from local_ipc import (
+        WindowsNamedPipeIpcServer,
+        decode_transport_packet,
+        encode_transport_packet,
+    )
     from session_channel import AuthenticatedSessionChannel
     import csv
 
@@ -129,8 +133,8 @@ def windows_pipe() -> dict:
         send_direction="client",
         receive_direction="server",
     )
-    conn.send_bytes(client.encode(7, b"ping"))
-    decoded = client.decode(conn.recv_bytes())
+    conn.send_bytes(encode_transport_packet(client.encode(7, b"ping")))
+    decoded = client.decode(decode_transport_packet(conn.recv_bytes()))
     conn.close()
     thread.join(10)
     server.close()
