@@ -167,6 +167,17 @@ int main() {
         monitor.start();
         snapshot = monitor.snapshot();
         auto counts = identity_counts(snapshot);
+        require(snapshot.native_midi_enumeration_available && snapshot.midi_notifications_registered,
+                "native MIDI discovery/notifications unavailable");
+        unsigned midi_records = 0;
+        for (const auto& record : snapshot.devices) if (record.kind == DeviceKind::Midi) {
+            ++midi_records;
+#ifdef _WIN32
+            require(!record.automatic_reconnect && record.identity_strength != IdentityStrength::OsStableEndpoint,
+                    "WinMM legacy identity incorrectly permits automatic reconnect");
+#endif
+        }
+        require(midi_records == snapshot.midi_endpoint_count, "MIDI enumeration count mismatch");
 #ifdef __APPLE__
         auto mac = exercise_macos_events(monitor);
         require(mac.coreaudio_notification, "CoreAudio notification delivery not observed");
@@ -184,6 +195,8 @@ int main() {
         std::cout << std::boolalpha << "{\"cycles\":25,\"activeDestructionPassed\":true,"
             << "\"inactiveSnapshotRejected\":true,\"wrongThreadRejected\":true,\"deviceCount\":" << snapshot.device_count
             << ",\"midiEndpointCount\":" << snapshot.midi_endpoint_count
+            << ",\"nativeMidiEnumerationAvailable\":" << snapshot.native_midi_enumeration_available
+            << ",\"midiNotificationsRegistered\":" << snapshot.midi_notifications_registered
             << ",\"stableIdentityApiCompiled\":" << snapshot.stable_audio_identity_api_compiled
             << ",\"stableIdentityCount\":" << counts.first << ",\"weakIdentityCount\":" << counts.second
             << ",\"identityReconciliationQualified\":true"

@@ -11,6 +11,9 @@
 #include <propsys.h>
 #include <propvarutil.h>
 #include <wrl/client.h>
+#include <mmsystem.h>
+#include <mmddk.h>
+#include <cfgmgr32.h>
 #ifndef STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID
 #define STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID 0
 #endif
@@ -58,6 +61,55 @@ private:
     HRESULT changed() { topology_revision.fetch_add(1, std::memory_order_relaxed); return S_OK; }
 };
 Notifications notifications;
+DWORD CALLBACK pnp_changed(HCMNOTIFICATION, PVOID, CM_NOTIFY_ACTION, PCM_NOTIFY_EVENT_DATA, DWORD) {
+    topology_revision.fetch_add(1, std::memory_order_relaxed); return ERROR_SUCCESS;
+}
+
+DeviceRecord windows_midi_record(UINT index, bool input) {
+    const auto message = [&](UINT msg, DWORD_PTR first, DWORD_PTR second) {
+        return input ? midiInMessage(reinterpret_cast<HMIDIIN>(static_cast<UINT_PTR>(index)), msg, first, second)
+                     : midiOutMessage(reinterpret_cast<HMIDIOUT>(static_cast<UINT_PTR>(index)), msg, first, second);
+    };
+    std::string caps_material;
+    if (input) {
+        MIDIINCAPSW caps{};
+        if (midiInGetDevCapsW(index, &caps, sizeof(caps)) != MMSYSERR_NOERROR)
+            throw std::runtime_error("MIDI input changed during snapshot");
+        caps.szPname[MAXPNAMELEN - 1] = L'\0';
+        caps_material = std::to_string(caps.wMid) + ":" + std::to_string(caps.wPid) + ":" + utf8(caps.szPname);
+    } else {
+        MIDIOUTCAPSW caps{};
+        if (midiOutGetDevCapsW(index, &caps, sizeof(caps)) != MMSYSERR_NOERROR)
+            throw std::runtime_error("MIDI output changed during snapshot");
+        caps.szPname[MAXPNAMELEN - 1] = L'\0';
+        caps_material = std::to_string(caps.wMid) + ":" + std::to_string(caps.wPid) + ":" + utf8(caps.szPname);
+    }
+    ULONG bytes = 0;
+    std::string interface_name;
+    if (message(DRV_QUERYDEVICEINTERFACESIZE, reinterpret_cast<DWORD_PTR>(&bytes), 0) == MMSYSERR_NOERROR &&
+        bytes >= sizeof(wchar_t) && bytes <= 65536 && bytes % sizeof(wchar_t) == 0) {
+        std::vector<wchar_t> buffer(bytes / sizeof(wchar_t), L'\0');
+        if (message(DRV_QUERYDEVICEINTERFACE, reinterpret_cast<DWORD_PTR>(buffer.data()), bytes) == MMSYSERR_NOERROR &&
+            buffer.back() == L'\0') interface_name = utf8(buffer.data());
+    }
+    const std::string direction = input ? ":input:" : ":output:";
+    DeviceRecord record;
+    record.kind = DeviceKind::Midi; record.input = input; record.output = !input;
+    if (!interface_name.empty()) {
+        record.native_hash = sha256_token("winmm-native" + direction + interface_name + ":" + std::to_string(index));
+        record.persistent_hash = sha256_token("winmm-installation" + direction + interface_name);
+        record.identity_strength = IdentityStrength::InstallationSnapshot;
+    } else {
+        // Legacy index/name is not a persistence-grade identity. Any notified
+        // topology change invalidates this fallback, even if the index is reused.
+        record.native_hash = sha256_token("winmm-volatile" + direction + caps_material + ":" + std::to_string(index) +
+            ":" + std::to_string(topology_revision.load(std::memory_order_relaxed)));
+        record.persistent_hash = record.native_hash;
+        record.identity_strength = IdentityStrength::Volatile;
+    }
+    record.automatic_reconnect = false;
+    return record;
+}
 
 DeviceRecord windows_record(IMMDevice* device) {
     LPWSTR raw_id = nullptr;
@@ -197,6 +249,8 @@ struct DeviceMonitor::Impl {
     }
 #ifdef _WIN32
     Microsoft::WRL::ComPtr<IMMDeviceEnumerator> enumerator;
+    HCMNOTIFICATION midi_notification = nullptr;
+    bool audio_registered = false;
     Impl() {
         checked(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "CoInitializeEx");
         try {
@@ -221,7 +275,17 @@ void DeviceMonitor::start() {
     impl_->check_thread();
     if (impl_->active) return;
 #ifdef _WIN32
-    checked(impl_->enumerator->RegisterEndpointNotificationCallback(&notifications), "register notifications");
+    try {
+        checked(impl_->enumerator->RegisterEndpointNotificationCallback(&notifications), "register notifications");
+        impl_->audio_registered = true;
+        CM_NOTIFY_FILTER filter{};
+        filter.cbSize = sizeof(filter); filter.FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE;
+        // All interface classes avoids missing vendor-specific MIDI interfaces.
+        // Callback only invalidates snapshots; it never opens a device.
+        filter.Flags = CM_NOTIFY_FILTER_FLAG_ALL_INTERFACE_CLASSES;
+        auto status = CM_Register_Notification(&filter, nullptr, pnp_changed, &impl_->midi_notification);
+        if (status != CR_SUCCESS) throw std::runtime_error("register MIDI PnP notifications: " + std::to_string(status));
+    } catch (...) { stop(); throw; }
 #else
     try {
         for (; impl_->registered < 3; ++impl_->registered)
@@ -235,8 +299,15 @@ void DeviceMonitor::start() {
 void DeviceMonitor::stop() {
     impl_->check_thread();
 #ifdef _WIN32
-    if (impl_->active)
+    if (impl_->midi_notification) {
+        auto status = CM_Unregister_Notification(impl_->midi_notification);
+        if (status != CR_SUCCESS) throw std::runtime_error("unregister MIDI PnP notifications: " + std::to_string(status));
+        impl_->midi_notification = nullptr;
+    }
+    if (impl_->audio_registered) {
         checked(impl_->enumerator->UnregisterEndpointNotificationCallback(&notifications), "unregister notifications");
+        impl_->audio_registered = false;
+    }
 #else
     if (impl_->active) midi_subscribers.fetch_sub(1, std::memory_order_relaxed);
     while (impl_->registered) {
@@ -270,6 +341,16 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
     };
     result.default_input_present = has_default(eCapture);
     result.default_output_present = has_default(eRender);
+    result.native_midi_enumeration_available = true;
+    result.midi_notifications_registered = impl_->midi_notification != nullptr;
+    const auto revision_before = topology_revision.load(std::memory_order_relaxed);
+    const UINT inputs = midiInGetNumDevs(), outputs = midiOutGetNumDevs();
+    for (UINT i = 0; i < inputs; ++i) result.devices.push_back(windows_midi_record(i, true));
+    for (UINT i = 0; i < outputs; ++i) result.devices.push_back(windows_midi_record(i, false));
+    if (inputs != midiInGetNumDevs() || outputs != midiOutGetNumDevs() ||
+        revision_before != topology_revision.load(std::memory_order_relaxed))
+        throw std::runtime_error("MIDI topology changed during snapshot; refresh required");
+    result.midi_endpoint_count = inputs + outputs;
 #else
     result.stable_audio_identity_api_compiled = true;
     std::vector<AudioDeviceID> audio_devices;
@@ -296,6 +377,8 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
     const auto sources = MIDIGetNumberOfSources();
     const auto destinations = MIDIGetNumberOfDestinations();
     result.midi_endpoint_count = static_cast<unsigned>(sources + destinations);
+    result.native_midi_enumeration_available = true;
+    result.midi_notifications_registered = impl_->midi_client != 0;
     for (ItemCount i=0;i<sources;++i) {
         auto endpoint = MIDIGetSource(i);
         if (endpoint) result.devices.push_back(coremidi_record(endpoint, true, false));

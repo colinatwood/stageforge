@@ -28,6 +28,8 @@ try:
     run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=30, check=True)
     checks = json.loads(run.stdout)
     report["nativeChecks"] = checks
+    if not checks.get("nativeMidiEnumerationAvailable") or not checks.get("midiNotificationsRegistered"):
+        raise RuntimeError("Native MIDI enumeration and notification registration are required")
     report["persistentIdentityReconciliationQualified"] = checks.get("identityReconciliationQualified") is True
     if platform.system() == "Darwin":
         report["nativeSoftwareEventDeliveryQualified"] = (
