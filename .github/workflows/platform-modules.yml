@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   platform-smoke:
-    name: ${{ matrix.name }} checkpoint-69 module smoke
+    name: ${{ matrix.name }} platform smoke
     strategy:
       fail-fast: false
       matrix:
@@ -24,20 +24,26 @@ jobs:
             name: macOS Apple Silicon
             artifact: stageforge-module-macos
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Run exact checkpoint module smoke
+      - name: Run exact platform module smoke
         shell: bash
         env:
           STAGEFORGE_CI_EVIDENCE: platform-module-smoke.json
         run: python ci/platform_snapshot_smoke.py
+      - name: Run Windows SCM lifecycle smoke
+        if: runner.os == 'Windows'
+        shell: bash
+        run: python ci/windows_service_smoke.py --evidence windows-service-smoke.json
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: platform-module-smoke.json
+          path: |
+            platform-module-smoke.json
+            windows-service-smoke.json
           if-no-files-found: error
           retention-days: 30
