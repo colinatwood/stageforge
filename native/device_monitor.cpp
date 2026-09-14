@@ -11,6 +11,9 @@
 #include <propsys.h>
 #include <propvarutil.h>
 #include <wrl/client.h>
+#ifndef STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID
+#define STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID 0
+#endif
 #else
 #include <CoreAudio/CoreAudio.h>
 #include <CoreMIDI/CoreMIDI.h>
@@ -71,6 +74,7 @@ DeviceRecord windows_record(IMMDevice* device) {
 
     std::string persistent_material;
     bool stable = false;
+#if STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID
     Microsoft::WRL::ComPtr<IPropertyStore> store;
     if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, store.GetAddressOf()))) {
         PROPVARIANT value;
@@ -81,6 +85,7 @@ DeviceRecord windows_record(IMMDevice* device) {
         }
         PropVariantClear(&value);
     }
+#endif
     if (persistent_material.empty()) persistent_material = native_material;
 
     DeviceRecord record;
@@ -248,6 +253,7 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
     if (!impl_->active) throw std::logic_error("snapshot requires an active monitor");
     DeviceSnapshot result{};
 #ifdef _WIN32
+    result.stable_audio_identity_api_compiled = STAGEFORGE_HAS_AUDIOENDPOINT_STABLEID != 0;
     Microsoft::WRL::ComPtr<IMMDeviceCollection> devices;
     checked(impl_->enumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE, devices.GetAddressOf()), "enumerate endpoints");
     checked(devices->GetCount(&result.device_count), "endpoint count");
@@ -265,6 +271,7 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
     result.default_input_present = has_default(eCapture);
     result.default_output_present = has_default(eRender);
 #else
+    result.stable_audio_identity_api_compiled = true;
     std::vector<AudioDeviceID> audio_devices;
     for (unsigned attempt = 0; ; ++attempt) {
         UInt32 size = 0;
