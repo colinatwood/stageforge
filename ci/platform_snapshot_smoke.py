@@ -79,7 +79,6 @@ def current_windows_sid() -> str:
 
 def windows_unauthorized_denial() -> dict:
     import ctypes
-    from multiprocessing.connection import Client
     import windows_named_pipe as wnp
 
     name = rf"\\.\pipe\StageForge\CI-Deny-{uuid.uuid4().hex}"
@@ -106,20 +105,48 @@ def windows_unauthorized_denial() -> dict:
             raise RuntimeError(f"could not create denial-test pipe ({listener._api.last_error()})")
         wnp.attest_windows_pipe_dacl(int(handle), listener.policy, listener._api)
 
-        denied_error = None
+        child = (
+            "from multiprocessing.connection import Client\n"
+            "import sys\n"
+            "name=sys.argv[1]\n"
+            "try:\n"
+            "    c=Client(name,family='AF_PIPE')\n"
+            "except OSError as exc:\n"
+            "    code=getattr(exc,'winerror',None) or getattr(exc,'errno',None)\n"
+            "    print(code if code is not None else '')\n"
+            "    raise SystemExit(0 if code in (5,13) else 2)\n"
+            "else:\n"
+            "    c.close()\n"
+            "    raise SystemExit(3)\n"
+        )
         try:
-            connection = Client(name, family="AF_PIPE")
-        except OSError as exc:
-            denied_error = getattr(exc, "winerror", None) or getattr(exc, "errno", None)
-            if denied_error not in {5, 13}:
-                raise RuntimeError(f"unauthorized pipe client failed for unexpected reason: {exc}") from exc
-        else:
-            connection.close()
+            result = subprocess.run(
+                [sys.executable, "-c", child, name],
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=8,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("unauthorized Windows named-pipe denial probe timed out") from exc
+        if result.returncode == 3:
             raise RuntimeError("unauthorized Windows named-pipe client unexpectedly connected")
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"unauthorized pipe client failed for unexpected reason ({result.returncode}): {result.stdout.strip()}"
+            )
+        try:
+            denied_error = int(result.stdout.strip().splitlines()[-1])
+        except (ValueError, IndexError) as exc:
+            raise RuntimeError(f"unauthorized denial probe returned no error code: {result.stdout!r}") from exc
 
         return {
             "unauthorizedClientDenialQualified": True,
-            "denialErrorCode": int(denied_error),
+            "denialErrorCode": denied_error,
+            "probeBoundedSeconds": 8,
         }
     finally:
         if handle not in {None, wnp._INVALID_HANDLE_VALUE}:
@@ -239,8 +266,8 @@ def mac_audio() -> dict:
 def main() -> int:
     report = {
         "documentType": "org.upp.github-platform-module-smoke",
-        "schemaVersion": 3,
-        "provenanceCheckpoint": 70,
+        "schemaVersion": 4,
+        "provenanceCheckpoint": 71,
         "gitHubSource": {
             "sha": os.environ.get("GITHUB_SHA"),
             "headRef": os.environ.get("GITHUB_HEAD_REF"),
