@@ -1,0 +1,67 @@
+{
+  "documentType": "org.upp.audio-preflight-smoke",
+  "schemaVersion": 1,
+  "host": {
+    "os": "Windows",
+    "release": "10",
+    "architecture": "AMD64"
+  },
+  "sourceCommit": "c73884289b71ad8cdf0ce12e5e0f57fcaa170496",
+  "githubRunId": "34885284915",
+  "binarySha256": "ce71923703e824856751903be2abbea029d44742e0e84029a56a72caec4ab197",
+  "sourceSha256": {
+    "native\\audio_preflight.cpp": "1d5f80b932d0327984f17a232f49e2b9db16e3c12b9f869c430d85a7327c9423",
+    "native\\audio_preflight.h": "cd21099924576b2ed8ef33a337b1a38a445e2c19e948a5bb1eb0bc1621bb6489",
+    "native\\audio_preflight_smoke.cpp": "698fe024d90648d5202b3b5159d5bc8a72c5904d58561754e95d3a63c25618dd"
+  },
+  "preflightOnly": true,
+  "configurationApplied": false,
+  "physicalOutputsArmed": false,
+  "audioStreamingQualified": false,
+  "physicalHardwareQualified": false,
+  "status": "passed",
+  "nativeChecks": {
+    "syntheticExactQualified": true,
+    "syntheticExplicitAdaptationQualified": true,
+    "implicitConversionRejected": true,
+    "missingEndpointRejected": true,
+    "playback": {
+      "endpointPresent": false,
+      "backend": "wasapi",
+      "endpointIdentityHash": "",
+      "endpointIdentityStrong": false,
+      "nativeSampleRateHz": 0,
+      "defaultPeriodFrames": 0,
+      "minimumPeriodFrames": 0,
+      "maximumPeriodFrames": 0,
+      "channels": 0,
+      "clientFormat": "unknown",
+      "preflightStatus": "no-endpoint",
+      "exactHostPlanQualified": true
+    },
+    "capture": {
+      "endpointPresent": false,
+      "backend": "wasapi",
+      "endpointIdentityHash": "",
+      "endpointIdentityStrong": false,
+      "nativeSampleRateHz": 0,
+      "defaultPeriodFrames": 0,
+      "minimumPeriodFrames": 0,
+      "maximumPeriodFrames": 0,
+      "channels": 0,
+      "clientFormat": "unknown",
+      "preflightStatus": "no-endpoint",
+      "exactHostPlanQualified": true
+    },
+    "physicalOutputsArmed": false,
+    "audioStreamingQualified": false,
+    "physicalHardwareQualified": false
+  },
+  "preflightContractQualified": true,
+  "playbackEndpointObserved": false,
+  "captureEndpointObserved": false,
+  "playbackProbeQualified": true,
+  "captureProbeQualified": true,
+  "liveEndpointPreflightObserved": false,
+  "targetOsPreflightProbeQualified": true
+}
