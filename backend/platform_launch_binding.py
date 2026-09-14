@@ -13,13 +13,11 @@ import re
 import shutil
 import stat
 import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
-_SHA256 = re.compile(r"^[0-9a-f]{64}$", re.I)
 _CDHASH = re.compile(r"^[0-9a-f]{40,64}$", re.I)
 _TEAM = re.compile(r"^[A-Z0-9]{6,64}$")
 
@@ -48,28 +46,18 @@ def _require_absolute_executable(path: Path) -> Path:
 @dataclass
 class BoundProcess:
     pid: int
-    _popen: subprocess.Popen | None = None
+    _popen: subprocess.Popen
+    _cleanup: tempfile.TemporaryDirectory | None = None
 
     def wait(self, timeout: float | None = None) -> int:
-        if self._popen is not None:
-            return int(self._popen.wait(timeout=timeout))
-        if timeout is None:
-            _, status = os.waitpid(self.pid, 0)
-            return int(os.waitstatus_to_exitcode(status))
-        import time
-        deadline = time.monotonic() + float(timeout)
-        while time.monotonic() < deadline:
-            result, status = os.waitpid(self.pid, os.WNOHANG)
-            if result == self.pid:
-                return int(os.waitstatus_to_exitcode(status))
-            time.sleep(0.02)
-        raise subprocess.TimeoutExpired(str(self.pid), timeout)
+        result = int(self._popen.wait(timeout=timeout))
+        if self._cleanup is not None:
+            self._cleanup.cleanup()
+            self._cleanup = None
+        return result
 
     def terminate(self) -> None:
-        if self._popen is not None:
-            self._popen.terminate()
-        else:
-            os.kill(self.pid, 15)
+        self._popen.terminate()
 
 
 def _windows_authenticode_evidence(path: Path) -> dict:
@@ -84,13 +72,8 @@ def _windows_authenticode_evidence(path: Path) -> dict:
     )
     completed = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        timeout=20,
-        check=False,
+        text=True, encoding="utf-8", errors="replace",
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20, check=False,
     )
     if completed.returncode != 0:
         raise PlatformLaunchBindingError(f"Authenticode verification command failed: {completed.stderr.strip()[:256]}")
@@ -180,13 +163,8 @@ def windows_verify_and_launch(
 def _codesign_evidence(path: Path) -> dict:
     completed = subprocess.run(
         ["/usr/bin/codesign", "-dvvv", "--strict", str(path)],
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=20,
-        check=False,
+        text=True, encoding="utf-8", errors="replace",
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20, check=False,
     )
     text = completed.stdout
     if completed.returncode != 0:
@@ -195,7 +173,9 @@ def _codesign_evidence(path: Path) -> dict:
     cdhash = re.search(r"^CDHash=([0-9A-Fa-f]+)$", text, re.M)
     if not cdhash:
         raise PlatformLaunchBindingError("macOS code signature did not expose a CDHash")
-    team_id = (team.group(1).strip().upper() if team else "")
+    team_id = team.group(1).strip().upper() if team else ""
+    if team_id.lower() == "not set":
+        team_id = ""
     return {"teamId": team_id, "codeDirectoryHash": cdhash.group(1).lower(), "raw": text[:1024]}
 
 
@@ -208,36 +188,33 @@ def macos_verify_and_launch(
     expected_code_directory_hash: str | None = None,
     env: Mapping[str, str] | None = None,
 ) -> tuple[BoundProcess, dict]:
-    if sys.platform != "darwin":
+    if os.uname().sysname != "Darwin":
         raise PlatformLaunchBindingError("macOS launch binding is unavailable on this platform")
-    if not hasattr(os, "fexecve"):
-        raise PlatformLaunchBindingError("macOS Python runtime does not expose fexecve")
     path = _require_absolute_executable(executable)
     flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(path, flags)
+    temp_dir: tempfile.TemporaryDirectory | None = None
     try:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode) or not (info.st_mode & 0o111):
             raise PlatformLaunchBindingError("adapter executable is not a regular executable file")
         duplicate = os.dup(fd)
-        try:
-            with os.fdopen(duplicate, "rb", closefd=True) as stream:
-                digest = _sha256_stream(stream)
-        finally:
-            duplicate = -1
+        with os.fdopen(duplicate, "rb", closefd=True) as stream:
+            digest = _sha256_stream(stream)
         if expected_adapter_sha256 and digest.lower() != expected_adapter_sha256.removeprefix("sha256:").lower():
             raise PlatformLaunchBindingError("adapter SHA-256 mismatch")
 
-        with tempfile.TemporaryDirectory(prefix="stageforge-codesign-") as temp_dir:
-            copy_path = Path(temp_dir) / "adapter"
-            read_fd = os.dup(fd)
-            try:
-                with os.fdopen(read_fd, "rb", closefd=True) as source, copy_path.open("wb") as target:
-                    shutil.copyfileobj(source, target, length=1024 * 1024)
-            finally:
-                read_fd = -1
-            copy_path.chmod(0o700)
-            signature = _codesign_evidence(copy_path)
+        temp_dir = tempfile.TemporaryDirectory(prefix="stageforge-launch-")
+        staged = Path(temp_dir.name) / "adapter"
+        read_fd = os.dup(fd)
+        with os.fdopen(read_fd, "rb", closefd=True) as source, staged.open("wb") as target:
+            shutil.copyfileobj(source, target, length=1024 * 1024)
+        staged.chmod(0o700)
+        with staged.open("rb") as stream:
+            staged_digest = _sha256_stream(stream)
+        if staged_digest != digest:
+            raise PlatformLaunchBindingError("private staged adapter copy hash mismatch")
+        signature = _codesign_evidence(staged)
 
         if expected_team_id:
             wanted = expected_team_id.strip().upper()
@@ -248,22 +225,21 @@ def macos_verify_and_launch(
             if not _CDHASH.fullmatch(wanted_hash) or signature["codeDirectoryHash"] != wanted_hash:
                 raise PlatformLaunchBindingError("adapter macOS code directory hash mismatch")
 
-        pid = os.fork()
-        if pid == 0:
-            try:
-                child_env = dict(os.environ if env is None else env)
-                os.fexecve(fd, [str(path), *map(str, argv)], child_env)
-            except BaseException:
-                os._exit(127)
+        process = subprocess.Popen([str(staged), *map(str, argv)], env=dict(env) if env is not None else None)
         evidence = {
-            "binding": "macos-codesign-fexecve-v1",
+            "binding": "macos-codesign-private-copy-v1",
             "adapterSha256": "sha256:" + digest,
             "teamId": signature["teamId"],
             "codeDirectoryHash": "cdhash:" + signature["codeDirectoryHash"],
             "fileId": f"{int(info.st_dev):x}:{int(info.st_ino):x}",
-            "pid": int(pid),
+            "privateStagedCopyVerified": True,
+            "pid": int(process.pid),
             "physicalOutputsArmed": False,
         }
-        return BoundProcess(int(pid)), evidence
+        bound = BoundProcess(int(process.pid), process, temp_dir)
+        temp_dir = None
+        return bound, evidence
     finally:
         os.close(fd)
+        if temp_dir is not None:
+            temp_dir.cleanup()
