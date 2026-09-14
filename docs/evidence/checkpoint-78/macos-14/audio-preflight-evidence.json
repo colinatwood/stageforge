@@ -1,0 +1,67 @@
+{
+  "documentType": "org.upp.audio-preflight-smoke",
+  "schemaVersion": 1,
+  "host": {
+    "os": "Darwin",
+    "release": "23.6.0",
+    "architecture": "arm64"
+  },
+  "sourceCommit": "00dae0d1647d718fa38cc319482ac591816355f2",
+  "githubRunId": "34904550438",
+  "binarySha256": "435801a5249e75cc03008fe201dc24426391dff734817d959f8dde4e9e9396ee",
+  "sourceSha256": {
+    "native/audio_preflight.cpp": "529e3b0578f12a5c29b966f25d3cc7a46012fb325eab1a68a7550543a640b946",
+    "native/audio_preflight.h": "25f892b0f15655c0275d90280e642c30f3554c584c0f2dca18561d58f345b013",
+    "native/audio_preflight_smoke.cpp": "6778b8199221bbb12477ae3efb664ecc711334440091a3f2f65518dcd7fee591"
+  },
+  "preflightOnly": true,
+  "configurationApplied": false,
+  "physicalOutputsArmed": false,
+  "audioStreamingQualified": false,
+  "physicalHardwareQualified": false,
+  "status": "passed",
+  "nativeChecks": {
+    "syntheticExactQualified": true,
+    "syntheticExplicitAdaptationQualified": true,
+    "implicitConversionRejected": true,
+    "missingEndpointRejected": true,
+    "playback": {
+      "endpointPresent": true,
+      "backend": "coreaudio",
+      "endpointIdentityHash": "sha256:65535a4ce7097945159c54a7756ec4bbbbf9bca82699870e99dda7f6b217daf3",
+      "endpointIdentityStrong": true,
+      "nativeSampleRateHz": 48000,
+      "defaultPeriodFrames": 512,
+      "minimumPeriodFrames": 15,
+      "maximumPeriodFrames": 4096,
+      "channels": 2,
+      "clientFormat": "float32",
+      "preflightStatus": "exact",
+      "exactHostPlanQualified": true
+    },
+    "capture": {
+      "endpointPresent": true,
+      "backend": "coreaudio",
+      "endpointIdentityHash": "sha256:803e9d4e34a0f38fd85cc2990d09587bb53872b574de5e4a19730ca9050318f4",
+      "endpointIdentityStrong": true,
+      "nativeSampleRateHz": 48000,
+      "defaultPeriodFrames": 512,
+      "minimumPeriodFrames": 15,
+      "maximumPeriodFrames": 4096,
+      "channels": 2,
+      "clientFormat": "float32",
+      "preflightStatus": "exact",
+      "exactHostPlanQualified": true
+    },
+    "physicalOutputsArmed": false,
+    "audioStreamingQualified": false,
+    "physicalHardwareQualified": false
+  },
+  "preflightContractQualified": true,
+  "playbackEndpointObserved": true,
+  "captureEndpointObserved": true,
+  "playbackProbeQualified": true,
+  "captureProbeQualified": true,
+  "liveEndpointPreflightObserved": true,
+  "targetOsPreflightProbeQualified": true
+}
