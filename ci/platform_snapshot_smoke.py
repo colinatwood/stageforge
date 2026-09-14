@@ -6,7 +6,9 @@ ROOT=Path(__file__).resolve().parents[1]
 BACKEND=ROOT/'backend'
 sys.path.insert(0,str(BACKEND))
 EXPECTED={'backend/session_channel.py':'084aba7954394bb2732e9770312e25e2d0a23aceaa91d2a2c78513648e695ff7','backend/local_ipc.py':'afd3ca70c15cd0877d60365e7f362408fa153f219b10f94d3eb0242e0ba7fe31','backend/windows_named_pipe.py':'4de058e76764e901efb5f77221b37a92752c83fc0f0371ee23c4d6bdf5ab3dbf','backend/audio_endpoint_evidence.py':'9af144e29cb825e9278c0effe2f3a75331adc6675dcc11243e0b9f8dac52f743'}
-def sha(p): return hashlib.sha256((ROOT/p).read_bytes()).hexdigest()
+def sha(p):
+ data=(ROOT/p).read_bytes().replace(b'\r\n',b'\n')
+ return hashlib.sha256(data).hexdigest()
 def verify_snapshot():
  actual={p:sha(p) for p in EXPECTED}
  if actual!=EXPECTED: raise RuntimeError(f'GitHub canonical module hash mismatch: {actual}')
