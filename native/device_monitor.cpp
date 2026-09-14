@@ -1,4 +1,5 @@
 #include "device_monitor.h"
+#include "device_identity.h"
 #include <atomic>
 #include <stdexcept>
 #include <string>
@@ -119,6 +120,20 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
     Microsoft::WRL::ComPtr<IMMDeviceCollection> devices;
     checked(impl_->enumerator->EnumAudioEndpoints(eAll, DEVICE_STATE_ACTIVE, devices.GetAddressOf()), "enumerate endpoints");
     checked(devices->GetCount(&result.device_count), "endpoint count");
+    for (unsigned i = 0; i < result.device_count; ++i) {
+        Microsoft::WRL::ComPtr<IMMDevice> device;
+        checked(devices->Item(i, device.GetAddressOf()), "endpoint item");
+        LPWSTR raw = nullptr;
+        checked(device->GetId(&raw), "endpoint ID");
+        std::unique_ptr<wchar_t, decltype(&CoTaskMemFree)> id(raw, &CoTaskMemFree);
+        int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, raw, -1, nullptr, 0, nullptr, nullptr);
+        if (size <= 1) throw std::runtime_error("invalid endpoint identity");
+        std::string utf8(size, '\0');
+        if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, raw, -1, utf8.data(), size, nullptr, nullptr))
+            throw std::runtime_error("endpoint identity conversion failed");
+        utf8.pop_back();
+        result.identities.push_back({identity_hash("windows-endpoint-v1", utf8), DeviceIdentity::Scope::WindowsEndpoint});
+    }
     auto has_default = [&](EDataFlow flow) {
         Microsoft::WRL::ComPtr<IMMDevice> device;
         auto status = impl_->enumerator->GetDefaultAudioEndpoint(flow, eConsole, device.GetAddressOf());
@@ -137,7 +152,22 @@ DeviceSnapshot DeviceMonitor::snapshot() const {
         auto status = size ? AudioObjectGetPropertyData(kAudioObjectSystemObject, &addresses[0], 0, nullptr, &size, devices.data()) : noErr;
         if (status == kAudioHardwareBadPropertySizeError && attempt < 2) continue;
         checked(status, "enumerate devices");
-        result.device_count = size / sizeof(AudioDeviceID); break;
+        result.device_count = size / sizeof(AudioDeviceID);
+        for (unsigned i = 0; i < result.device_count; ++i) {
+            AudioObjectPropertyAddress uid_address{kAudioDevicePropertyDeviceUID, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+            CFStringRef uid = nullptr; UInt32 uid_size = sizeof(uid);
+            checked(AudioObjectGetPropertyData(devices[i], &uid_address, 0, nullptr, &uid_size, &uid), "device UID");
+            if (!uid) throw std::runtime_error("empty CoreAudio UID");
+            // The caller owns the returned CF object, including on conversion errors.
+            auto release = [](const void* value) { CFRelease(value); };
+            std::unique_ptr<const void, decltype(release)> owned(uid, release);
+            auto capacity = CFStringGetMaximumSizeForEncoding(CFStringGetLength(uid), kCFStringEncodingUTF8) + 1;
+            std::vector<char> bytes(static_cast<std::size_t>(capacity));
+            if (!CFStringGetCString(uid, bytes.data(), capacity, kCFStringEncodingUTF8))
+                throw std::runtime_error("CoreAudio UID conversion failed");
+            result.identities.push_back({identity_hash("coreaudio-uid-v1", bytes.data()), DeviceIdentity::Scope::CoreAudioUID});
+        }
+        break;
     }
     auto has_default = [&](unsigned index) {
         AudioDeviceID device = kAudioObjectUnknown; UInt32 size = sizeof(device);
