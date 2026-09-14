@@ -29,9 +29,10 @@ std::string utf8(LPCWSTR text) {
     if (!text || !*text) return {};
     int size = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, nullptr, 0, nullptr, nullptr);
     if (size <= 1) throw std::runtime_error("WideCharToMultiByte size failed");
-    std::string out(static_cast<std::size_t>(size - 1), '\0');
+    std::string out(static_cast<std::size_t>(size), '\0');
     if (!WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, out.data(), size, nullptr, nullptr))
         throw std::runtime_error("WideCharToMultiByte failed");
+    if (!out.empty() && out.back() == '\0') out.pop_back();
     return out;
 }
 
