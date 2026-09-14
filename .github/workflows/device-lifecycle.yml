@@ -17,18 +17,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Configure native device library
+      - name: Configure Windows native device library
+        if: runner.os == 'Windows'
         run: cmake -S native -B build
+      - name: Configure macOS native device library with ASan
+        if: runner.os == 'macOS'
+        run: cmake -S native -B build -DSTAGEFORGE_DEVICE_ASAN=ON
       - name: Build native device library
         run: cmake --build build --config Release
       - name: Test native lifecycle
         run: ctest --test-dir build -C Release --output-on-failure
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
       - name: Record Windows executable evidence
         if: runner.os == 'Windows'
         run: python ci/device_lifecycle_evidence.py build/Release/device_lifecycle_smoke.exe
       - name: Record macOS executable evidence
         if: runner.os == 'macOS'
         run: python ci/device_lifecycle_evidence.py build/device_lifecycle_smoke
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
