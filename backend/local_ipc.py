@@ -162,8 +162,25 @@ class WindowsNamedPipeIpcServer:
         finally:
             connection.close()
 
+    def _wake_pending_native_accept(self) -> None:
+        if os.name != "nt" or self.listener_factory is not None:
+            return
+
+        def wake() -> None:
+            try:
+                from multiprocessing.connection import Client
+                connection = Client(self.name, family="AF_PIPE")
+                connection.close()
+            except (OSError, EOFError):
+                pass
+
+        threading.Thread(target=wake, name="stageforge-pipe-close-wake", daemon=True).start()
+
     def close(self) -> None:
-        if self._listener is not None:self._listener.close();self._listener=None
+        listener=self._listener
+        if listener is None:return
+        self._wake_pending_native_accept()
+        listener.close();self._listener=None
 
 
 def json_command_handler(dispatch: Callable[[dict], dict]) -> Callable[[int, bytes], bytes]:

@@ -88,6 +88,8 @@ def service_mode(args) -> int:
         server.close()
         if worker is not None:
             worker.join(5)
+            if worker.is_alive():
+                raise RuntimeError("Windows named-pipe accept did not stop within 5 seconds")
         if worker_errors:
             raise RuntimeError(worker_errors[0])
 
@@ -144,6 +146,11 @@ def wait_marker(path: Path, timeout: float = 15.0) -> dict:
     raise RuntimeError("Windows service marker did not appear")
 
 
+def reset_marker(path: Path) -> None:
+    path.unlink(missing_ok=True)
+    Path(str(path) + ".error").unlink(missing_ok=True)
+
+
 def roundtrip(pipe_name: str) -> None:
     from multiprocessing.connection import Client
     from local_ipc import decode_transport_packet, encode_transport_packet
@@ -173,8 +180,7 @@ def controller_mode(args) -> int:
     operator_sid = current_sid()
     marker = Path(os.environ.get("RUNNER_TEMP", str(ROOT))) / f"{service_name}.json"
     evidence = Path(args.evidence)
-    for path in (marker, Path(str(marker) + ".error")):
-        path.unlink(missing_ok=True)
+    reset_marker(marker)
 
     command = subprocess.list2cmdline([
         sys.executable,
@@ -188,9 +194,11 @@ def controller_mode(args) -> int:
 
     created = False
     first_roundtrip = False
-    stopped = False
-    restarted = False
-    second_roundtrip = False
+    normal_stop = False
+    idle_stop = False
+    idle_stop_seconds = None
+    restart_after_idle = False
+    final_roundtrip = False
     service_sid = None
     try:
         sc("create", service_name, "binPath=", command, "start=", "demand", "obj=", "LocalSystem")
@@ -204,22 +212,33 @@ def controller_mode(args) -> int:
             raise RuntimeError(f"service did not run as LocalSystem: {service_sid}")
         roundtrip(pipe_name)
         first_roundtrip = True
-
         sc("stop", service_name)
         wait_state(service_name, 1)
-        stopped = True
+        normal_stop = True
 
-        marker.unlink(missing_ok=True)
-        Path(str(marker) + ".error").unlink(missing_ok=True)
+        reset_marker(marker)
         sc("start", service_name)
         wait_state(service_name, 4)
-        second_marker = wait_marker(marker)
-        if str(second_marker.get("serviceSid", "")).upper() != "S-1-5-18":
-            raise RuntimeError("restarted service identity changed")
-        restarted = True
-        roundtrip(pipe_name)
-        second_roundtrip = True
+        idle_marker = wait_marker(marker)
+        if str(idle_marker.get("serviceSid", "")).upper() != "S-1-5-18":
+            raise RuntimeError("idle-stop service identity changed")
+        started = time.monotonic()
+        sc("stop", service_name)
+        wait_state(service_name, 1, timeout=12.0)
+        idle_stop_seconds = time.monotonic() - started
+        if idle_stop_seconds > 10.0:
+            raise RuntimeError(f"idle Windows service stop exceeded bound: {idle_stop_seconds:.3f}s")
+        idle_stop = True
 
+        reset_marker(marker)
+        sc("start", service_name)
+        wait_state(service_name, 4)
+        final_marker = wait_marker(marker)
+        if str(final_marker.get("serviceSid", "")).upper() != "S-1-5-18":
+            raise RuntimeError("post-idle-stop service identity changed")
+        restart_after_idle = True
+        roundtrip(pipe_name)
+        final_roundtrip = True
         sc("stop", service_name)
         wait_state(service_name, 1)
     finally:
@@ -228,15 +247,16 @@ def controller_mode(args) -> int:
 
     report = {
         "documentType": "org.upp.windows-service-smoke",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "serviceControlManagerQualified": created,
         "localSystemIdentityQualified": service_sid == "S-1-5-18",
         "firstAuthenticatedRoundtripQualified": first_roundtrip,
-        "cleanStopQualified": stopped,
-        "restartQualified": restarted,
-        "secondAuthenticatedRoundtripQualified": second_roundtrip,
+        "cleanStopQualified": normal_stop,
+        "idlePendingAcceptStopQualified": idle_stop,
+        "idlePendingAcceptStopSeconds": idle_stop_seconds,
+        "restartAfterIdleStopQualified": restart_after_idle,
+        "postIdleStopAuthenticatedRoundtripQualified": final_roundtrip,
         "serviceDeletionRequested": created,
-        "idlePendingAcceptStopQualified": False,
         "physicalOutputsArmed": False,
         "physicalHardwareQualified": False,
     }
