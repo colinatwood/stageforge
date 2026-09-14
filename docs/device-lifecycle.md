@@ -1,67 +1,84 @@
-# Native device monitor: Checkpoint 74
+# Native device monitor: Checkpoint 75
 
-The `stageforge_devices` C++ library adds Windows MMDevice enumeration and
-notifications plus macOS CoreAudio HAL enumeration and property listeners.
-It is a standalone control-thread module. The full StageForge audio engine and
-prior Python lifecycle reconciler are not in this repository, so integration
-with those components remains open.
+The `stageforge_devices` C++ library now covers target-OS device observation,
+privacy-preserving persistent identity, and fail-closed reconciliation. It remains
+a control-thread module: callbacks only advance an atomic topology revision and
+never open streams, allocate audio-path work, invoke user code, or automatically
+rearm an output.
 
-Create, start, snapshot, stop, and destroy a monitor on the same control thread.
-Windows construction requires COM MTA initialization to succeed. `start()` and
-`stop()` are idempotent. Taking a snapshot while stopped is rejected. Start
-subscribes before snapshots so callers can compare `revision()` before and after
-reading and retry if topology changed. Snapshots are observations, not an atomic
-transaction across device count and default selection.
+Snapshots expose only SHA-256-derived identity tokens. Raw endpoint IDs, CoreAudio
+UIDs, CoreMIDI UniqueIDs, and device names are not exported by the monitor.
+Selections may automatically rebind only when the OS supplies a strong identity
+and exactly one current endpoint matches it. Duplicate strong identities fail as
+`ambiguous`; missing endpoints become `detached`; installation-scoped/volatile
+identities refuse automatic rebind.
 
-OS callbacks only increment a process-wide atomic topology revision. They never
-open streams, allocate work, invoke user code, or reselect devices. Revision
-changes can reflect another active monitor's subscription. Control code should
-refresh its snapshot on revision changes; the audio callback must not enumerate.
-Callback storage survives monitor teardown to avoid late-callback use-after-free.
-Explicit `stop()` reports unregistration errors; destructor cleanup failure
-terminates rather than silently reporting successful cleanup.
+## Platform identity
 
-Windows observes endpoint addition/removal, state, default and property changes.
-macOS observes the system device list and default input/output changes; per-device
-sample-rate, alive-state and stream-configuration listeners are not implemented.
-No raw endpoint identifiers or device names are exported by this module.
+On macOS, audio endpoints use `kAudioDevicePropertyDeviceUID` and MIDI endpoints
+use direction-scoped `kMIDIPropertyUniqueID`. Both are hashed before leaving the
+native monitor and are eligible for exact-unique automatic recovery.
+
+On Windows, the preferred strong identifier is `PKEY_AudioEndpoint_StableId`.
+The hosted Windows Server 2025 runner currently compiles with Windows SDK 26100,
+which predates that header symbol, so CMake feature-detects the API. With this SDK
+`stableIdentityApiCompiled=false`; ordinary IMMDevice IDs are treated only as
+installation snapshots and are not eligible for automatic rebind. A newer SDK
+that exposes the StableId property can enable the strong path without weakening
+fallback behavior.
 
 ## Hosted evidence
 
-[Initial hosted run](https://github.com/colinatwood/stageforge/actions/runs/34872014161)
-compiled and passed CTest plus the evidence executable on both target OSes.
-Test merge source SHA: `e89241b4c3f67e4c90ea557d22404ed4fde6263e`.
+Checkpoint 74 first proved enumeration and notification registration lifecycle on
+both target OSes. Checkpoint 75 run
+[34881629489](https://github.com/colinatwood/stageforge/actions/runs/34881629489)
+then exercised identity/reconciliation on Windows and real software topology
+changes on Apple Silicon macOS. PR source head:
+`8028ac5005e81ddd6f69a8df2bfed0a28ee7e313`.
 
 | Observation | Windows x64 | macOS 14 arm64 |
 | --- | --- | --- |
 | Explicit lifecycle cycles | 25 passed | 25 passed |
+| Native lifecycle CTest | passed | passed under AddressSanitizer |
 | Device count | 0 | 3 |
-| Input/output default present | false / false | true / true |
-| Lifecycle check elapsed | 0.220057 s | 0.244314 s |
-| Inactive snapshot and wrong-thread rejection | passed | passed |
-| Destruction while subscribed | passed | passed |
-| Observed notification revision | 0 | 0 |
+| Stable identity API compiled | false (SDK 26100) | true |
+| Stable identities in baseline snapshot | 0 | 3 |
+| Identity reconciliation contract | passed | passed |
+| Native software CoreAudio add/remove/recreate event | n/a | passed |
+| Native software CoreMIDI add/remove/recreate event | n/a | passed |
+| Exact-unique identity recovery after recreate | synthetic contract only | CoreAudio + CoreMIDI passed |
+| Observed topology revision | 0 | 11 |
 
-These are real OS enumeration, registration, unregistration and restart results.
-No notification was observed; event delivery is unverified. The durations include
-all cycles and brief idle waits, not an audio latency or real-time guarantee.
-The workflow uploads JSON with exact executable/source SHA-256 and source commit.
+macOS uses a temporary virtual CoreMIDI source and a temporary CoreAudio aggregate
+device. These are real CoreMIDI/CoreAudio OS objects and real notification paths,
+but they are software fixtures, not physical unplug/replug qualification. The
+CoreMIDI wait pumps the creator CFRunLoop because CoreMIDI delivers the client
+notification callback on that run loop.
+
+Evidence artifacts:
+- macOS: `sha256:08ed7bea660a89e1140eb02bfc96dac8775987d5c1e1a7f735b78bd7b8433d03`
+- Windows: `sha256:6b3902bed5602f5b9ccf73307d33c518cbbf80910a43605780b7398f59e3f6dd`
+
+Every evidence record explicitly keeps `physicalOutputsArmed`,
+`physicalHardwareQualified`, `audioStreamingQualified`, and
+`physicalHotplugQualified` false.
 
 ## Remaining implementation and qualification
 
-- Integrate snapshots/revisions with the full engine lifecycle reconciler.
-- Persistent identity selection and explicit recovery policy.
-- WASAPI and CoreAudio stream format negotiation, start/stop and loss handling.
-- Native event delivery tests, per-device macOS property listeners and race tests.
-- Physical disconnect/reconnect, real audio performance and hardware qualification.
-- Licensed plugin compatibility remains a separate gate.
-
-Every new evidence record sets `physicalOutputsArmed`, `physicalHardwareQualified`,
-`audioStreamingQualified` and `physicalHotplugQualified` to false.
+- Integrate the native snapshots/revisions and selection resolver with the full
+  StageForge engine lifecycle so detach/ambiguity immediately fences unsafe
+  physical execution and requires explicit recovery/rearm.
+- Add Windows MIDI native enumeration/notifications and run Windows stable-ID
+  evidence with a Windows SDK that exposes `PKEY_AudioEndpoint_StableId` and a
+  real endpoint.
+- Implement WASAPI/CoreAudio stream format negotiation, start/stop, loss handling,
+  and bounded recovery outside the audio callback.
+- Add per-device macOS alive/sample-rate/stream-configuration listeners and race
+  tests where they materially affect an active stream.
+- Qualify physical disconnect/reconnect, real audio performance, and named
+  hardware separately.
 
 ## Build
-
-On Windows with MSVC/CMake or macOS with Xcode command-line tools/CMake:
 
 ```sh
 cmake -S native -B build
@@ -69,6 +86,4 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-API references:
-[Microsoft notification ownership](https://learn.microsoft.com/en-us/windows/win32/api/mmdeviceapi/nf-mmdeviceapi-immdeviceenumerator-registerendpointnotificationcallback),
-[Apple property listeners](https://developer.apple.com/documentation/coreaudio/audioobjectaddpropertylistener(_:_:_:_:)).
+Hosted macOS CI additionally configures `-DSTAGEFORGE_DEVICE_ASAN=ON`.
