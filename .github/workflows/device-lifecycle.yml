@@ -1,0 +1,38 @@
+name: StageForge Native Device Lifecycle
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Configure native device library
+        run: cmake -S native -B build
+      - name: Build native device library
+        run: cmake --build build --config Release
+      - name: Test native lifecycle
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Record Windows executable evidence
+        if: runner.os == 'Windows'
+        run: python ci/device_lifecycle_evidence.py build/Release/device_lifecycle_smoke.exe
+      - name: Record macOS executable evidence
+        if: runner.os == 'macOS'
+        run: python ci/device_lifecycle_evidence.py build/device_lifecycle_smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-lifecycle-${{ matrix.os }}
+          path: device-lifecycle-evidence.json
+          if-no-files-found: warn
+          retention-days: 30
