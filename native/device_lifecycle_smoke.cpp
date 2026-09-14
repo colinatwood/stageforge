@@ -112,8 +112,8 @@ MacEventEvidence exercise_macos_events(DeviceMonitor& monitor) {
     const auto audio_before = persistent_set(baseline, DeviceKind::Audio);
     CFStringRef uid = CFStringCreateWithFormat(kCFAllocatorDefault, nullptr, CFSTR("org.stageforge.ci.aggregate.%d"), getpid());
     CFMutableDictionaryRef description = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    CFDictionarySetValue(description, kAudioAggregateDeviceNameKey, CFSTR("StageForge CI Aggregate"));
-    CFDictionarySetValue(description, kAudioAggregateDeviceUIDKey, uid);
+    CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceNameKey), CFSTR("StageForge CI Aggregate"));
+    CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceUIDKey), uid);
     AudioDeviceID aggregate = kAudioObjectUnknown;
     revision = monitor.revision();
     auto create_status = AudioHardwareCreateAggregateDevice(description, &aggregate);
@@ -132,8 +132,8 @@ MacEventEvidence exercise_macos_events(DeviceMonitor& monitor) {
     require(resolve_device(audio_selection, monitor.snapshot().devices).status == ResolutionStatus::Detached, "CoreAudio removal did not detach selection");
 
     description = CFDictionaryCreateMutable(kCFAllocatorDefault, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-    CFDictionarySetValue(description, kAudioAggregateDeviceNameKey, CFSTR("StageForge CI Aggregate 2"));
-    CFDictionarySetValue(description, kAudioAggregateDeviceUIDKey, uid);
+    CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceNameKey), CFSTR("StageForge CI Aggregate 2"));
+    CFDictionarySetValue(description, CFSTR(kAudioAggregateDeviceUIDKey), uid);
     revision = monitor.revision();
     create_status = AudioHardwareCreateAggregateDevice(description, &aggregate);
     CFRelease(description);
@@ -184,6 +184,7 @@ int main() {
         std::cout << std::boolalpha << "{\"cycles\":25,\"activeDestructionPassed\":true,"
             << "\"inactiveSnapshotRejected\":true,\"wrongThreadRejected\":true,\"deviceCount\":" << snapshot.device_count
             << ",\"midiEndpointCount\":" << snapshot.midi_endpoint_count
+            << ",\"stableIdentityApiCompiled\":" << snapshot.stable_audio_identity_api_compiled
             << ",\"stableIdentityCount\":" << counts.first << ",\"weakIdentityCount\":" << counts.second
             << ",\"identityReconciliationQualified\":true"
 #ifdef __APPLE__
