@@ -53,6 +53,13 @@ void checked(HRESULT status, const char* operation) {
     if (FAILED(status)) throw std::runtime_error(std::string(operation) + ": " + std::to_string(status));
 }
 
+struct ComApartment {
+    ComApartment() { checked(CoInitializeEx(nullptr, COINIT_MULTITHREADED), "CoInitializeEx"); }
+    ~ComApartment() { CoUninitialize(); }
+    ComApartment(const ComApartment&) = delete;
+    ComApartment& operator=(const ComApartment&) = delete;
+};
+
 std::string utf8(LPCWSTR text) {
     if (!text || !*text) return {};
     const int required = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, nullptr, 0, nullptr, nullptr);
@@ -73,14 +80,11 @@ std::uint32_t period_frames(REFERENCE_TIME period, std::uint32_t sample_rate) {
 AudioSampleFormat wave_format(const WAVEFORMATEX* wave) {
     if (!wave) return AudioSampleFormat::Unknown;
     WORD tag = wave->wFormatTag;
-    const GUID* subtype = nullptr;
     if (tag == WAVE_FORMAT_EXTENSIBLE && wave->cbSize >= sizeof(WAVEFORMATEXTENSIBLE) - sizeof(WAVEFORMATEX)) {
         const auto* extensible = reinterpret_cast<const WAVEFORMATEXTENSIBLE*>(wave);
-        subtype = &extensible->SubFormat;
-        if (IsEqualGUID(*subtype, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)) tag = WAVE_FORMAT_IEEE_FLOAT;
-        else if (IsEqualGUID(*subtype, KSDATAFORMAT_SUBTYPE_PCM)) tag = WAVE_FORMAT_PCM;
+        if (IsEqualGUID(extensible->SubFormat, KSDATAFORMAT_SUBTYPE_IEEE_FLOAT)) tag = WAVE_FORMAT_IEEE_FLOAT;
+        else if (IsEqualGUID(extensible->SubFormat, KSDATAFORMAT_SUBTYPE_PCM)) tag = WAVE_FORMAT_PCM;
     }
-    (void)subtype;
     if (tag == WAVE_FORMAT_IEEE_FLOAT && wave->wBitsPerSample == 32) return AudioSampleFormat::Float32;
     if (tag == WAVE_FORMAT_PCM) {
         if (wave->wBitsPerSample == 16) return AudioSampleFormat::Int16;
@@ -194,56 +198,46 @@ AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
     AudioHostCapabilities result{};
 #ifdef _WIN32
     result.backend = "wasapi";
-    const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    checked(initialized, "CoInitializeEx");
+    ComApartment apartment;
+    Microsoft::WRL::ComPtr<IMMDeviceEnumerator> enumerator;
+    checked(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
+        IID_PPV_ARGS(enumerator.GetAddressOf())), "MMDeviceEnumerator");
+    Microsoft::WRL::ComPtr<IMMDevice> endpoint;
+    const auto flow = direction == AudioDirection::Playback ? eRender : eCapture;
+    const HRESULT selected = enumerator->GetDefaultAudioEndpoint(flow, eConsole, endpoint.GetAddressOf());
+    if (selected == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) return result;
+    checked(selected, "GetDefaultAudioEndpoint");
+    result.endpoint_present = true;
+
+    LPWSTR raw_id = nullptr;
+    checked(endpoint->GetId(&raw_id), "endpoint id");
+    try { result.endpoint_identity_hash = sha256_token("wasapi-native:" + utf8(raw_id)); }
+    catch (...) { CoTaskMemFree(raw_id); throw; }
+    CoTaskMemFree(raw_id);
+    result.endpoint_identity_strong = false;
+
+    Microsoft::WRL::ComPtr<IAudioClient> client;
+    checked(endpoint->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
+        reinterpret_cast<void**>(client.GetAddressOf())), "activate IAudioClient");
+    WAVEFORMATEX* mix = nullptr;
+    checked(client->GetMixFormat(&mix), "GetMixFormat");
     try {
-        Microsoft::WRL::ComPtr<IMMDeviceEnumerator> enumerator;
-        checked(CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL,
-            IID_PPV_ARGS(enumerator.GetAddressOf())), "MMDeviceEnumerator");
-        Microsoft::WRL::ComPtr<IMMDevice> endpoint;
-        const auto flow = direction == AudioDirection::Playback ? eRender : eCapture;
-        const HRESULT selected = enumerator->GetDefaultAudioEndpoint(flow, eConsole, endpoint.GetAddressOf());
-        if (selected == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) {
-            CoUninitialize();
-            return result;
-        }
-        checked(selected, "GetDefaultAudioEndpoint");
-        result.endpoint_present = true;
+        result.native_sample_rate_hz = mix->nSamplesPerSec;
+        result.input_channels = direction == AudioDirection::Capture ? mix->nChannels : 0;
+        result.output_channels = direction == AudioDirection::Playback ? mix->nChannels : 0;
+        result.client_format = wave_format(mix);
+        result.supported_sample_rates.push_back({static_cast<double>(mix->nSamplesPerSec), static_cast<double>(mix->nSamplesPerSec)});
+    } catch (...) { CoTaskMemFree(mix); throw; }
+    CoTaskMemFree(mix);
 
-        LPWSTR raw_id = nullptr;
-        checked(endpoint->GetId(&raw_id), "endpoint id");
-        try { result.endpoint_identity_hash = sha256_token("wasapi-native:" + utf8(raw_id)); }
-        catch (...) { CoTaskMemFree(raw_id); throw; }
-        CoTaskMemFree(raw_id);
-        result.endpoint_identity_strong = false;
-
-        Microsoft::WRL::ComPtr<IAudioClient> client;
-        checked(endpoint->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
-            reinterpret_cast<void**>(client.GetAddressOf())), "activate IAudioClient");
-        WAVEFORMATEX* mix = nullptr;
-        checked(client->GetMixFormat(&mix), "GetMixFormat");
-        try {
-            result.native_sample_rate_hz = mix->nSamplesPerSec;
-            result.input_channels = direction == AudioDirection::Capture ? mix->nChannels : 0;
-            result.output_channels = direction == AudioDirection::Playback ? mix->nChannels : 0;
-            result.client_format = wave_format(mix);
-            result.supported_sample_rates.push_back({static_cast<double>(mix->nSamplesPerSec), static_cast<double>(mix->nSamplesPerSec)});
-        } catch (...) { CoTaskMemFree(mix); throw; }
-        CoTaskMemFree(mix);
-
-        REFERENCE_TIME default_period = 0;
-        REFERENCE_TIME minimum_period = 0;
-        checked(client->GetDevicePeriod(&default_period, &minimum_period), "GetDevicePeriod");
-        result.default_period_frames = period_frames(default_period, result.native_sample_rate_hz);
-        result.minimum_period_frames = result.default_period_frames;
-        result.maximum_period_frames = result.default_period_frames;
-        (void)minimum_period;
-        CoUninitialize();
-        return result;
-    } catch (...) {
-        CoUninitialize();
-        throw;
-    }
+    REFERENCE_TIME default_period = 0;
+    REFERENCE_TIME minimum_period = 0;
+    checked(client->GetDevicePeriod(&default_period, &minimum_period), "GetDevicePeriod");
+    result.default_period_frames = period_frames(default_period, result.native_sample_rate_hz);
+    result.minimum_period_frames = result.default_period_frames;
+    result.maximum_period_frames = result.default_period_frames;
+    (void)minimum_period;
+    return result;
 #else
     result.backend = "coreaudio";
     AudioObjectPropertyAddress default_address{
