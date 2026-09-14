@@ -109,12 +109,16 @@ def windows_pipe() -> dict:
     conn = None
     deadline = time.monotonic() + 10
     while conn is None and time.monotonic() < deadline:
+        if errors:
+            break
         try:
             conn = Client(name, family="AF_PIPE")
         except OSError:
             time.sleep(0.05)
     if conn is None:
         server.close()
+        if errors:
+            raise errors[0]
         raise RuntimeError("pipe connect timeout")
 
     client = AuthenticatedSessionChannel(
