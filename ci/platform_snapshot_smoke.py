@@ -59,14 +59,7 @@ def verify_snapshot() -> dict:
     }
 
 
-def windows_pipe() -> dict:
-    from multiprocessing.connection import Client
-    from local_ipc import (
-        WindowsNamedPipeIpcServer,
-        decode_transport_packet,
-        encode_transport_packet,
-    )
-    from session_channel import AuthenticatedSessionChannel
+def current_windows_sid() -> str:
     import csv
 
     row = next(
@@ -81,7 +74,70 @@ def windows_pipe() -> dict:
             )
         )
     )
-    sid = row[1].upper()
+    return row[1].upper()
+
+
+def windows_unauthorized_denial() -> dict:
+    import ctypes
+    from multiprocessing.connection import Client
+    import windows_named_pipe as wnp
+
+    name = rf"\\.\pipe\StageForge\CI-Deny-{uuid.uuid4().hex}"
+    unauthorized_only_sid = "S-1-5-21-1111111111-2222222222-3333333333-424242"
+    listener = wnp.create_secure_windows_pipe_listener(
+        name,
+        (unauthorized_only_sid,),
+        allow_administrators=False,
+    )
+    descriptor, attrs = listener._security_attributes()
+    handle = None
+    try:
+        handle = listener._api.kernel32.CreateNamedPipeW(
+            ctypes.c_wchar_p(listener.name),
+            ctypes.c_ulong(wnp._PIPE_ACCESS_DUPLEX | wnp._FILE_FLAG_FIRST_PIPE_INSTANCE),
+            ctypes.c_ulong(wnp._PIPE_TYPE_MESSAGE | wnp._PIPE_READMODE_MESSAGE | wnp._PIPE_WAIT),
+            ctypes.c_ulong(1),
+            ctypes.c_ulong(wnp.MAX_FRAME + wnp._SIZE.size),
+            ctypes.c_ulong(wnp.MAX_FRAME + wnp._SIZE.size),
+            ctypes.c_ulong(5000),
+            ctypes.byref(attrs),
+        )
+        if handle == wnp._INVALID_HANDLE_VALUE or handle is None:
+            raise RuntimeError(f"could not create denial-test pipe ({listener._api.last_error()})")
+        wnp.attest_windows_pipe_dacl(int(handle), listener.policy, listener._api)
+
+        denied_error = None
+        try:
+            connection = Client(name, family="AF_PIPE")
+        except OSError as exc:
+            denied_error = getattr(exc, "winerror", None) or getattr(exc, "errno", None)
+            if denied_error not in {5, 13}:
+                raise RuntimeError(f"unauthorized pipe client failed for unexpected reason: {exc}") from exc
+        else:
+            connection.close()
+            raise RuntimeError("unauthorized Windows named-pipe client unexpectedly connected")
+
+        return {
+            "unauthorizedClientDenialQualified": True,
+            "denialErrorCode": int(denied_error),
+        }
+    finally:
+        if handle not in {None, wnp._INVALID_HANDLE_VALUE}:
+            listener._api.kernel32.CloseHandle(ctypes.c_void_p(handle))
+        listener._api.kernel32.LocalFree(descriptor)
+        listener.close()
+
+
+def windows_pipe() -> dict:
+    from multiprocessing.connection import Client
+    from local_ipc import (
+        WindowsNamedPipeIpcServer,
+        decode_transport_packet,
+        encode_transport_packet,
+    )
+    from session_channel import AuthenticatedSessionChannel
+
+    sid = current_windows_sid()
     name = rf"\\.\pipe\StageForge\CI-{uuid.uuid4().hex}"
     key = hashlib.sha256(b"stageforge-github-bootstrap").digest()
     cluster = "11" * 16
@@ -143,10 +199,11 @@ def windows_pipe() -> dict:
     if decoded["payload"] != b"github-ci:ping":
         raise RuntimeError("unexpected pipe response")
 
+    denial = windows_unauthorized_denial()
     return {
         "kernelDaclAndAuthorizedRoundtripQualified": True,
         "sidHash": hashlib.sha256(sid.encode()).hexdigest(),
-        "unauthorizedClientDenialQualified": False,
+        **denial,
     }
 
 
@@ -182,8 +239,8 @@ def mac_audio() -> dict:
 def main() -> int:
     report = {
         "documentType": "org.upp.github-platform-module-smoke",
-        "schemaVersion": 2,
-        "provenanceCheckpoint": 69,
+        "schemaVersion": 3,
+        "provenanceCheckpoint": 70,
         "gitHubSource": {
             "sha": os.environ.get("GITHUB_SHA"),
             "headRef": os.environ.get("GITHUB_HEAD_REF"),
