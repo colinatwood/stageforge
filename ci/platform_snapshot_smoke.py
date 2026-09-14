@@ -5,11 +5,11 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 BACKEND=ROOT/'backend'
 sys.path.insert(0,str(BACKEND))
-EXPECTED={'backend/session_channel.py':'084aba7954394bb2732e9770312e25e2d0a23aceaa91d2a2c78513648e695ff7','backend/local_ipc.py':'fb8bb0337c312253400125b7abbc6820c74cf42177ba0461d00767b61e4639cc','backend/windows_named_pipe.py':'0a6581b87a2d153b4090bbdded963872fcac9d665f2ae47e5a74c8355f9f0f8b','backend/audio_endpoint_evidence.py':'7ea22c6d70e4406196e1ac531a82c50eb433761d9fb1cf92a892c5da6c5b6402'}
+EXPECTED={'backend/session_channel.py':'084aba7954394bb2732e9770312e25e2d0a23aceaa91d2a2c78513648e695ff7','backend/local_ipc.py':'afd3ca70c15cd0877d60365e7f362408fa153f219b10f94d3eb0242e0ba7fe31','backend/windows_named_pipe.py':'4de058e76764e901efb5f77221b37a92752c83fc0f0371ee23c4d6bdf5ab3dbf','backend/audio_endpoint_evidence.py':'9af144e29cb825e9278c0effe2f3a75331adc6675dcc11243e0b9f8dac52f743'}
 def sha(p): return hashlib.sha256((ROOT/p).read_bytes()).hexdigest()
 def verify_snapshot():
  actual={p:sha(p) for p in EXPECTED}
- if actual!=EXPECTED: raise RuntimeError(f'checkpoint 69 module hash mismatch: {actual}')
+ if actual!=EXPECTED: raise RuntimeError(f'GitHub canonical module hash mismatch: {actual}')
  return actual
 def windows_pipe():
  from multiprocessing.connection import Client
@@ -42,7 +42,7 @@ def mac_audio():
  endpoints,drivers=macos_endpoint_probe(run)
  return {'coreAudioProbeQualified':True,'endpointCount':len(endpoints),'driverRecordCount':len(drivers),'physicalInterfaceQualified':False}
 def main():
- report={'documentType':'org.upp.github-platform-module-smoke','schemaVersion':1,'host':{'os':platform.system(),'release':platform.release(),'architecture':platform.machine()},'physicalOutputsArmed':False,'physicalHardwareQualified':False,'trackedFiles':verify_snapshot(),'checks':{}}
+ report={'documentType':'org.upp.github-platform-module-smoke','schemaVersion':1,'provenanceCheckpoint':69,'gitHubSource':{'sha':os.environ.get('GITHUB_SHA'),'headRef':os.environ.get('GITHUB_HEAD_REF')},'host':{'os':platform.system(),'release':platform.release(),'architecture':platform.machine()},'physicalOutputsArmed':False,'physicalHardwareQualified':False,'trackedFiles':verify_snapshot(),'checks':{}}
  if platform.system()=='Windows': report['checks']['windowsNamedPipe']=windows_pipe()
  elif platform.system()=='Darwin': report['checks']['macosAudioEvidence']=mac_audio()
  else: report['checks']['linuxImportReference']={'qualified':True}
