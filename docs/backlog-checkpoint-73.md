@@ -2,8 +2,8 @@
 
 Reconciled against the user-supplied `StageForge-Master-Backlog-Checkpoint-73.xlsx`.
 That workbook already contains the Checkpoint 73 closure below. The updated
-[Checkpoint 74 master workbook](backlog/StageForge-Master-Backlog-Checkpoint-74.xlsx)
-preserves that closure and records native device monitor progress without closing
+[Checkpoint 75 master workbook](backlog/StageForge-Master-Backlog-Checkpoint-75.xlsx)
+preserves that closure and records native device monitor/identity/event progress without closing
 another backlog row. It is now stored alongside the canonical source.
 
 | Item | Checkpoint 73 status | Scope |
@@ -28,7 +28,7 @@ another backlog row. It is now stored alongside the canonical source.
 
 The supplied workbook confirms PLUG-034 is P0 and Done. Recalculated totals are
 **25 open, 22 P0, 4 software, 19 qualification, 2 decisions**. These totals remain
-unchanged at Checkpoint 74. DEV-033 and DEV-034 remain In Progress, and licensed
+unchanged at Checkpoint 75. DEV-033 and DEV-034 remain In Progress, and licensed
 plugin compatibility remains separately blocked under PLUG-035 and PLUG-036.
 
 Checkpoint 74's device monitor work narrows remaining audio/device software work;

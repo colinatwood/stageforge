@@ -25,6 +25,11 @@ Windows observes endpoint addition/removal, state, default and property changes.
 macOS observes the system device list and default input/output changes; per-device
 sample-rate, alive-state and stream-configuration listeners are not implemented.
 No raw endpoint identifiers or device names are exported by this module.
+Checkpoint 75 adds domain-separated SHA-256 identity records: Windows endpoint
+IDs are explicitly installation-scoped (not PKEY_AudioEndpoint_StableId), while
+macOS records represent CoreAudio device UIDs. No automatic reconnect decision
+is implied by a hash. Native SHA-256 is checked against an independent known
+vector on both OSes, including domain separation and empty-identity rejection.
 
 ## Hosted evidence
 
@@ -52,12 +57,39 @@ The workflow uploads JSON with exact executable/source SHA-256 and source commit
 - Integrate snapshots/revisions with the full engine lifecycle reconciler.
 - Persistent identity selection and explicit recovery policy.
 - WASAPI and CoreAudio stream format negotiation, start/stop and loss handling.
-- Native event delivery tests, per-device macOS property listeners and race tests.
+- Windows native event delivery, per-device macOS property listeners and race tests.
 - Physical disconnect/reconnect, real audio performance and hardware qualification.
 - Licensed plugin compatibility remains a separate gate.
 
 Every new evidence record sets `physicalOutputsArmed`, `physicalHardwareQualified`,
 `audioStreamingQualified` and `physicalHotplugQualified` to false.
+
+## Checkpoint 75 CoreAudio events
+
+[Hosted run 34875161016](https://github.com/colinatwood/stageforge/actions/runs/34875161016)
+passed on code `1298c00e908923f18cb24198fc98d417394eb9d3` (test merge
+`d3142df77d08df82e373251922d59042cb0ec8cd`). Windows passed one CTest and macOS
+passed two. The macOS event executable recorded four transitions and all fixture
+checks true. Evidence JSON is retained under `docs/evidence/checkpoint-75/`.
+
+`coreaudio_device_events` creates a process-private empty aggregate device through
+CoreAudio, waits for a real notification revision and its hashed UID to appear,
+destroys it, then waits for another revision and disappearance. It repeats after
+listener stop/restart using the same UID, proving OS UID/hash continuity across
+software-device recreation. The fixture verifies its subdevice list is empty.
+It never configures an I/O callback, tap, underlying audio device, or stream.
+Raw fixture UIDs are not recorded in the evidence artifact.
+
+The native lifecycle runner still proves 25 stop/restart cycles on both OSes.
+macOS now adds an OS event test, not a callback invoked by the test itself. This
+narrows DEV-034; physical hotplug, CoreMIDI, stream loss/recovery and full-engine
+integration remain open. Windows hosts without endpoints test empty enumeration
+and the hash contract, but do not establish real-endpoint ID extraction or native
+event delivery. Do not treat those absent paths as passed.
+
+Snapshots may fail if topology changes during a UID read. Callers must fail closed
+and refresh off the audio thread; this API does not authorize output or guarantee
+an atomic topology transaction.
 
 ## Build
 

@@ -1,0 +1,51 @@
+{
+  "documentType": "org.upp.device-lifecycle-smoke",
+  "schemaVersion": 2,
+  "host": {
+    "os": "Darwin",
+    "release": "23.6.0",
+    "architecture": "arm64"
+  },
+  "sourceCommit": "d3142df77d08df82e373251922d59042cb0ec8cd",
+  "githubRunId": "34875161016",
+  "binarySha256": "becbb8ffc7507c90f95e536bef0e3272bc6a6a4bb1832eb1c825231e000e45f1",
+  "sourceSha256": {
+    "native/CMakeLists.txt": "5e6cd23e6ebcf8a1bb5cd731da7df010faa317f67b5ea6cb40e7f173629d2f51",
+    "native/coreaudio_device_events.cpp": "a7a3f289b13eedcb3af3569904c0c933b1ee1a16556d4b3b220d7381de958b8b",
+    "native/device_identity.cpp": "c8660ebf3fe22f8922ff55b4d1316190bc157018efdf19d4d7b4eaa21b49b57b",
+    "native/device_identity.h": "8383603cf675365a21076b635c59e47c7b4843a784ff346a4ad2be984101b06b",
+    "native/device_lifecycle_smoke.cpp": "1827cea77fff989449079b5bce42b841ff3d5fae4f5296c5170e39bb3300aabc",
+    "native/device_monitor.cpp": "e7c8b76c397b41a6c37ee292c9d21834a1fe487e24f963a81fd6a4c78c0fe84d",
+    "native/device_monitor.h": "d901d6ff1d5f2230b8effb3e579798f2d3995d2b1879bdd9cd1e9872053f802e"
+  },
+  "physicalOutputsArmed": false,
+  "physicalHardwareQualified": false,
+  "audioStreamingQualified": false,
+  "physicalHotplugQualified": false,
+  "status": "passed",
+  "nativeChecks": {
+    "cycles": 25,
+    "activeDestructionPassed": true,
+    "inactiveSnapshotRejected": true,
+    "wrongThreadRejected": true,
+    "deviceCount": 3,
+    "defaultInputPresent": true,
+    "defaultOutputPresent": true,
+    "observedNotificationRevision": 0,
+    "identityCount": 3,
+    "identityHashContractPassed": true,
+    "elapsedSeconds": 0.273271
+  },
+  "eventsBinarySha256": "f862b8e085daafefdd9a6780a809667c1a19ef2b80fa294dc5e3642b729d43be",
+  "deviceEvents": {
+    "fixture": "private-empty-coreaudio-aggregate",
+    "observedTransitions": 4,
+    "sameUidRecreationPassed": true,
+    "listenerRestartPassed": true,
+    "fixtureCleanupPassed": true,
+    "noAudioSubdevicesPassed": true,
+    "nativeNotificationDeliveryPassed": true,
+    "physicalHotplugQualified": false,
+    "audioStreamingQualified": false
+  }
+}

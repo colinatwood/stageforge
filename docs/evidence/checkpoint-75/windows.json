@@ -1,0 +1,39 @@
+{
+  "documentType": "org.upp.device-lifecycle-smoke",
+  "schemaVersion": 2,
+  "host": {
+    "os": "Windows",
+    "release": "10",
+    "architecture": "AMD64"
+  },
+  "sourceCommit": "d3142df77d08df82e373251922d59042cb0ec8cd",
+  "githubRunId": "34875161016",
+  "binarySha256": "e6a09de960661590715f0fec5499ef28eeec79d861bcbd401b1ed41aa2a313f3",
+  "sourceSha256": {
+    "native/CMakeLists.txt": "50905f0c369c65873dccd03d75fd94bcc10d55a0c07fde98ba73f48899db8944",
+    "native/coreaudio_device_events.cpp": "1014b8c71e37d45f2e92a20b49cbef9e331acdb00051029976f3723c2e70af84",
+    "native/device_identity.cpp": "b709aa89dd4ac2c1aa139e3372db22530dd995361bb4af616706001f8d79d8f1",
+    "native/device_identity.h": "8b9cfa5d41865afce760ba3fc9f57b88a89ca2fba040ddb0a38551a8205b3acc",
+    "native/device_lifecycle_smoke.cpp": "2c50f5b0eb947ed31854c4f9693f03b68ec5fd34c772701ede13c3da57a3aafc",
+    "native/device_monitor.cpp": "f1c1584a442baea3958d6664ca807d2229fdfb12e96f6c2d9fb030447271d5d6",
+    "native/device_monitor.h": "1026e163932f9c7ce97b6c893a187ce982668ded1b5a98049d8f56e63e784b28"
+  },
+  "physicalOutputsArmed": false,
+  "physicalHardwareQualified": false,
+  "audioStreamingQualified": false,
+  "physicalHotplugQualified": false,
+  "status": "passed",
+  "nativeChecks": {
+    "cycles": 25,
+    "activeDestructionPassed": true,
+    "inactiveSnapshotRejected": true,
+    "wrongThreadRejected": true,
+    "deviceCount": 0,
+    "defaultInputPresent": false,
+    "defaultOutputPresent": false,
+    "observedNotificationRevision": 0,
+    "identityCount": 0,
+    "identityHashContractPassed": true,
+    "elapsedSeconds": 0.241379
+  }
+}
