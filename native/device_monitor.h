@@ -1,25 +1,30 @@
 #pragma once
+#include "device_identity.h"
 #include <cstdint>
 #include <memory>
+#include <vector>
 
 namespace stageforge {
 struct DeviceSnapshot {
-    unsigned device_count;
-    bool default_input_present;
-    bool default_output_present;
+    unsigned device_count = 0;
+    unsigned midi_endpoint_count = 0;
+    bool default_input_present = false;
+    bool default_output_present = false;
+    bool stable_audio_identity_api_compiled = false;
+    std::vector<DeviceRecord> devices;
 };
 
-// Control-thread API. Callbacks only advance an atomic revision; callers refresh
-// snapshots off the audio thread. No stream is opened or automatically restarted.
-// Construction, start, snapshot, stop and destruction must use the same thread.
+// Control-thread API. OS callbacks only advance an atomic revision; callers
+// refresh snapshots off the audio thread. Snapshots export hashed identities only.
+// No stream is opened or automatically restarted by this monitor.
 class DeviceMonitor {
 public:
     DeviceMonitor();
     ~DeviceMonitor();
     DeviceMonitor(const DeviceMonitor&) = delete;
     DeviceMonitor& operator=(const DeviceMonitor&) = delete;
-    void start(); // Idempotent; subscribe before taking the initial snapshot.
-    void stop();  // Idempotent; errors are reported to the caller.
+    void start();
+    void stop();
     DeviceSnapshot snapshot() const;
     std::uint64_t revision() const;
 private:

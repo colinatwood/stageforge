@@ -11,7 +11,7 @@ root = Path(__file__).resolve().parents[1]
 binary = Path(sys.argv[1]).resolve()
 report = {
     "documentType": "org.upp.device-lifecycle-smoke",
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "host": {"os": platform.system(), "release": platform.release(), "architecture": platform.machine()},
     "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
     "githubRunId": os.environ.get("GITHUB_RUN_ID"),
@@ -26,7 +26,21 @@ report = {
 }
 try:
     run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=30, check=True)
-    report["nativeChecks"] = json.loads(run.stdout)
+    checks = json.loads(run.stdout)
+    report["nativeChecks"] = checks
+    report["persistentIdentityReconciliationQualified"] = checks.get("identityReconciliationQualified") is True
+    if platform.system() == "Darwin":
+        report["nativeSoftwareEventDeliveryQualified"] = (
+            checks.get("coreAudioNotificationObserved") is True
+            and checks.get("coreMidiNotificationObserved") is True
+        )
+        report["macosIdentityRecoveryQualified"] = (
+            checks.get("coreAudioIdentityRecoveryQualified") is True
+            and checks.get("coreMidiIdentityRecoveryQualified") is True
+        )
+    else:
+        report["nativeSoftwareEventDeliveryQualified"] = False
+        report["macosIdentityRecoveryQualified"] = False
     report["status"] = "passed"
 finally:
     Path("device-lifecycle-evidence.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
