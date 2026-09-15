@@ -1,0 +1,11 @@
+{
+  "documentType": "org.upp.qualification-availability",
+  "schemaVersion": 1,
+  "githubRunId": "34926534068",
+  "sourceCommit": "7625aea179ec725b15e0c441a16fcbf731c7f6ec",
+  "hostOs": "Darwin",
+  "microphoneAccessRequested": false,
+  "audioCaptured": false,
+  "physicalHardwareQualified": false,
+  "microphoneAuthorization": "authorized"
+}

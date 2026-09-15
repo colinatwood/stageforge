@@ -1,0 +1,29 @@
+{
+  "documentType": "org.upp.device-execution-fence-smoke",
+  "schemaVersion": 1,
+  "host": {
+    "os": "Windows",
+    "release": "10",
+    "architecture": "AMD64"
+  },
+  "sourceCommit": "7625aea179ec725b15e0c441a16fcbf731c7f6ec",
+  "githubRunId": "34926534068",
+  "binarySha256": "447f25ff6ecee6f65bab6efe3e067de76ed35d95b19aa915d393d7a3e48765c4",
+  "nativeChecks": {
+    "syntheticFenceQualified": true,
+    "coreMidiFenceQualified": false,
+    "coreAudioFenceQualified": false,
+    "silentRearmPrevented": true,
+    "physicalOutputsArmed": false,
+    "audioStreamingQualified": false,
+    "physicalHotplugQualified": false
+  },
+  "syntheticFenceQualified": true,
+  "silentRearmPrevented": true,
+  "nativeSoftwareFenceQualified": false,
+  "physicalOutputsArmed": false,
+  "physicalHardwareQualified": false,
+  "audioStreamingQualified": false,
+  "physicalHotplugQualified": false,
+  "status": "passed"
+}
