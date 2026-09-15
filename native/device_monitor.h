@@ -11,6 +11,8 @@ struct DeviceSnapshot {
     bool default_input_present = false;
     bool default_output_present = false;
     bool stable_audio_identity_api_compiled = false;
+    bool native_midi_enumeration_available = false;
+    bool midi_notifications_registered = false;
     std::vector<DeviceRecord> devices;
 };
 

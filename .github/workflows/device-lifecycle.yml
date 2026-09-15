@@ -12,6 +12,8 @@ jobs:
         os: [windows-latest, macos-14]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
+    env:
+      STAGEFORGE_ALLOW_SILENT_ENDPOINT_TEST: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -61,6 +63,16 @@ jobs:
         run: python ci/audio_stream_evidence.py build/audio_stream_lifecycle_smoke
         env:
           ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
+      - name: Record Windows native playback evidence
+        if: runner.os == 'Windows'
+        run: python ci/native_playback_evidence.py build/Release/native_playback_smoke.exe
+      - name: Record macOS native playback evidence
+        if: runner.os == 'macOS'
+        run: python ci/native_playback_evidence.py build/native_playback_smoke
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
+      - name: Record qualification availability without requesting capture access
+        run: python ci/qualification_availability.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -70,5 +82,7 @@ jobs:
             device-fence-evidence.json
             audio-preflight-evidence.json
             audio-stream-lifecycle-evidence.json
+            native-playback-evidence.json
+            qualification-availability.json
           if-no-files-found: warn
           retention-days: 30

@@ -1,0 +1,29 @@
+{
+  "documentType": "org.upp.device-execution-fence-smoke",
+  "schemaVersion": 1,
+  "host": {
+    "os": "Darwin",
+    "release": "23.6.0",
+    "architecture": "arm64"
+  },
+  "sourceCommit": "456e4cd3e773d75eb8f17b57ce7a17eeffaccd08",
+  "githubRunId": "34925110894",
+  "binarySha256": "d40568d6c08d779e541d0263ff83f096740448a85cc6f7c6fed7b74019b38ab5",
+  "nativeChecks": {
+    "syntheticFenceQualified": true,
+    "coreMidiFenceQualified": true,
+    "coreAudioFenceQualified": true,
+    "silentRearmPrevented": true,
+    "physicalOutputsArmed": false,
+    "audioStreamingQualified": false,
+    "physicalHotplugQualified": false
+  },
+  "syntheticFenceQualified": true,
+  "silentRearmPrevented": true,
+  "nativeSoftwareFenceQualified": true,
+  "physicalOutputsArmed": false,
+  "physicalHardwareQualified": false,
+  "audioStreamingQualified": false,
+  "physicalHotplugQualified": false,
+  "status": "passed"
+}
