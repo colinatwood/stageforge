@@ -159,6 +159,7 @@ OSStatus changed(AudioObjectID, UInt32, const AudioObjectPropertyAddress*, void*
     topology_revision.fetch_add(1, std::memory_order_relaxed); return noErr;
 }
 std::atomic<unsigned> midi_subscribers{0};
+std::atomic<unsigned long long> midi_client_serial{0};
 void midi_changed(const MIDINotification*, void*) {
     if (midi_subscribers.load(std::memory_order_relaxed)) topology_revision.fetch_add(1, std::memory_order_relaxed);
 }
@@ -262,7 +263,15 @@ struct DeviceMonitor::Impl {
 #else
     unsigned registered = 0;
     MIDIClientRef midi_client = 0;
-    Impl() { checked(MIDIClientCreate(CFSTR("StageForge Device Monitor"), midi_changed, nullptr, &midi_client), "MIDIClientCreate"); }
+    Impl() {
+        // Do not reuse the name of a recently disposed CoreMIDI client while
+        // the service is still processing its teardown.
+        auto name = CFStringCreateWithFormat(nullptr, nullptr, CFSTR("StageForge Device Monitor %llu"),
+            midi_client_serial.fetch_add(1, std::memory_order_relaxed));
+        if (!name) throw std::runtime_error("CoreMIDI client name allocation failed");
+        auto status = MIDIClientCreate(name, midi_changed, nullptr, &midi_client);
+        CFRelease(name); checked(status, "MIDIClientCreate");
+    }
     ~Impl() { if (midi_client) MIDIClientDispose(midi_client); }
 #endif
 };
