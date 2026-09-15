@@ -109,10 +109,12 @@ struct NativePlaybackStream::Impl {
     PlaybackRender render;
     void* context;
     AudioRequest request;
+    AudioPreflightDecision verified;
     DeviceSelection selection;
     const DeviceExecutionFence* fence_owner = nullptr;
     std::atomic<bool> allowed{false}, fault{false};
     std::atomic<std::uint64_t> callbacks{0}, frames{0};
+    std::atomic<std::uint64_t> in_flight{0};
     std::uint64_t prepared_epoch = 0;
     bool opened = false, running = false;
 #ifdef _WIN32
@@ -131,6 +133,11 @@ struct NativePlaybackStream::Impl {
     static OSStatus callback(void* raw, AudioUnitRenderActionFlags* flags, const AudioTimeStamp*,
                              UInt32, UInt32 count, AudioBufferList* buffers) {
         auto& self = *static_cast<Impl*>(raw);
+        struct Lease {
+            std::atomic<std::uint64_t>& count;
+            explicit Lease(std::atomic<std::uint64_t>& value) : count(value) { count.fetch_add(1); }
+            ~Lease() { count.fetch_sub(1); }
+        } lease(self.in_flight);
         if (!buffers || buffers->mNumberBuffers != 1 ||
             buffers->mBuffers[0].mNumberChannels != self.request.channels ||
             !buffers->mBuffers[0].mData ||
@@ -172,6 +179,13 @@ struct NativePlaybackStream::Impl {
             checked(status, "stop WASAPI");
 #else
         checked(AudioOutputUnitStop(unit), "stop AUHAL");
+        // Stop prevents future scheduling; drain any already executing callback
+        // before the control thread can mutate its configuration/user context.
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (in_flight.load()) {
+            if (std::chrono::steady_clock::now() >= deadline) throw std::runtime_error("AUHAL callback did not drain");
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
 #endif
         running = false;
     }
@@ -205,8 +219,11 @@ struct NativePlaybackStream::Impl {
         WAVEFORMATEX* current = nullptr; UINT32 period = 0;
         checked(client->GetCurrentSharedModeEnginePeriod(&current, &period), "WASAPI active format");
         const bool exact = exact_wave(current, request) && period == request.period_frames;
+        const auto rate = current->nSamplesPerSec, channels = static_cast<DWORD>(current->nChannels);
         CoTaskMemFree(current);
         if (!exact) throw std::runtime_error("WASAPI active configuration differs from exact request");
+        verified.configured_sample_rate_hz = rate; verified.configured_period_frames = period;
+        verified.configured_channels = channels;
 #else
         if (!property<UInt32>(device, kAudioDevicePropertyDeviceIsAlive) ||
             uid_hash(device) != selection.persistent_hash ||
@@ -219,7 +236,13 @@ struct NativePlaybackStream::Impl {
             format.mFormatID != kAudioFormatLinearPCM || format.mBitsPerChannel != 32 ||
             format.mFormatFlags != kAudioFormatFlagsNativeFloatPacked || format.mBytesPerFrame != request.channels * sizeof(float))
             throw std::runtime_error("AUHAL client configuration differs from exact request");
+        verified.configured_sample_rate_hz = static_cast<std::uint32_t>(format.mSampleRate);
+        verified.configured_period_frames = property<UInt32>(device, kAudioDevicePropertyBufferFrameSize);
+        if (verified.configured_period_frames != request.period_frames) throw std::runtime_error("CoreAudio period changed during readback");
+        verified.configured_channels = format.mChannelsPerFrame;
 #endif
+        verified.configured_format = AudioSampleFormat::Float32;
+        verified.status = AudioPreflightStatus::Exact; verified.reason = "native-readback-exact";
     }
     void open_native() {
 #ifdef _WIN32
@@ -377,6 +400,6 @@ void NativePlaybackStream::close() {
 }
 PlaybackStats NativePlaybackStream::stats() const {
     auto& self = *impl_; self.check_thread();
-    return {self.callbacks.load(), self.frames.load(), self.running, self.fault.load(), self.lifecycle.observation()};
+    return {self.callbacks.load(), self.frames.load(), self.running, self.fault.load(), self.lifecycle.observation(), self.verified};
 }
 }

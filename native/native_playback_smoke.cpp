@@ -70,6 +70,7 @@ int main() {
         const auto capabilities = probe_default_audio_endpoint(AudioDirection::Playback);
         bool live = false, stopped = false, restarted = false, config_rejected = false, native_event_stopped = false;
         std::uint64_t callbacks = 0, frames = 0;
+        AudioPreflightDecision verified;
         if (capabilities.endpoint_present) {
             const char* allowed = std::getenv("STAGEFORGE_ALLOW_SILENT_ENDPOINT_TEST");
             if (!allowed || std::string(allowed) != "1") throw std::runtime_error("silent endpoint test requires explicit environment opt-in");
@@ -126,6 +127,10 @@ int main() {
 #endif
             endpoint.close(); endpoint.close();
             callbacks = endpoint.stats().callbacks; frames = endpoint.stats().frames;
+            verified = endpoint.stats().last_verified_configuration;
+            require(verified.status == AudioPreflightStatus::Exact && verified.configured_sample_rate_hz == request.sample_rate_hz &&
+                    verified.configured_period_frames == request.period_frames && verified.configured_channels == request.channels &&
+                    verified.configured_format == request.format, "OS readback does not match request");
             count = context.calls.load();
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
             require(context.calls.load() == count && !endpoint.stats().native_running && !endpoint.stats().callback_fault,
@@ -137,6 +142,10 @@ int main() {
             << ",\"explicitRestartObserved\":" << restarted << ",\"nonExactConfigurationRejected\":" << config_rejected
             << ",\"nativeTopologyStoppedStream\":" << native_event_stopped
             << ",\"callbacks\":" << callbacks << ",\"frames\":" << frames
+            << ",\"configuredRateHz\":" << verified.configured_sample_rate_hz
+            << ",\"configuredPeriodFrames\":" << verified.configured_period_frames
+            << ",\"configuredChannels\":" << verified.configured_channels
+            << ",\"configuredFormat\":\"" << audio_sample_format_name(verified.configured_format) << "\""
             << ",\"manuallyDrivenAudioUnitRender\":false,\"silentTestOnly\":true,\"physicalHardwareQualified\":false}\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
 }

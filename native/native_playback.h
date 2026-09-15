@@ -12,6 +12,9 @@ struct PlaybackStats {
     bool native_running = false;
     bool callback_fault = false;
     AudioStreamObservation lifecycle;
+    // Last successful OS readback, retained for evidence after close().
+    // native_running/lifecycle describe whether it is currently executing.
+    AudioPreflightDecision last_verified_configuration;
 };
 
 // Owner-thread API, tied to one DeviceExecutionFence lifetime. Owns an exact,
