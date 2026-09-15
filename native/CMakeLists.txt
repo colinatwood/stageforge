@@ -11,7 +11,7 @@ add_library(stageforge_devices
   audio_preflight.cpp
   audio_stream_lifecycle.cpp
   software_audio_render.cpp
-  native_playback.cpp)
+  native_endpoint_stream.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
@@ -44,8 +44,10 @@ add_executable(audio_stream_lifecycle_smoke audio_stream_lifecycle_smoke.cpp)
 target_link_libraries(audio_stream_lifecycle_smoke PRIVATE stageforge_devices)
 add_executable(native_playback_smoke native_playback_smoke.cpp)
 target_link_libraries(native_playback_smoke PRIVATE stageforge_devices)
+add_executable(native_capture_smoke native_capture_smoke.cpp)
+target_link_libraries(native_capture_smoke PRIVATE stageforge_devices)
 if(APPLE AND STAGEFORGE_DEVICE_ASAN)
-  foreach(target device_lifecycle_smoke device_execution_fence_smoke audio_preflight_smoke audio_stream_lifecycle_smoke native_playback_smoke)
+  foreach(target device_lifecycle_smoke device_execution_fence_smoke audio_preflight_smoke audio_stream_lifecycle_smoke native_playback_smoke native_capture_smoke)
     target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(${target} PRIVATE -fsanitize=address)
   endforeach()
@@ -63,3 +65,6 @@ set_tests_properties(audio_stream_lifecycle PROPERTIES TIMEOUT 30)
 
 add_test(NAME native_playback COMMAND native_playback_smoke)
 set_tests_properties(native_playback PROPERTIES TIMEOUT 30)
+
+add_test(NAME native_capture COMMAND native_capture_smoke)
+set_tests_properties(native_capture PROPERTIES TIMEOUT 30)

@@ -1,5 +1,6 @@
-#include "native_playback.h"
+#include "native_endpoint_stream.h"
 #include <atomic>
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <stdexcept>
@@ -103,10 +104,12 @@ std::string uid_hash(AudioDeviceID device) {
 #endif
 }
 
-struct NativePlaybackStream::Impl {
+struct NativeEndpointStream::Impl {
     std::thread::id owner = std::this_thread::get_id();
     GuardedAudioStreamLifecycle lifecycle;
+    const AudioDirection direction;
     PlaybackRender render;
+    CaptureReceive receive;
     void* context;
     AudioRequest request;
     AudioPreflightDecision verified;
@@ -115,6 +118,8 @@ struct NativePlaybackStream::Impl {
     std::atomic<bool> allowed{false}, fault{false};
     std::atomic<std::uint64_t> callbacks{0}, frames{0};
     std::atomic<std::uint64_t> in_flight{0};
+    std::atomic<std::uint64_t> discontinuities{0};
+    std::vector<float> capture_buffer;
     std::uint64_t prepared_epoch = 0;
     bool opened = false, running = false;
 #ifdef _WIN32
@@ -123,6 +128,7 @@ struct NativePlaybackStream::Impl {
     Microsoft::WRL::ComPtr<IMMDevice> device;
     Microsoft::WRL::ComPtr<IAudioClient3> client;
     Microsoft::WRL::ComPtr<IAudioRenderClient> output;
+    Microsoft::WRL::ComPtr<IAudioCaptureClient> input;
     HANDLE event = nullptr;
     UINT32 buffer_frames = 0;
 #else
@@ -130,7 +136,15 @@ struct NativePlaybackStream::Impl {
     AudioUnit unit = nullptr;
     bool initialized = false, system_registered = false;
     unsigned registered = 0;
-    static OSStatus callback(void* raw, AudioUnitRenderActionFlags* flags, const AudioTimeStamp*,
+    bool previous_timestamp = false;
+    double next_sample = 0;
+    AudioObjectPropertyAddress watch_address(unsigned index) const {
+        auto address = watched[index];
+        if (direction == AudioDirection::Capture && address.mScope == kAudioObjectPropertyScopeOutput)
+            address.mScope = kAudioObjectPropertyScopeInput;
+        return address;
+    }
+    static OSStatus callback(void* raw, AudioUnitRenderActionFlags* flags, const AudioTimeStamp* timestamp,
                              UInt32, UInt32 count, AudioBufferList* buffers) {
         auto& self = *static_cast<Impl*>(raw);
         struct Lease {
@@ -138,6 +152,24 @@ struct NativePlaybackStream::Impl {
             explicit Lease(std::atomic<std::uint64_t>& value) : count(value) { count.fetch_add(1); }
             ~Lease() { count.fetch_sub(1); }
         } lease(self.in_flight);
+        if (self.direction == AudioDirection::Capture) {
+            if (!self.allowed.load() || endpoint_epoch.load() != self.prepared_epoch) return noErr;
+            if (!timestamp || count > self.request.period_frames) {
+                self.fault.store(true); self.allowed.store(false); return kAudio_ParamError;
+            }
+            AudioBufferList captured{}; captured.mNumberBuffers = 1;
+            captured.mBuffers[0] = {self.request.channels, static_cast<UInt32>(count * self.request.channels * sizeof(float)), self.capture_buffer.data()};
+            auto status = AudioUnitRender(self.unit, flags, timestamp, 1, count, &captured);
+            if (status != noErr) { self.fault.store(true); self.allowed.store(false); return status; }
+            CapturePacketInfo info;
+            info.timestamp_valid = (timestamp->mFlags & kAudioTimeStampSampleTimeValid) != 0;
+            info.sample_position = info.timestamp_valid ? timestamp->mSampleTime : 0;
+            info.discontinuity = info.timestamp_valid && self.previous_timestamp && timestamp->mSampleTime != self.next_sample;
+            self.previous_timestamp = info.timestamp_valid;
+            self.next_sample = timestamp->mSampleTime + count;
+            self.deliver(self.capture_buffer.data(), count, info);
+            return noErr;
+        }
         if (!buffers || buffers->mNumberBuffers != 1 ||
             buffers->mBuffers[0].mNumberChannels != self.request.channels ||
             !buffers->mBuffers[0].mData ||
@@ -149,7 +181,8 @@ struct NativePlaybackStream::Impl {
         return noErr;
     }
 #endif
-    Impl(PlaybackRender fn, void* ctx) : render(fn), context(ctx) {}
+    Impl(AudioDirection flow, PlaybackRender fn, CaptureReceive input_fn, void* ctx)
+        : direction(flow), render(fn), receive(input_fn), context(ctx) {}
     void check_thread() const {
         if (std::this_thread::get_id() != owner) throw std::logic_error("playback stream used off owner thread");
     }
@@ -169,6 +202,13 @@ struct NativePlaybackStream::Impl {
         callbacks.fetch_add(1, std::memory_order_relaxed);
         frames.fetch_add(count, std::memory_order_relaxed);
         return render != nullptr;
+    }
+    void deliver(const float* data, std::uint32_t count, const CapturePacketInfo& info) noexcept {
+        if (!allowed.load() || endpoint_epoch.load() != prepared_epoch || fault.load()) return;
+        if (info.discontinuity) discontinuities.fetch_add(1, std::memory_order_relaxed);
+        if (receive) receive(data, count, request.channels, info, context);
+        callbacks.fetch_add(1, std::memory_order_relaxed);
+        frames.fetch_add(count, std::memory_order_relaxed);
     }
     void stop_native() {
         allowed.store(false);
@@ -193,14 +233,15 @@ struct NativePlaybackStream::Impl {
         stop_native();
 #ifdef _WIN32
         if (registered) { checked(enumerator->UnregisterEndpointNotificationCallback(&notifications), "unregister WASAPI listener"); registered = false; }
-        output.Reset(); client.Reset(); device.Reset(); enumerator.Reset();
+        output.Reset(); input.Reset(); client.Reset(); device.Reset(); enumerator.Reset();
         if (event) { CloseHandle(event); event = nullptr; }
         if (apartment) { CoUninitialize(); apartment = false; }
 #else
         if (initialized) { checked(AudioUnitUninitialize(unit), "uninitialize AUHAL"); initialized = false; }
         if (unit) { checked(AudioComponentInstanceDispose(unit), "dispose AUHAL"); unit = nullptr; }
         while (registered) {
-            auto status = AudioObjectRemovePropertyListener(device, &watched[registered - 1], property_changed, nullptr);
+            auto address = watch_address(registered - 1);
+            auto status = AudioObjectRemovePropertyListener(device, &address, property_changed, nullptr);
             if (status != kAudioHardwareBadObjectError) checked(status, "remove device listener");
             --registered;
         }
@@ -211,6 +252,9 @@ struct NativePlaybackStream::Impl {
         device = kAudioObjectUnknown;
 #endif
         opened = false;
+        // Discard captured data after the native callback has drained.
+        std::fill(capture_buffer.begin(), capture_buffer.end(), 0.0f);
+        capture_buffer.clear();
     }
     void validate_native() {
 #ifdef _WIN32
@@ -231,7 +275,9 @@ struct NativePlaybackStream::Impl {
             property<UInt32>(device, kAudioDevicePropertyBufferFrameSize) != request.period_frames)
             throw std::runtime_error("CoreAudio identity/rate/period changed");
         AudioStreamBasicDescription format{}; UInt32 size = sizeof(format);
-        checked(AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format, &size), "read AUHAL client format");
+        checked(AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat,
+            direction == AudioDirection::Playback ? kAudioUnitScope_Input : kAudioUnitScope_Output,
+            direction == AudioDirection::Playback ? 0 : 1, &format, &size), "read AUHAL client format");
         if (format.mSampleRate != request.sample_rate_hz || format.mChannelsPerFrame != request.channels ||
             format.mFormatID != kAudioFormatLinearPCM || format.mBitsPerChannel != 32 ||
             format.mFormatFlags != kAudioFormatFlagsNativeFloatPacked || format.mBytesPerFrame != request.channels * sizeof(float))
@@ -251,7 +297,7 @@ struct NativePlaybackStream::Impl {
         checked(enumerator->RegisterEndpointNotificationCallback(&notifications), "register playback listener"); registered = true;
         prepared_epoch = endpoint_epoch.load();
         Microsoft::WRL::ComPtr<IMMDeviceCollection> endpoints;
-        checked(enumerator->EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE, &endpoints), "enumerate playback endpoints");
+        checked(enumerator->EnumAudioEndpoints(direction == AudioDirection::Playback ? eRender : eCapture, DEVICE_STATE_ACTIVE, &endpoints), "enumerate audio endpoints");
         UINT count = 0; checked(endpoints->GetCount(&count), "playback endpoint count");
         for (UINT i = 0; i < count; ++i) {
             Microsoft::WRL::ComPtr<IMMDevice> candidate; checked(endpoints->Item(i, &candidate), "playback endpoint");
@@ -277,7 +323,12 @@ struct NativePlaybackStream::Impl {
         } catch (...) { CoTaskMemFree(mix); throw; }
         CoTaskMemFree(mix);
         checked(client->GetBufferSize(&buffer_frames), "playback buffer size");
-        checked(client->GetService(IID_PPV_ARGS(output.GetAddressOf())), "playback render service");
+        if (direction == AudioDirection::Playback)
+            checked(client->GetService(IID_PPV_ARGS(output.GetAddressOf())), "playback render service");
+        else {
+            checked(client->GetService(IID_PPV_ARGS(input.GetAddressOf())), "capture service");
+            capture_buffer.assign(static_cast<std::size_t>(buffer_frames) * request.channels, 0.0f);
+        }
 #else
         checked(AudioObjectAddPropertyListener(kAudioObjectSystemObject, &devices_address, property_changed, nullptr), "listen playback topology");
         system_registered = true;
@@ -289,20 +340,25 @@ struct NativePlaybackStream::Impl {
         for (auto id : devices) if (sha256_token("coreaudio-native:" + std::to_string(id)) == selection.native_hash) device = id;
         if (device == kAudioObjectUnknown || uid_hash(device) != selection.persistent_hash)
             throw std::runtime_error("selected CoreAudio identity absent");
-        for (; registered < sizeof(watched) / sizeof(watched[0]); ++registered)
-            checked(AudioObjectAddPropertyListener(device, &watched[registered], property_changed, nullptr), "listen selected device");
+        for (; registered < sizeof(watched) / sizeof(watched[0]); ++registered) {
+            auto address = watch_address(registered);
+            checked(AudioObjectAddPropertyListener(device, &address, property_changed, nullptr), "listen selected device");
+        }
         AudioComponentDescription description{};
         description.componentType = kAudioUnitType_Output; description.componentSubType = kAudioUnitSubType_HALOutput;
         description.componentManufacturer = kAudioUnitManufacturer_Apple;
         auto component = AudioComponentFindNext(nullptr, &description);
         if (!component) throw std::runtime_error("AUHAL unavailable");
         checked(AudioComponentInstanceNew(component, &unit), "create AUHAL");
-        UInt32 enabled = 1, disabled = 0;
-        checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, 0, &enabled, sizeof(enabled)), "enable AUHAL output");
-        checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1, &disabled, sizeof(disabled)), "disable AUHAL input");
+        UInt32 output_enabled = direction == AudioDirection::Playback ? 1 : 0;
+        UInt32 input_enabled = direction == AudioDirection::Capture ? 1 : 0;
+        checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, 0, &output_enabled, sizeof(output_enabled)), "set AUHAL output enable");
+        checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, 1, &input_enabled, sizeof(input_enabled)), "set AUHAL input enable");
         checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0, &device, sizeof(device)), "pin AUHAL device");
         AudioStreamBasicDescription native{}; size = sizeof(native);
-        checked(AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &native, &size), "AUHAL native format");
+        checked(AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat,
+            direction == AudioDirection::Playback ? kAudioUnitScope_Output : kAudioUnitScope_Input,
+            direction == AudioDirection::Playback ? 0 : 1, &native, &size), "AUHAL native format");
         if (native.mSampleRate != request.sample_rate_hz || native.mChannelsPerFrame != request.channels)
             throw std::runtime_error("AUHAL rate/channel conversion is not implemented");
         AudioStreamBasicDescription format{};
@@ -310,10 +366,17 @@ struct NativePlaybackStream::Impl {
         format.mFormatFlags = kAudioFormatFlagsNativeFloatPacked; format.mChannelsPerFrame = request.channels;
         format.mBytesPerPacket = format.mBytesPerFrame = request.channels * sizeof(float);
         format.mFramesPerPacket = 1; format.mBitsPerChannel = 32;
-        checked(AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format, sizeof(format)), "configure exact AUHAL client format");
+        checked(AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
+            direction == AudioDirection::Playback ? kAudioUnitScope_Input : kAudioUnitScope_Output,
+            direction == AudioDirection::Playback ? 0 : 1, &format, sizeof(format)), "configure exact AUHAL client format");
         checked(AudioUnitSetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0, &request.period_frames, sizeof(request.period_frames)), "AUHAL maximum slice");
         AURenderCallbackStruct cb{callback, this};
-        checked(AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof(cb)), "AUHAL callback");
+        if (direction == AudioDirection::Playback)
+            checked(AudioUnitSetProperty(unit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &cb, sizeof(cb)), "AUHAL output callback");
+        else {
+            capture_buffer.assign(static_cast<std::size_t>(request.period_frames) * request.channels, 0.0f);
+            checked(AudioUnitSetProperty(unit, kAudioOutputUnitProperty_SetInputCallback, kAudioUnitScope_Global, 0, &cb, sizeof(cb)), "AUHAL input callback");
+        }
         checked(AudioUnitInitialize(unit), "initialize AUHAL"); initialized = true;
 #endif
         validate_native();
@@ -328,14 +391,16 @@ struct NativePlaybackStream::Impl {
     }
 };
 
-NativePlaybackStream::NativePlaybackStream(PlaybackRender render, void* context) : impl_(std::make_unique<Impl>(render, context)) {}
-NativePlaybackStream::~NativePlaybackStream() { try { close(); } catch (...) { std::terminate(); } }
-bool NativePlaybackStream::prepare(const AudioRequest& request, const DeviceExecutionFence& fence) {
+NativeEndpointStream::NativeEndpointStream(AudioDirection direction, PlaybackRender render, CaptureReceive receive, void* context)
+    : impl_(std::make_unique<Impl>(direction, render, receive, context)) {}
+NativeEndpointStream::~NativeEndpointStream() { try { close(); } catch (...) { std::terminate(); } }
+bool NativeEndpointStream::prepare(const AudioRequest& request, const DeviceExecutionFence& fence) {
     auto& self = *impl_; self.check_thread();
-    if (self.running || request.direction != AudioDirection::Playback || request.format != AudioSampleFormat::Float32 ||
+    if (self.running || request.direction != self.direction || request.format != AudioSampleFormat::Float32 ||
         !request.sample_rate_hz || !request.period_frames || request.period_frames > 65536 || !request.channels || request.channels > 64 ||
         request.allow_rate_conversion || request.allow_period_adaptation || request.allow_channel_conversion || request.allow_format_conversion ||
-        fence.selection().kind != DeviceKind::Audio || !fence.selection().require_output ||
+        fence.selection().kind != DeviceKind::Audio ||
+        (self.direction == AudioDirection::Playback ? !fence.selection().require_output : !fence.selection().require_input) ||
         (self.fence_owner && self.fence_owner != &fence)) return false;
     AudioPreflightDecision plan{}; plan.status = AudioPreflightStatus::Exact;
     plan.configured_sample_rate_hz = request.sample_rate_hz; plan.configured_period_frames = request.period_frames;
@@ -346,7 +411,7 @@ bool NativePlaybackStream::prepare(const AudioRequest& request, const DeviceExec
         self.fault.store(false); self.open_native(); return true;
     } catch (...) { self.lifecycle.close(); self.release_native(); throw; }
 }
-bool NativePlaybackStream::start(const DeviceExecutionFence& fence) {
+bool NativeEndpointStream::start(const DeviceExecutionFence& fence) {
     auto& self = *impl_; self.check_thread();
     if (!self.opened || !self.matches(fence) || self.running) return false;
     try {
@@ -356,16 +421,19 @@ bool NativePlaybackStream::start(const DeviceExecutionFence& fence) {
         self.allowed.store(true);
 #ifdef _WIN32
         // Prime with silence. Never leave an initial endpoint buffer uninitialized.
-        BYTE* data = nullptr; checked(self.output->GetBuffer(self.buffer_frames, &data), "prime WASAPI buffer");
-        checked(self.output->ReleaseBuffer(self.buffer_frames, AUDCLNT_BUFFERFLAGS_SILENT), "prime WASAPI silence");
+        if (self.direction == AudioDirection::Playback) {
+            BYTE* data = nullptr; checked(self.output->GetBuffer(self.buffer_frames, &data), "prime WASAPI buffer");
+            checked(self.output->ReleaseBuffer(self.buffer_frames, AUDCLNT_BUFFERFLAGS_SILENT), "prime WASAPI silence");
+        }
         checked(self.client->Start(), "start WASAPI");
 #else
+        self.previous_timestamp = false;
         checked(AudioOutputUnitStart(self.unit), "start AUHAL");
 #endif
         self.running = true; return true;
     } catch (...) { self.revoke(fence.observation()); throw; }
 }
-void NativePlaybackStream::service(const DeviceExecutionFence& fence, std::uint32_t wait_ms) {
+void NativeEndpointStream::service(const DeviceExecutionFence& fence, std::uint32_t wait_ms) {
     auto& self = *impl_; self.check_thread();
     if (wait_ms > 100) throw std::invalid_argument("playback service wait exceeds 100ms");
     if (!self.running) return;
@@ -379,13 +447,33 @@ void NativePlaybackStream::service(const DeviceExecutionFence& fence, std::uint3
         if (status != WAIT_OBJECT_0) throw std::runtime_error("WASAPI event wait failed");
         if (endpoint_epoch.load() != self.prepared_epoch) { self.revoke(fence.observation()); return; }
         self.validate_native();
-        UINT32 padding = 0; checked(self.client->GetCurrentPadding(&padding), "WASAPI padding");
-        if (padding > self.buffer_frames) throw std::runtime_error("invalid WASAPI padding");
-        const UINT32 count = self.buffer_frames - padding;
-        if (count) {
-            BYTE* data = nullptr; checked(self.output->GetBuffer(count, &data), "WASAPI render buffer");
-            const bool rendered = self.dispatch(reinterpret_cast<float*>(data), count);
-            checked(self.output->ReleaseBuffer(count, rendered ? 0 : AUDCLNT_BUFFERFLAGS_SILENT), "WASAPI submit buffer");
+        if (self.direction == AudioDirection::Playback) {
+            UINT32 padding = 0; checked(self.client->GetCurrentPadding(&padding), "WASAPI padding");
+            if (padding > self.buffer_frames) throw std::runtime_error("invalid WASAPI padding");
+            const UINT32 count = self.buffer_frames - padding;
+            if (count) {
+                BYTE* data = nullptr; checked(self.output->GetBuffer(count, &data), "WASAPI render buffer");
+                const bool rendered = self.dispatch(reinterpret_cast<float*>(data), count);
+                checked(self.output->ReleaseBuffer(count, rendered ? 0 : AUDCLNT_BUFFERFLAGS_SILENT), "WASAPI submit buffer");
+            }
+        } else {
+            // Bound one service pass even if the producer remains continuously active.
+            for (unsigned packet = 0; packet < 64 && endpoint_epoch.load() == self.prepared_epoch; ++packet) {
+                UINT32 pending = 0; checked(self.input->GetNextPacketSize(&pending), "capture packet size");
+                if (!pending) break;
+                BYTE* data = nullptr; UINT32 count = 0; DWORD flags = 0; UINT64 position = 0;
+                auto status = self.input->GetBuffer(&data, &count, &flags, &position, nullptr);
+                checked(status, "capture packet");
+                if (status == AUDCLNT_S_BUFFER_EMPTY || !count) break;
+                if (count > self.buffer_frames || (!data && !(flags & AUDCLNT_BUFFERFLAGS_SILENT))) {
+                    checked(self.input->ReleaseBuffer(count), "release invalid capture packet");
+                    throw std::runtime_error("invalid capture buffer");
+                }
+                CapturePacketInfo info{(flags & AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY) != 0,
+                    (flags & AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR) == 0, static_cast<double>(position)};
+                self.deliver(flags & AUDCLNT_BUFFERFLAGS_SILENT ? self.capture_buffer.data() : reinterpret_cast<const float*>(data), count, info);
+                checked(self.input->ReleaseBuffer(count), "release capture packet");
+            }
         }
 #else
         self.validate_native();
@@ -394,12 +482,12 @@ void NativePlaybackStream::service(const DeviceExecutionFence& fence, std::uint3
         if (endpoint_epoch.load() != self.prepared_epoch || self.fault.load()) self.revoke(fence.observation());
     } catch (...) { self.revoke(fence.observation()); throw; }
 }
-void NativePlaybackStream::close() {
+void NativeEndpointStream::close() {
     auto& self = *impl_; self.check_thread(); self.allowed.store(false);
     self.lifecycle.close(); self.release_native(); self.lifecycle.mark_stopped();
 }
-PlaybackStats NativePlaybackStream::stats() const {
+EndpointStreamStats NativeEndpointStream::stats() const {
     auto& self = *impl_; self.check_thread();
-    return {self.callbacks.load(), self.frames.load(), self.running, self.fault.load(), self.lifecycle.observation(), self.verified};
+    return {self.callbacks.load(), self.frames.load(), self.running, self.fault.load(), self.lifecycle.observation(), self.verified, self.discontinuities.load()};
 }
 }
