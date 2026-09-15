@@ -95,3 +95,9 @@ Historical continuation: [Checkpoint 78 guarded lifecycle and manual rendering](
 [Checkpoint 80](backlog-checkpoint-80.md) adds shared native capture/playback
 ownership and hosted macOS selected software endpoint loss/recreation tests.
 Full-engine integration and Windows live endpoint evidence remain outstanding.
+
+[Checkpoint 81](backlog-checkpoint-81.md) makes every successful explicit rearm
+issue fresh authority, including after native-only revocation while the control
+fence is still Armed. Initial arming is single-use; authority is noncopyable.
+Rearm invalidates previous-generation consumers, which must stop and prepare
+again. Hosted macOS capture/playback exercise this native stop/restart path.

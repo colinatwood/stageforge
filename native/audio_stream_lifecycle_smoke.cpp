@@ -68,6 +68,28 @@ void contract() {
     require(normal.observation().stop_required && !normal.observation().callback_execution_allowed, "running close was not sticky");
     normal.mark_stopped(); normal.mark_stopped();
     require(normal.observation().state == AudioStreamState::Closed && !normal.observation().stop_required, "idempotent close completion failed");
+
+    // Native invalidation revokes the stream while the control fence may still
+    // be Armed. One explicit rearm must recover without a ceremonial disarm.
+    DeviceExecutionFence native_fence(pin_device(device, false, true));
+    require(native_fence.arm_initial(devices), "native recovery initial arm failed");
+    GuardedAudioStreamLifecycle native;
+    auto before = native_fence.observation();
+    require(native.prepare(plan(), before) && native.start(before), "native recovery start failed");
+    auto revoked = before; revoked.execution_allowed = false; revoked.explicit_rearm_required = true;
+    native.reconcile(revoked);
+    require(!native.prepare(plan(), before), "native pending stop bypassed");
+    native.mark_stopped();
+    require(!native.prepare(plan(), before), "native revoked authority reused");
+    require(native_fence.explicit_rearm(devices), "native recovery explicit rearm failed");
+    auto fresh = native_fence.observation();
+    require(fresh.generation > before.generation, "native recovery did not advance authority");
+    require(native.prepare(plan(), fresh) && native.start(fresh), "single explicit rearm did not recover native revocation");
+    // Reauthorizing a shared fence invalidates any still-running old consumer.
+    require(native_fence.explicit_rearm(devices), "second explicit rearm failed");
+    require(native.reconcile(native_fence.observation()).stop_required, "old consumer survived new authorization");
+    native.mark_stopped();
+    require(!native.prepare(plan(), fresh), "old authorization replay accepted");
 }
 }
 int main() {
@@ -84,6 +106,7 @@ int main() {
         std::cout << std::boolalpha
             << "{\"lifecycleContractPassed\":true,\"staleGenerationRejected\":true,\"pendingStopPreserved\":true,"
             << "\"implicitRecoveryRejected\":true,\"unimplementedConversionRejected\":true,"
+            << "\"singleExplicitRearmRecoversNativeRevocation\":true,\"oldConsumerRevokedOnRearm\":true,"
             << "\"softwareRendererAvailable\":" << native.available
             << ",\"nativeUnitStarted\":" << native.started << ",\"nativeUnitStopped\":" << native.stopped
             << ",\"samplesVerified\":" << native.samples_verified << ",\"fencedRenderSilent\":" << native.fenced_render_silent

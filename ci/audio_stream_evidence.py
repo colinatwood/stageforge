@@ -32,7 +32,8 @@ try:
     checks = json.loads(run.stdout)
     report["nativeChecks"] = checks
     required = ["lifecycleContractPassed", "staleGenerationRejected", "pendingStopPreserved",
-                "implicitRecoveryRejected", "unimplementedConversionRejected"]
+                "implicitRecoveryRejected", "unimplementedConversionRejected",
+                "singleExplicitRearmRecoversNativeRevocation", "oldConsumerRevokedOnRearm"]
     if platform.system() == "Darwin":
         required += ["softwareRendererAvailable", "nativeUnitStarted", "nativeUnitStopped", "samplesVerified",
                      "fencedRenderSilent", "restartVerified", "manualRender"]

@@ -5,6 +5,7 @@
 #include <set>
 #include <stdexcept>
 #include <thread>
+#include <type_traits>
 #ifdef __APPLE__
 #include <CoreAudio/CoreAudio.h>
 #include <CoreMIDI/CoreMIDI.h>
@@ -20,11 +21,20 @@ void require(bool value, const char* message) {
 }
 
 bool synthetic_fence_contract() {
+    static_assert(!std::is_copy_constructible_v<DeviceExecutionFence>);
+    static_assert(!std::is_copy_assignable_v<DeviceExecutionFence>);
+    static_assert(!std::is_move_constructible_v<DeviceExecutionFence>);
+    static_assert(!std::is_move_assignable_v<DeviceExecutionFence>);
     DeviceRecord original{DeviceKind::Audio,"sha256:native-a","sha256:persistent-a",IdentityStrength::OsStableEndpoint,true,false,true};
     auto selection = pin_device(original, false, true);
     DeviceExecutionFence fence(selection);
     require(fence.arm_initial({original}), "initial exact device did not arm");
     require(fence.observation().execution_allowed, "armed fence did not allow execution");
+    const auto initial_generation = fence.observation().generation;
+    require(!fence.arm_initial({original}), "initial arm was reusable");
+    require(fence.observation().generation == initial_generation, "rejected initial arm changed authority");
+    require(fence.explicit_rearm({original}) && fence.observation().generation > initial_generation,
+            "explicit rearm of armed fence did not issue fresh authority");
 
     auto removed = fence.reconcile({});
     require(removed.state == ExecutionFenceState::FencedDetached && !removed.execution_allowed,
@@ -36,6 +46,8 @@ bool synthetic_fence_contract() {
     require(recovered.state == ExecutionFenceState::RecoveredDisarmed && !recovered.execution_allowed,
             "strong recovery silently rearmed execution");
     require(recovered.explicit_rearm_required, "recovered device did not require explicit rearm");
+    require(!fence.arm_initial({replacement}) && !fence.observation().execution_allowed,
+            "initial arm bypassed recovery gate");
     require(fence.explicit_rearm({replacement}), "explicit rearm failed for exact-unique strong recovery");
     require(fence.observation().state == ExecutionFenceState::Armed, "explicit rearm did not arm");
 
@@ -55,6 +67,13 @@ bool synthetic_fence_contract() {
     require(weak_result.state == ExecutionFenceState::FencedDetached && !weak_result.execution_allowed,
             "weak identity rebound automatically");
     require(!weak_fence.explicit_rearm({weak_changed}), "weak changed identity explicitly rearmed");
+    DeviceExecutionFence failed_initial(selection);
+    require(!failed_initial.arm_initial({}), "absent initial device armed");
+    require(!failed_initial.arm_initial({original}), "failed initial attempt was reusable");
+    require(failed_initial.explicit_rearm({original}), "explicit recovery after failed initial arm rejected");
+    failed_initial.disarm();
+    require(!failed_initial.arm_initial({original}) && !failed_initial.observation().execution_allowed,
+            "initial arm bypassed explicit disarm");
     return true;
 }
 
@@ -199,6 +218,7 @@ int main() {
                   << ",\"coreMidiFenceQualified\":" << midi
                   << ",\"coreAudioFenceQualified\":" << audio
                   << ",\"silentRearmPrevented\":true"
+                  << ",\"freshExplicitGeneration\":true,\"initialArmSingleUse\":true,\"authorityNoncopyable\":true"
                   << ",\"physicalOutputsArmed\":false"
                   << ",\"audioStreamingQualified\":false"
                   << ",\"physicalHotplugQualified\":false}"
