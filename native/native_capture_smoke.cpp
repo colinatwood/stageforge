@@ -53,8 +53,8 @@ int main() {
         AudioRequest request; request.direction = AudioDirection::Capture;
         require(!stream.prepare(request, missing), "unarmed preparation accepted");
         require(missing.arm_initial({fake}), "synthetic pin could not arm");
-        auto invalid = request; invalid.direction = AudioDirection::Capture;
-        require(!stream.prepare(invalid, missing), "capture silently accepted by capture adapter");
+        auto invalid = request; invalid.direction = AudioDirection::Playback;
+        require(!stream.prepare(invalid, missing), "playback silently accepted by capture adapter");
         invalid = request; invalid.allow_rate_conversion = true;
         require(!stream.prepare(invalid, missing), "unimplemented conversion accepted");
         for (int i = 0; i < 3; ++i) {

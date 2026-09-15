@@ -3,15 +3,15 @@
 #include <memory>
 
 namespace stageforge {
-// Called with interleaved float32. Must be bounded, allocation-free and noexcept.
-// The context must outlive close(). A null callback renders silence.
 struct CapturePacketInfo {
     bool discontinuity = false;
     bool timestamp_valid = false;
     double sample_position = 0;
 };
-// Buffer is borrowed for this call only. Copying/retaining it is the consumer's
-// responsibility; the adapter retains no recording. Must be bounded/noexcept.
+// Interleaved float32 borrowed for this call only; do not retain this pointer.
+// A consumer may copy samples into its own preallocated storage. A null consumer
+// discards input. Both callbacks must be bounded, allocation-free and noexcept;
+// their context must outlive close(). A null playback callback renders silence.
 using CaptureReceive = void (*)(const float*, std::uint32_t, std::uint32_t, const CapturePacketInfo&, void*) noexcept;
 using PlaybackRender = void (*)(float*, std::uint32_t, std::uint32_t, void*) noexcept;
 struct EndpointStreamStats {
