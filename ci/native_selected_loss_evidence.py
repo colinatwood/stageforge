@@ -27,12 +27,14 @@ try:
     if checks.get("audioSamplesStored") is not False:
         raise RuntimeError("capture test must not store samples")
     if platform.system() == "Darwin":
-        for key in ["softwareFixtureAvailable", "selectedRemovalStopsNativeIo", "recreationRequiresExplicitRearm"]:
+        for key in ["softwareFixtureAvailable", "selectedRemovalStopsNativeIo", "recreationRequiresExplicitRearm",
+                    "injectedIdentityDowngradeStopsNativeIo", "restoredAssuranceRequiresExplicitRearm"]:
             if checks.get(key) is not True:
                 raise RuntimeError(f"missing selected loss check: {key}")
-        if checks["playbackCallbacks"] < 16 or checks["captureCallbacks"] < 16:
+        if checks["playbackCallbacks"] < 24 or checks["captureCallbacks"] < 24:
             raise RuntimeError("insufficient native callback evidence")
-    elif any(checks[key] for key in ["softwareFixtureAvailable", "selectedRemovalStopsNativeIo", "recreationRequiresExplicitRearm", "playbackCallbacks", "captureCallbacks"]):
+    elif any(checks[key] for key in ["softwareFixtureAvailable", "selectedRemovalStopsNativeIo", "recreationRequiresExplicitRearm", "playbackCallbacks", "captureCallbacks",
+                                    "injectedIdentityDowngradeStopsNativeIo", "restoredAssuranceRequiresExplicitRearm"]):
         raise RuntimeError("unexpected selected-loss claim on unsupported OS")
     report["status"] = "passed"
 except Exception as error:

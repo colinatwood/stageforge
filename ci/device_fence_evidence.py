@@ -12,7 +12,7 @@ binary = Path(sys.argv[1]).resolve()
 run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=30, check=True)
 checks = json.loads(run.stdout)
 required = ["syntheticFenceQualified", "silentRearmPrevented", "freshExplicitGeneration",
-            "initialArmSingleUse", "authorityNoncopyable"]
+            "initialArmSingleUse", "authorityNoncopyable", "identityDowngradeFenced", "assuranceRecoveryRequiresRearm"]
 if not all(checks.get(key) is True for key in required):
     raise RuntimeError("Required execution-fence contract evidence missing")
 report = {

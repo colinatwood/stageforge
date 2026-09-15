@@ -69,12 +69,16 @@ std::string sha256_token(std::string_view input) { return "sha256:" + sha256_hex
 
 DeviceSelection pin_device(const DeviceRecord& record, bool require_input, bool require_output) {
     if (record.native_hash.empty() || record.persistent_hash.empty()) throw std::invalid_argument("device identity hashes are required");
+    if (record.automatic_reconnect && record.identity_strength != IdentityStrength::OsStableEndpoint)
+        throw std::invalid_argument("automatic reconnect requires a stable endpoint identity");
     if (require_input && !record.input) throw std::invalid_argument("device does not provide requested input direction");
     if (require_output && !record.output) throw std::invalid_argument("device does not provide requested output direction");
     return {record.kind, record.native_hash, record.persistent_hash, record.automatic_reconnect, require_input, require_output};
 }
 
 DeviceResolution resolve_device(const DeviceSelection& selection, const std::vector<DeviceRecord>& devices) {
+    if (selection.native_hash.empty() || selection.persistent_hash.empty())
+        return {ResolutionStatus::Detached, static_cast<std::size_t>(-1)};
     std::vector<std::size_t> persistent;
     std::vector<std::size_t> native;
     for (std::size_t i=0;i<devices.size();++i) {
@@ -93,6 +97,13 @@ DeviceResolution resolve_device(const DeviceSelection& selection, const std::vec
     if (persistent.size() > 1) return {ResolutionStatus::Ambiguous, static_cast<std::size_t>(-1)};
     if (persistent.empty()) return {ResolutionStatus::Detached, static_cast<std::size_t>(-1)};
     auto index = persistent.front();
+    // Hash equality cannot replace current identity assurance. A formerly strong
+    // selection must fence even its original native object when assurance is
+    // withdrawn. Keep weak duplicate candidates in the ambiguity count above.
+    if (!devices[index].automatic_reconnect ||
+        devices[index].identity_strength != IdentityStrength::OsStableEndpoint ||
+        devices[index].native_hash.empty())
+        return {ResolutionStatus::Detached, static_cast<std::size_t>(-1)};
     return {devices[index].native_hash == selection.native_hash ? ResolutionStatus::Attached : ResolutionStatus::Rebound, index};
 }
 

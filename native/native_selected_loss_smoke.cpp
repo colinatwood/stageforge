@@ -101,6 +101,29 @@ std::uint64_t exercise(AudioDirection direction) {
     else stream = std::make_unique<NativeCaptureStream>();
     require(stream->prepare(request, fence) && stream->start(fence), "selected fixture stream start failed");
     collect(*stream, fence);
+    // Inject downgraded metadata into a copy of real inventory. This is not an
+    // OS/physical identity downgrade; native I/O and its stop/restart are real.
+    auto weak_inventory = monitor.snapshot().devices;
+    bool injected = false;
+    for (auto& candidate : weak_inventory) if (candidate.native_hash == record.native_hash) {
+        candidate.identity_strength = IdentityStrength::InstallationSnapshot;
+        candidate.automatic_reconnect = false; injected = true;
+    }
+    require(injected, "assurance fixture record not found");
+    require(!fence.reconcile(weak_inventory).execution_allowed, "injected downgrade did not fence authority");
+    stream->service(fence);
+    require(!stream->stats().native_running && !stream->stats().lifecycle.callback_execution_allowed,
+            "identity downgrade did not stop native I/O");
+    const auto downgrade_count = stream->stats().callbacks;
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    require(stream->stats().callbacks == downgrade_count, "callbacks continued after downgrade stop");
+    require(!fence.explicit_rearm(weak_inventory), "weak metadata explicitly rearmed");
+    auto strong_inventory = monitor.snapshot().devices;
+    require(!fence.reconcile(strong_inventory).execution_allowed, "restored assurance silently rearmed");
+    require(!stream->prepare(request, fence), "restored assurance bypassed explicit rearm");
+    require(fence.explicit_rearm(strong_inventory), "restored assurance could not rearm");
+    require(stream->prepare(request, fence) && stream->start(fence), "assurance recovery did not restart native I/O");
+    collect(*stream, fence);
     std::cerr << "selected-loss " << audio_direction_name(direction) << ": removing active endpoint\n";
     aggregate.destroy();
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
@@ -145,6 +168,9 @@ int main() {
 #endif
         std::cout << std::boolalpha << "{\"softwareFixtureAvailable\":" << available
             << ",\"selectedRemovalStopsNativeIo\":" << available << ",\"recreationRequiresExplicitRearm\":" << available
+            << ",\"injectedIdentityDowngradeStopsNativeIo\":" << available
+            << ",\"restoredAssuranceRequiresExplicitRearm\":" << available
+            << ",\"physicalIdentityDowngradeQualified\":false"
             << ",\"playbackCallbacks\":" << playback << ",\"captureCallbacks\":" << capture
             << ",\"audioSamplesStored\":false,\"physicalHotplugQualified\":false,\"physicalHardwareQualified\":false}\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
