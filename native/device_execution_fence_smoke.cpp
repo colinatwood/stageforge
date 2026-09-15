@@ -74,6 +74,15 @@ bool synthetic_fence_contract() {
     failed_initial.disarm();
     require(!failed_initial.arm_initial({original}) && !failed_initial.observation().execution_allowed,
             "initial arm bypassed explicit disarm");
+    DeviceExecutionFence assurance(selection);
+    require(assurance.arm_initial({original}), "assurance fixture did not arm");
+    auto downgraded = original;
+    downgraded.identity_strength = IdentityStrength::InstallationSnapshot;
+    downgraded.automatic_reconnect = false;
+    require(!assurance.reconcile({downgraded}).execution_allowed, "weakened identity retained execution");
+    require(!assurance.explicit_rearm({downgraded}), "explicit rearm bypassed weak identity");
+    require(!assurance.reconcile({original}).execution_allowed, "restored assurance silently rearmed");
+    require(assurance.explicit_rearm({original}), "restored strong identity could not explicitly recover");
     return true;
 }
 
@@ -219,6 +228,7 @@ int main() {
                   << ",\"coreAudioFenceQualified\":" << audio
                   << ",\"silentRearmPrevented\":true"
                   << ",\"freshExplicitGeneration\":true,\"initialArmSingleUse\":true,\"authorityNoncopyable\":true"
+                  << ",\"identityDowngradeFenced\":true,\"assuranceRecoveryRequiresRearm\":true"
                   << ",\"physicalOutputsArmed\":false"
                   << ",\"audioStreamingQualified\":false"
                   << ",\"physicalHotplugQualified\":false}"

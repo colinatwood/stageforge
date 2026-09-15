@@ -37,6 +37,34 @@ void exercise_resolution_contract() {
     weak_changed.native_hash = "sha256:native-other";
     require(resolve_device(weak_selection,{weak_changed}).status == ResolutionStatus::Detached, "weak identity rebound automatically");
     require(resolve_device(selection,{}).status == ResolutionStatus::Detached, "missing device was not detached");
+    for (auto kind : {DeviceKind::Audio, DeviceKind::Midi}) {
+        auto original = strong; original.kind = kind;
+        auto pinned = pin_device(original, false, true);
+        for (auto strength : {IdentityStrength::Volatile, IdentityStrength::InstallationSnapshot, IdentityStrength::OsStableEndpoint}) {
+            for (bool reconnect : {false, true}) {
+                if (strength == IdentityStrength::OsStableEndpoint && reconnect) continue;
+                auto downgraded = original;
+                downgraded.identity_strength = strength; downgraded.automatic_reconnect = reconnect;
+                require(resolve_device(pinned, {downgraded}).status == ResolutionStatus::Detached,
+                        "unchanged native hash bypassed assurance downgrade");
+                downgraded.native_hash = "replacement-with-weaker-assurance";
+                require(resolve_device(pinned, {downgraded}).status == ResolutionStatus::Detached,
+                        "weaker replacement identity rebound");
+                require(resolve_device(pinned, {original, downgraded}).status == ResolutionStatus::Ambiguous,
+                        "weak duplicate hidden from ambiguity check");
+                if (reconnect) {
+                    bool rejected = false;
+                    try { pin_device(downgraded); } catch (const std::invalid_argument&) { rejected = true; }
+                    require(rejected, "contradictory weak reconnect record pinned");
+                }
+            }
+        }
+        auto malformed = original; malformed.native_hash.clear();
+        require(resolve_device(pinned, {malformed}).status == ResolutionStatus::Detached, "empty native identity rebound");
+        auto invalid_selection = pinned; invalid_selection.persistent_hash.clear();
+        malformed.persistent_hash.clear();
+        require(resolve_device(invalid_selection, {malformed}).status == ResolutionStatus::Detached, "empty identities resolved");
+    }
 }
 
 std::pair<unsigned,unsigned> identity_counts(const DeviceSnapshot& snapshot) {
@@ -201,6 +229,7 @@ int main() {
             << ",\"stableIdentityApiCompiled\":" << snapshot.stable_audio_identity_api_compiled
             << ",\"stableIdentityCount\":" << counts.first << ",\"weakIdentityCount\":" << counts.second
             << ",\"identityReconciliationQualified\":true"
+            << ",\"identityAssuranceDowngradeRejected\":true,\"weakDuplicatesRemainAmbiguous\":true"
 #ifdef __APPLE__
             << ",\"coreAudioNotificationObserved\":" << mac.coreaudio_notification
             << ",\"coreMidiNotificationObserved\":" << mac.coremidi_notification
