@@ -162,6 +162,18 @@ std::atomic<unsigned> midi_subscribers{0};
 void midi_changed(const MIDINotification*, void*) {
     if (midi_subscribers.load(std::memory_order_relaxed)) topology_revision.fetch_add(1, std::memory_order_relaxed);
 }
+MIDIClientRef process_midi_client() {
+    // CoreMIDI infrastructure is process-owned, like the static notification
+    // callback state. A monitor only owns a subscription. Avoid tearing down
+    // and rebuilding the MIDI service connection after HAL I/O has executed.
+    struct Client {
+        MIDIClientRef value = 0;
+        Client() { checked(MIDIClientCreate(CFSTR("StageForge Device Monitor"), midi_changed, nullptr, &value), "MIDIClientCreate"); }
+        ~Client() { if (value && MIDIClientDispose(value) != noErr) std::terminate(); }
+    };
+    static Client client;
+    return client.value;
+}
 const AudioObjectPropertyAddress addresses[] = {
     {kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain},
     {kAudioHardwarePropertyDefaultInputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain},
@@ -262,8 +274,7 @@ struct DeviceMonitor::Impl {
 #else
     unsigned registered = 0;
     MIDIClientRef midi_client = 0;
-    Impl() { checked(MIDIClientCreate(CFSTR("StageForge Device Monitor"), midi_changed, nullptr, &midi_client), "MIDIClientCreate"); }
-    ~Impl() { if (midi_client) MIDIClientDispose(midi_client); }
+    Impl() : midi_client(process_midi_client()) {}
 #endif
 };
 

@@ -191,6 +191,7 @@ int main() {
         other.join();
         require(wrong_thread_rejected, "cross-thread start accepted");
         { DeviceMonitor another; another.start(); another.snapshot(); }
+        { DeviceMonitor recreated; recreated.start(); recreated.snapshot(); }
         auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - begin).count();
         std::cout << std::boolalpha << "{\"cycles\":25,\"activeDestructionPassed\":true,"
             << "\"inactiveSnapshotRejected\":true,\"wrongThreadRejected\":true,\"deviceCount\":" << snapshot.device_count

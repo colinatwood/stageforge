@@ -88,6 +88,10 @@ ctest --test-dir build -C Release --output-on-failure
 
 Hosted macOS CI additionally configures `-DSTAGEFORGE_DEVICE_ASAN=ON`.
 
-Latest continuation: [Checkpoint 78 guarded lifecycle and manual rendering](backlog-checkpoint-78.md). Endpoint streams remain unfinished.
+Historical continuation: [Checkpoint 78 guarded lifecycle and manual rendering](backlog-checkpoint-78.md).
 
 [Checkpoint 79](backlog-checkpoint-79.md) adds native playback ownership and Windows MIDI discovery.
+
+[Checkpoint 80](backlog-checkpoint-80.md) adds shared native capture/playback
+ownership and hosted macOS selected software endpoint loss/recreation tests.
+Full-engine integration and Windows live endpoint evidence remain outstanding.
