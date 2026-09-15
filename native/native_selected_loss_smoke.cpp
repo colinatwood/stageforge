@@ -83,17 +83,21 @@ void collect(NativeEndpointStream& stream, const DeviceExecutionFence& fence) {
 }
 std::uint64_t exercise(AudioDirection direction) {
     std::cerr << "selected-loss " << audio_direction_name(direction) << ": creating endpoint\n";
-    const auto capabilities = probe_default_audio_endpoint(direction);
     DeviceMonitor monitor; monitor.start();
     Aggregate aggregate(direction); aggregate.create();
     auto record = await_record(monitor, aggregate.device, direction);
     auto selection = pin_device(record, direction == AudioDirection::Capture, direction == AudioDirection::Playback);
+    const auto capabilities = probe_audio_endpoint(selection, direction);
+    require(capabilities.endpoint_present && capabilities.endpoint_identity_hash == selection.persistent_hash,
+            "selected aggregate capability probe did not return pinned identity");
+    require(probe_default_audio_endpoint(direction).endpoint_identity_hash != capabilities.endpoint_identity_hash,
+            "selected aggregate fixture unexpectedly became default");
     DeviceExecutionFence fence(selection);
     require(fence.arm_initial(monitor.snapshot().devices), "selected fixture initial arm failed");
     AudioRequest request;
     request.direction = direction;
-    request.sample_rate_hz = static_cast<std::uint32_t>(property<Float64>(aggregate.device, kAudioDevicePropertyNominalSampleRate));
-    request.period_frames = property<UInt32>(aggregate.device, kAudioDevicePropertyBufferFrameSize);
+    request.sample_rate_hz = capabilities.native_sample_rate_hz;
+    request.period_frames = capabilities.default_period_frames;
     request.channels = direction == AudioDirection::Playback ? capabilities.output_channels : capabilities.input_channels;
     std::unique_ptr<NativeEndpointStream> stream;
     // Null playback writes silence; null capture discards every input buffer.
@@ -132,6 +136,9 @@ std::uint64_t exercise(AudioDirection direction) {
         fence.reconcile(monitor.snapshot().devices);
     }
     require(fence.observation().resolution == ResolutionStatus::Detached, "removed selected device still resolved");
+    require(!probe_audio_endpoint(fence.selection(), direction).endpoint_present,
+            "removed selected endpoint probe fell back to another device");
+    require(probe_default_audio_endpoint(direction).endpoint_present, "default fixture disappeared with selected aggregate");
     stream->service(fence);
     require(!stream->stats().native_running && !stream->stats().lifecycle.callback_execution_allowed, "selected loss did not stop native stream");
     auto stopped_count = stream->stats().callbacks;
@@ -146,6 +153,9 @@ std::uint64_t exercise(AudioDirection direction) {
     require(!recovered.execution_allowed && recovered.explicit_rearm_required, "recreated endpoint silently rearmed");
     require(!stream->prepare(request, fence), "disarmed recovered endpoint prepared");
     require(fence.explicit_rearm(restored.devices), "recreated strong identity could not explicitly rearm");
+    const auto restored_capabilities = probe_audio_endpoint(fence.selection(), direction);
+    require(restored_capabilities.endpoint_present && restored_capabilities.endpoint_identity_hash == selection.persistent_hash,
+            "explicitly rebound selection could not probe recreated endpoint");
     require(stream->prepare(request, fence) && stream->start(fence), "recreated selected endpoint restart failed");
     collect(*stream, fence); stream->close();
     return stream->stats().callbacks;
@@ -171,6 +181,7 @@ int main() {
             << ",\"injectedIdentityDowngradeStopsNativeIo\":" << available
             << ",\"restoredAssuranceRequiresExplicitRearm\":" << available
             << ",\"physicalIdentityDowngradeQualified\":false"
+            << ",\"pinnedNonDefaultPreflight\":" << available << ",\"removedPinNeverFallsBack\":" << available
             << ",\"playbackCallbacks\":" << playback << ",\"captureCallbacks\":" << capture
             << ",\"audioSamplesStored\":false,\"physicalHotplugQualified\":false,\"physicalHardwareQualified\":false}\n";
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }

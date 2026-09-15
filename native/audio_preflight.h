@@ -4,6 +4,7 @@
 #include <vector>
 
 namespace stageforge {
+struct DeviceSelection;
 
 enum class AudioDirection { Playback, Capture };
 enum class AudioSampleFormat { Unknown, Float32, Int16, Int24Packed, Int32 };
@@ -55,6 +56,13 @@ struct AudioPreflightDecision {
 };
 
 AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction);
+// Read capabilities for the exact selected native object on the control thread.
+// No fallback to default or rebound, no device setting changes and no I/O start.
+// Missing, ambiguous or weakened identity returns no endpoint. Concurrent changes
+// return no endpoint or propagate an OS read error; callers must refresh/retry.
+// A successful probe is a snapshot, not permission to execute; streams still
+// require a current fence and verify the actual native configuration at start.
+AudioHostCapabilities probe_audio_endpoint(const DeviceSelection& selection, AudioDirection direction);
 AudioPreflightDecision evaluate_audio_preflight(const AudioRequest& request, const AudioHostCapabilities& capabilities);
 const char* audio_direction_name(AudioDirection value);
 const char* audio_sample_format_name(AudioSampleFormat value);

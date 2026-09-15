@@ -1,5 +1,6 @@
 #include "audio_preflight.h"
 #include "device_identity.h"
+#include "device_monitor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -194,7 +195,7 @@ AudioPreflightDecision evaluate_audio_preflight(const AudioRequest& request, con
     return result;
 }
 
-AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
+static AudioHostCapabilities probe_native_audio_endpoint(AudioDirection direction, const DeviceSelection* selection) {
     AudioHostCapabilities result{};
 #ifdef _WIN32
     result.backend = "wasapi";
@@ -204,9 +205,29 @@ AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
         IID_PPV_ARGS(enumerator.GetAddressOf())), "MMDeviceEnumerator");
     Microsoft::WRL::ComPtr<IMMDevice> endpoint;
     const auto flow = direction == AudioDirection::Playback ? eRender : eCapture;
-    const HRESULT selected = enumerator->GetDefaultAudioEndpoint(flow, eConsole, endpoint.GetAddressOf());
-    if (selected == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) return result;
-    checked(selected, "GetDefaultAudioEndpoint");
+    if (selection) {
+        Microsoft::WRL::ComPtr<IMMDeviceCollection> devices;
+        checked(enumerator->EnumAudioEndpoints(flow, DEVICE_STATE_ACTIVE, devices.GetAddressOf()), "enumerate pinned endpoints");
+        UINT count = 0; checked(devices->GetCount(&count), "pinned endpoint count");
+        for (UINT i = 0; i < count; ++i) {
+            Microsoft::WRL::ComPtr<IMMDevice> candidate;
+            checked(devices->Item(i, candidate.GetAddressOf()), "pinned endpoint item");
+            LPWSTR raw = nullptr; checked(candidate->GetId(&raw), "pinned endpoint ID");
+            std::string hash;
+            try { hash = sha256_token("wasapi-native:" + utf8(raw)); }
+            catch (...) { CoTaskMemFree(raw); throw; }
+            CoTaskMemFree(raw);
+            if (hash == selection->native_hash) {
+                if (endpoint) return result;
+                endpoint = candidate;
+            }
+        }
+        if (!endpoint) return result;
+    } else {
+        const HRESULT selected = enumerator->GetDefaultAudioEndpoint(flow, eConsole, endpoint.GetAddressOf());
+        if (selected == HRESULT_FROM_WIN32(ERROR_NOT_FOUND)) return result;
+        checked(selected, "GetDefaultAudioEndpoint");
+    }
     result.endpoint_present = true;
 
     LPWSTR raw_id = nullptr;
@@ -247,8 +268,24 @@ AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
     };
     AudioDeviceID device = kAudioObjectUnknown;
     UInt32 size = sizeof(device);
-    checked(AudioObjectGetPropertyData(kAudioObjectSystemObject, &default_address, 0, nullptr, &size, &device),
-        "default CoreAudio device");
+    if (selection) {
+        AudioObjectPropertyAddress list_address{kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+        UInt32 bytes = 0;
+        checked(AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &list_address, 0, nullptr, &bytes), "pinned device list size");
+        if (bytes % sizeof(AudioDeviceID)) throw std::runtime_error("invalid pinned device list size");
+        std::vector<AudioDeviceID> devices(bytes / sizeof(AudioDeviceID));
+        const auto capacity = bytes;
+        if (bytes) checked(AudioObjectGetPropertyData(kAudioObjectSystemObject, &list_address, 0, nullptr, &bytes, devices.data()), "pinned device list");
+        if (bytes > capacity || bytes % sizeof(AudioDeviceID)) throw std::runtime_error("pinned device list changed size");
+        devices.resize(bytes / sizeof(AudioDeviceID));
+        for (auto candidate : devices) if (sha256_token("coreaudio-native:" + std::to_string(candidate)) == selection->native_hash) {
+            if (device != kAudioObjectUnknown) return result;
+            device = candidate;
+        }
+    } else {
+        checked(AudioObjectGetPropertyData(kAudioObjectSystemObject, &default_address, 0, nullptr, &size, &device),
+            "default CoreAudio device");
+    }
     if (device == kAudioObjectUnknown) return result;
     result.endpoint_present = true;
 
@@ -303,6 +340,37 @@ AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
     result.client_format = AudioSampleFormat::Float32;
     return result;
 #endif
+}
+
+AudioHostCapabilities probe_default_audio_endpoint(AudioDirection direction) {
+    return probe_native_audio_endpoint(direction, nullptr);
+}
+
+AudioHostCapabilities probe_audio_endpoint(const DeviceSelection& selection, AudioDirection direction) {
+    AudioHostCapabilities absent{};
+#ifdef _WIN32
+    absent.backend = "wasapi";
+#else
+    absent.backend = "coreaudio";
+#endif
+    if (selection.kind != DeviceKind::Audio ||
+        (direction != AudioDirection::Playback && direction != AudioDirection::Capture)) return absent;
+    auto directional = selection;
+    if (direction == AudioDirection::Playback) directional.require_output = true;
+    else directional.require_input = true;
+    DeviceMonitor monitor; monitor.start();
+    const auto revision = monitor.revision();
+    if (resolve_device(directional, monitor.snapshot().devices).status != ResolutionStatus::Attached) return absent;
+    auto result = probe_native_audio_endpoint(direction, &directional);
+#ifdef _WIN32
+    if (result.endpoint_identity_hash != directional.native_hash) return absent;
+#else
+    if (result.endpoint_identity_hash != directional.persistent_hash) return absent;
+#endif
+    if (!result.endpoint_present ||
+        resolve_device(directional, monitor.snapshot().devices).status != ResolutionStatus::Attached ||
+        monitor.revision() != revision) return absent;
+    return result;
 }
 
 const char* audio_direction_name(AudioDirection value) {
