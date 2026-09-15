@@ -22,7 +22,7 @@ report = {
     "binarySha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
     "sourceSha256": {
         str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
-        for p in sorted((root / "native").glob("audio_preflight*")) if p.is_file()
+        for p in sorted((root / "native").glob("*")) if p.is_file()
     },
     "preflightOnly": True,
     "configurationApplied": False,
@@ -40,9 +40,13 @@ try:
         checks.get("syntheticExplicitAdaptationQualified") is True,
         checks.get("implicitConversionRejected") is True,
         checks.get("missingEndpointRejected") is True,
+        checks.get("missingPinnedEndpointRejected") is True,
     ])
     playback = checks.get("playback") or {}
     capture = checks.get("capture") or {}
+    expected_pinned = int(playback.get("endpointPresent") is True) + int(capture.get("endpointPresent") is True)
+    if checks.get("pinnedDefaultProbeCount") != expected_pinned:
+        raise RuntimeError("Pinned endpoint readback evidence incomplete")
     report["playbackEndpointObserved"] = playback.get("endpointPresent") is True
     report["captureEndpointObserved"] = capture.get("endpointPresent") is True
     report["playbackProbeQualified"] = playback.get("exactHostPlanQualified") is True

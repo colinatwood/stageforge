@@ -107,3 +107,9 @@ reconnect assurance for strong selections. Downgrades fence even unchanged nativ
 objects; restoring evidence requires explicit rearm. Native macOS tests inject
 weaker metadata during playback/capture and verify stop/recovery, without claiming
 an OS-generated or physical identity downgrade.
+
+[Checkpoint 83](backlog-checkpoint-83.md) adds `probe_audio_endpoint(selection,
+direction)` for exact pinned native capability readback. It never falls back to
+the default or silently follows a rebound identity. Hosted macOS uses non-default
+aggregate capabilities for native playback/capture and rejects the removed pin
+while a default remains available. Probing does not authorize execution.

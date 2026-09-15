@@ -1,4 +1,5 @@
 #include "audio_preflight.h"
+#include "device_monitor.h"
 
 #include <iostream>
 #include <stdexcept>
@@ -99,6 +100,39 @@ int main() {
 
         const auto playback = probe_default_audio_endpoint(AudioDirection::Playback);
         const auto capture = probe_default_audio_endpoint(AudioDirection::Capture);
+        DeviceSelection missing; missing.native_hash = "absent-native"; missing.persistent_hash = "absent-persistent";
+        for (auto direction : {AudioDirection::Playback, AudioDirection::Capture})
+            require(!probe_audio_endpoint(missing, direction).endpoint_present, "missing pin fell back to default endpoint");
+        unsigned pinned_default_probes = 0;
+        DeviceMonitor monitor; monitor.start();
+        auto snapshot = monitor.snapshot();
+        for (auto direction : {AudioDirection::Playback, AudioDirection::Capture}) {
+            const auto& defaults = direction == AudioDirection::Playback ? playback : capture;
+            if (!defaults.endpoint_present) continue;
+            unsigned matches = 0;
+            for (const auto& record : snapshot.devices) {
+#ifdef _WIN32
+                const auto& identity = record.native_hash;
+#else
+                const auto& identity = record.persistent_hash;
+#endif
+                if (record.kind != DeviceKind::Audio || identity != defaults.endpoint_identity_hash) continue;
+                auto selection = pin_device(record, direction == AudioDirection::Capture, direction == AudioDirection::Playback);
+                auto pinned = probe_audio_endpoint(selection, direction);
+                require(pinned.endpoint_present && pinned.endpoint_identity_hash == defaults.endpoint_identity_hash &&
+                        pinned.native_sample_rate_hz == defaults.native_sample_rate_hz &&
+                        pinned.default_period_frames == defaults.default_period_frames &&
+                        pinned.client_format == defaults.client_format &&
+                        (direction == AudioDirection::Capture ? pinned.input_channels == defaults.input_channels : pinned.output_channels == defaults.output_channels),
+                        "pinned readback differs from selected default endpoint");
+                auto wrong = selection; wrong.persistent_hash += "-wrong";
+                require(!probe_audio_endpoint(wrong, direction).endpoint_present, "wrong persistent identity accepted");
+                wrong = selection; wrong.kind = DeviceKind::Midi;
+                require(!probe_audio_endpoint(wrong, direction).endpoint_present, "MIDI selection accepted by audio probe");
+                ++matches; ++pinned_default_probes;
+            }
+            require(matches == 1, "default did not resolve uniquely for pinned probe");
+        }
         const auto playback_decision = evaluate_audio_preflight(
             playback.endpoint_present ? exact_request(AudioDirection::Playback, playback) : AudioRequest{}, playback);
         AudioRequest capture_request{};
@@ -119,6 +153,7 @@ int main() {
         std::cout << "\"syntheticExplicitAdaptationQualified\":true,";
         std::cout << "\"implicitConversionRejected\":true,";
         std::cout << "\"missingEndpointRejected\":true,";
+        std::cout << "\"missingPinnedEndpointRejected\":true,\"pinnedDefaultProbeCount\":" << pinned_default_probes << ',';
         print_live("playback", AudioDirection::Playback, playback, playback_decision);
         std::cout << ',';
         print_live("capture", AudioDirection::Capture, capture, capture_decision);
