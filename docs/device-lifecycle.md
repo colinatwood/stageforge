@@ -101,3 +101,9 @@ issue fresh authority, including after native-only revocation while the control
 fence is still Armed. Initial arming is single-use; authority is noncopyable.
 Rearm invalidates previous-generation consumers, which must stop and prepare
 again. Hosted macOS capture/playback exercise this native stop/restart path.
+
+[Checkpoint 82](backlog-checkpoint-82.md) requires current stable identity and
+reconnect assurance for strong selections. Downgrades fence even unchanged native
+objects; restoring evidence requires explicit rearm. Native macOS tests inject
+weaker metadata during playback/capture and verify stop/recovery, without claiming
+an OS-generated or physical identity downgrade.
