@@ -82,6 +82,14 @@ jobs:
         run: python ci/native_capture_evidence.py build/native_capture_smoke
         env:
           ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
+      - name: Record Windows selected-loss fixture availability
+        if: runner.os == 'Windows'
+        run: python ci/native_selected_loss_evidence.py build/Release/native_selected_loss_smoke.exe
+      - name: Record macOS selected endpoint loss evidence
+        if: runner.os == 'macOS'
+        run: python ci/native_selected_loss_evidence.py build/native_selected_loss_smoke
+        env:
+          ASAN_OPTIONS: abort_on_error=1:detect_leaks=0:symbolize=1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -93,6 +101,7 @@ jobs:
             audio-stream-lifecycle-evidence.json
             native-playback-evidence.json
             native-capture-evidence.json
+            native-selected-loss-evidence.json
             qualification-availability.json
           if-no-files-found: warn
           retention-days: 30
