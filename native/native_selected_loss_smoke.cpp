@@ -81,9 +81,10 @@ void collect(NativeEndpointStream& stream, const DeviceExecutionFence& fence) {
     }
     require(stream.stats().callbacks >= before + 8, "selected fixture did not deliver native callbacks");
 }
-std::uint64_t exercise(AudioDirection direction, DeviceMonitor& monitor) {
+std::uint64_t exercise(AudioDirection direction) {
     std::cerr << "selected-loss " << audio_direction_name(direction) << ": creating endpoint\n";
     const auto capabilities = probe_default_audio_endpoint(direction);
+    DeviceMonitor monitor; monitor.start();
     Aggregate aggregate(direction); aggregate.create();
     auto record = await_record(monitor, aggregate.device, direction);
     auto selection = pin_device(record, direction == AudioDirection::Capture, direction == AudioDirection::Playback);
@@ -136,12 +137,10 @@ int main() {
             auto value = std::getenv(key);
             require(value && std::string(value) == "1", "selected loss fixture requires authorized endpoint test environment");
         }
-        // One process-lifetime topology monitor observes both stream owners.
-        // Do not recreate CoreMIDI infrastructure as a side effect of changing
-        // the direction of an audio fixture after native HAL I/O has run.
-        DeviceMonitor monitor; monitor.start();
-        playback = exercise(AudioDirection::Playback, monitor);
-        capture = exercise(AudioDirection::Capture, monitor);
+        // Recreate the monitor wrapper between phases, after HAL I/O teardown.
+        // The underlying CoreMIDI service connection stays process-owned.
+        playback = exercise(AudioDirection::Playback);
+        capture = exercise(AudioDirection::Capture);
         available = true;
 #endif
         std::cout << std::boolalpha << "{\"softwareFixtureAvailable\":" << available

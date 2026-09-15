@@ -19,6 +19,8 @@ struct DeviceSnapshot {
 // Control-thread API. OS callbacks only advance an atomic revision; callers
 // refresh snapshots off the audio thread. Snapshots export hashed identities only.
 // No stream is opened or automatically restarted by this monitor.
+// macOS shares one process-owned CoreMIDI client; start/stop owns only this
+// monitor's notification subscription and CoreAudio listeners.
 class DeviceMonitor {
 public:
     DeviceMonitor();
