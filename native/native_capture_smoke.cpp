@@ -69,6 +69,7 @@ int main() {
 
         const auto capabilities = probe_default_audio_endpoint(AudioDirection::Capture);
         bool live = false, stopped = false, restarted = false, config_rejected = false, native_event_stopped = false;
+        bool native_event_restarted = false;
         std::uint64_t callbacks = 0, frames = 0;
         AudioPreflightDecision verified;
         if (capabilities.endpoint_present) {
@@ -128,6 +129,18 @@ int main() {
                         "native topology notification did not stop capture");
                 require(!endpoint.prepare(request, fence), "native invalidation accepted stale armed fence");
                 native_event_stopped = true;
+                // Settle fixture creation notifications while it remains alive.
+                // The selected endpoint never disappeared and the fence is Armed.
+                for (int i = 0; i < 20; ++i) CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
+                const auto revoked_generation = fence.observation().generation;
+                require(fence.observation().execution_allowed, "topology test unexpectedly disarmed control fence");
+                require(!fence.arm_initial(monitor.snapshot().devices), "initial arm reused after native invalidation");
+                require(fence.explicit_rearm(monitor.snapshot().devices), "explicit native-event recovery rejected");
+                require(fence.observation().generation > revoked_generation, "native recovery reused revoked generation");
+                require(endpoint.prepare(request, fence) && endpoint.start(fence), "single explicit rearm did not restart native endpoint");
+                collect(endpoint, fence);
+                native_event_restarted = true;
+                endpoint.close();
             }
 #endif
             endpoint.close(); endpoint.close();
@@ -146,6 +159,7 @@ int main() {
             << ",\"nativeCallbacksObserved\":" << live << ",\"nativeStopDrained\":" << stopped
             << ",\"explicitRestartObserved\":" << restarted << ",\"nonExactConfigurationRejected\":" << config_rejected
             << ",\"nativeTopologyStoppedStream\":" << native_event_stopped
+            << ",\"singleExplicitRearmAfterNativeEvent\":" << native_event_restarted
             << ",\"callbacks\":" << callbacks << ",\"frames\":" << frames
             << ",\"configuredRateHz\":" << verified.configured_sample_rate_hz
             << ",\"configuredPeriodFrames\":" << verified.configured_period_frames

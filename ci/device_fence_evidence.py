@@ -11,6 +11,10 @@ root = Path(__file__).resolve().parents[1]
 binary = Path(sys.argv[1]).resolve()
 run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=30, check=True)
 checks = json.loads(run.stdout)
+required = ["syntheticFenceQualified", "silentRearmPrevented", "freshExplicitGeneration",
+            "initialArmSingleUse", "authorityNoncopyable"]
+if not all(checks.get(key) is True for key in required):
+    raise RuntimeError("Required execution-fence contract evidence missing")
 report = {
     "documentType": "org.upp.device-execution-fence-smoke",
     "schemaVersion": 1,
@@ -18,6 +22,8 @@ report = {
     "sourceCommit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
     "githubRunId": os.environ.get("GITHUB_RUN_ID"),
     "binarySha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+    "sourceSha256": {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                     for p in sorted((root / "native").glob("*")) if p.is_file()},
     "nativeChecks": checks,
     "syntheticFenceQualified": checks.get("syntheticFenceQualified") is True,
     "silentRearmPrevented": checks.get("silentRearmPrevented") is True,

@@ -27,6 +27,8 @@ void DeviceExecutionFence::accept_resolved_native(const DeviceRecord& record) {
 }
 
 bool DeviceExecutionFence::arm_initial(const std::vector<DeviceRecord>& devices) {
+    if (initial_attempted_ || generation_ != 0) return false;
+    initial_attempted_ = true;
     auto resolved = resolve_device(selection_, devices);
     if (resolved.status != ResolutionStatus::Attached) {
         transition(
@@ -72,7 +74,11 @@ bool DeviceExecutionFence::explicit_rearm(const std::vector<DeviceRecord>& devic
         return false;
     }
     accept_resolved_native(devices.at(resolved.index));
+    // A native stream may revoke without changing this control-thread fence.
+    // Explicit authorization must still advance beyond that revoked generation.
+    const auto previous_generation = generation_;
     transition(ExecutionFenceState::Armed, ResolutionStatus::Attached);
+    if (generation_ == previous_generation) ++generation_;
     return true;
 }
 
