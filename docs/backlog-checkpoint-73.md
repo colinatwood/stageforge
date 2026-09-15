@@ -1,6 +1,6 @@
 # Checkpoint 73 master backlog amendment
 
-Latest reconciled snapshot: [Checkpoint 80](backlog-checkpoint-80.md).
+Latest reconciled snapshot: [Checkpoint 81](backlog-checkpoint-81.md).
 
 Reconciled against the user-supplied `StageForge-Master-Backlog-Checkpoint-73.xlsx`.
 That workbook already contains the Checkpoint 73 closure below. The updated
