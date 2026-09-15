@@ -81,9 +81,9 @@ void collect(NativeEndpointStream& stream, const DeviceExecutionFence& fence) {
     }
     require(stream.stats().callbacks >= before + 8, "selected fixture did not deliver native callbacks");
 }
-std::uint64_t exercise(AudioDirection direction) {
+std::uint64_t exercise(AudioDirection direction, DeviceMonitor& monitor) {
+    std::cerr << "selected-loss " << audio_direction_name(direction) << ": creating endpoint\n";
     const auto capabilities = probe_default_audio_endpoint(direction);
-    DeviceMonitor monitor; monitor.start();
     Aggregate aggregate(direction); aggregate.create();
     auto record = await_record(monitor, aggregate.device, direction);
     auto selection = pin_device(record, direction == AudioDirection::Capture, direction == AudioDirection::Playback);
@@ -100,6 +100,7 @@ std::uint64_t exercise(AudioDirection direction) {
     else stream = std::make_unique<NativeCaptureStream>();
     require(stream->prepare(request, fence) && stream->start(fence), "selected fixture stream start failed");
     collect(*stream, fence);
+    std::cerr << "selected-loss " << audio_direction_name(direction) << ": removing active endpoint\n";
     aggregate.destroy();
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(3);
     while (fence.observation().resolution != ResolutionStatus::Detached && std::chrono::steady_clock::now() < deadline) {
@@ -113,6 +114,7 @@ std::uint64_t exercise(AudioDirection direction) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     require(stream->stats().callbacks == stopped_count, "callbacks continued after selected device loss");
     require(!fence.explicit_rearm(monitor.snapshot().devices), "absent selected device rearmed");
+    std::cerr << "selected-loss " << audio_direction_name(direction) << ": recreating endpoint\n";
     aggregate.create();
     await_record(monitor, aggregate.device, direction);
     auto restored = monitor.snapshot();
@@ -134,8 +136,12 @@ int main() {
             auto value = std::getenv(key);
             require(value && std::string(value) == "1", "selected loss fixture requires authorized endpoint test environment");
         }
-        playback = exercise(AudioDirection::Playback);
-        capture = exercise(AudioDirection::Capture);
+        // One process-lifetime topology monitor observes both stream owners.
+        // Do not recreate CoreMIDI infrastructure as a side effect of changing
+        // the direction of an audio fixture after native HAL I/O has run.
+        DeviceMonitor monitor; monitor.start();
+        playback = exercise(AudioDirection::Playback, monitor);
+        capture = exercise(AudioDirection::Capture, monitor);
         available = true;
 #endif
         std::cout << std::boolalpha << "{\"softwareFixtureAvailable\":" << available
