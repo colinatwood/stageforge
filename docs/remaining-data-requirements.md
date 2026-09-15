@@ -13,7 +13,7 @@ the names of backlog rows or overwrite the newer GitHub platform implementation.
 | --- | --- |
 | AUD-035/036, DEV-033/034 integration | Full-source takeover bundle, including Checkpoint 58 shared runtime fencing and AUD-033 conversion implementation, to connect native streams to the actual engine. |
 | Windows endpoint validation | A Windows host with an accessible audio endpoint. GitHub-hosted runs currently report zero playback/capture endpoints. Native MIDI enumeration sees one endpoint, but no PnP event was observed. |
-| Capture validation | An authorized input environment and the engine's capture-buffer/lifetime contract. A separate read-only CI report records microphone authorization without requesting it or capturing audio. |
+| Capture integration and qualification | Checkpoint 80 proves hosted macOS capture and selected software endpoint loss/recovery with pre-existing authorization; samples are discarded without storage. The actual engine's capture-buffer/lifetime contract is still needed for integration. Windows live capture needs an audio endpoint, and physical recording quality needs a separate named-device environment. |
 | AUD-034 | Actual conversion implementation and accepted reference-signal/measurement envelope. No invented quality figures. |
 | UX-035 | The actual frontend/operator workflows and a selected assistive-technology environment. |
 | PKG-033/034 | Package source, package artifacts and installed-service/device-permission qualifier from the full tree; then a clean target host with the required device namespaces. |
