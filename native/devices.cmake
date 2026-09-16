@@ -10,7 +10,8 @@ add_library(stageforge_devices
   audio_preflight.cpp
   audio_stream_lifecycle.cpp
   software_audio_render.cpp
-  native_endpoint_stream.cpp)
+  native_endpoint_stream.cpp
+  engine_native_audio_bridge.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
