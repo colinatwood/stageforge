@@ -59,6 +59,8 @@ jobs:
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTAGEFORGE_BUILD_TESTS=ON -DSTAGEFORGE_RT_QUALIFICATION=OFF
       - name: Build native engine
         run: cmake --build build --config Release --parallel 2
+      - name: Record pre-existing capture authorization
+        run: python ci/qualification_availability.py
       - name: Run native tests
         run: ctest --test-dir build -C Release --output-on-failure
         env:
@@ -81,3 +83,4 @@ jobs:
           path: platform-ci-smoke.json
           if-no-files-found: error
           retention-days: 30
+
