@@ -5,11 +5,14 @@
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 #if defined(__linux__)
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
+#elif defined(_WIN32) || defined(__APPLE__)
+#include "device_monitor.h"
 #endif
 
 namespace stageforge {
@@ -35,6 +38,25 @@ bool parse_linux_raw_midi_name(const char* name, unsigned int& card, unsigned in
     }
     char tail = '\0';
     return std::sscanf(name, "midiC%uD%u%c", &card, &device, &tail) == 2;
+}
+#elif defined(_WIN32) || defined(__APPLE__)
+std::string target_midi_id(const DeviceRecord& record, std::string_view backend) {
+    std::string digest = record.native_hash;
+    constexpr std::string_view prefix{"sha256:"};
+    if (digest.rfind(prefix, 0) == 0) digest.erase(0, prefix.size());
+    if (digest.size() > 40) digest.resize(40);
+    return std::string(backend) + "-" + digest;
+}
+
+std::string target_midi_identity(const DeviceRecord& record, std::string_view backend) {
+    // Raw CoreMIDI objects, WinMM interface names and PnP IDs must not cross
+    // the engine boundary. DeviceMonitor has already reduced them to one-way
+    // SHA-256 evidence before this legacy descriptor is populated.
+    return std::string("backend=") + std::string(backend) +
+        ";native=" + record.native_hash +
+        ";persistent=" + record.persistent_hash +
+        ";strength=" + identity_strength_name(record.identity_strength) +
+        ";auto=" + (record.automatic_reconnect ? "1" : "0");
 }
 #endif
 
@@ -219,6 +241,37 @@ std::size_t MidiInputManager::scan() noexcept {
             }
         }
         ::closedir(directory);
+    }
+#elif defined(_WIN32) || defined(__APPLE__)
+    try {
+        DeviceMonitor monitor;
+        monitor.start();
+        const auto snapshot = monitor.snapshot();
+        monitor.stop();
+        const std::string_view backend =
+#if defined(_WIN32)
+            "windows-midi";
+#else
+            "coremidi";
+#endif
+        for (const auto& record : snapshot.devices) {
+            if (found_count >= max_devices) break;
+            if (record.kind != DeviceKind::Midi || !record.input) continue;
+            auto& slot = found[found_count++];
+            copy_text(slot.descriptor.id, target_midi_id(record, backend));
+            copy_text(slot.descriptor.path, target_midi_identity(record, backend));
+#if defined(_WIN32)
+            copy_text(slot.descriptor.name, "Windows MIDI Endpoint");
+#else
+            copy_text(slot.descriptor.name, "CoreMIDI Endpoint");
+#endif
+            slot.descriptor.connected = true;
+            slot.descriptor.input = true;
+        }
+    } catch (...) {
+        // Topology observation is non-authoritative. A concurrent change leaves
+        // this scan empty instead of fabricating an endpoint identity.
+        found_count = 0;
     }
 #endif
 
