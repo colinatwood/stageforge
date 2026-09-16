@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/sampler-voice-engine-status.schema.json",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "samples", "activeVoices", "pendingVoices", "queued", "submitted", "renderedFrames", "completedVoices", "stolenVoices", "chokedVoices", "rejected", "overflows", "physicalOutputsArmed"],
+  "properties": {
+    "documentType": {"const": "org.upp.sampler-voice-engine-status"},
+    "schemaVersion": {"const": 1},
+    "samples": {"type": "integer", "minimum": 0, "maximum": 32},
+    "activeVoices": {"type": "integer", "minimum": 0, "maximum": 64},
+    "pendingVoices": {"type": "integer", "minimum": 0, "maximum": 64},
+    "queued": {"type": "integer", "minimum": 0, "maximum": 1024},
+    "submitted": {"type": "integer", "minimum": 0},
+    "renderedFrames": {"type": "integer", "minimum": 0},
+    "completedVoices": {"type": "integer", "minimum": 0},
+    "stolenVoices": {"type": "integer", "minimum": 0},
+    "chokedVoices": {"type": "integer", "minimum": 0},
+    "rejected": {"type": "integer", "minimum": 0},
+    "overflows": {"type": "integer", "minimum": 0},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": false
+}

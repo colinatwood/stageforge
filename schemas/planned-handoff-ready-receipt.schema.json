@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/planned-handoff-ready-receipt.schema.json",
+  "type": "object",
+  "required": [
+    "protocolVersion",
+    "receiptType",
+    "transactionId",
+    "sourceNodeId",
+    "targetNodeId",
+    "sourceEpoch",
+    "targetEpoch",
+    "targetShowNs",
+    "programReady",
+    "issuedAtUnixNs",
+    "digestSha256",
+    "hmacSha256"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": 1
+    },
+    "receiptType": {
+      "const": "target-ready"
+    },
+    "transactionId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sourceNodeId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "targetNodeId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceEpoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "targetEpoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "targetShowNs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "programReady": {
+      "type": "boolean"
+    },
+    "issuedAtUnixNs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "digestSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "hmacSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "keyId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    }
+  },
+  "additionalProperties": false
+}

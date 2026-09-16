@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/execution-telemetry-v1.json",
+  "title": "UPP Execution Telemetry v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["showTimeNs", "transportRunning", "audioOutputs", "activeAudioInputSlots"],
+  "properties": {
+    "capturedAtMonotonicNsLocal": {"type": "integer", "minimum": 0},
+    "showTimeNs": {"type": "integer", "minimum": 0},
+    "transportRunning": {"type": "boolean"},
+    "audioOutputs": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["slot", "lastBlockEndShowNs"],
+        "properties": {
+          "slot": {"type": "integer", "minimum": 0, "maximum": 3},
+          "purpose": {"type": "string", "maxLength": 32},
+          "lastBlockEndShowNs": {"type": "integer", "minimum": 0},
+          "lastRenderShowNs": {"type": "integer", "minimum": 0},
+          "lastWriteNsLocal": {"type": "integer", "minimum": 0},
+          "framesWritten": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "activeAudioInputSlots": {
+      "type": "array",
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"type": "integer", "minimum": 0, "maximum": 3}
+    }
+  }
+}

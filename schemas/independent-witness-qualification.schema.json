@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/independent-witness-qualification-v1.json",
+  "title": "UPP Independent Witness Reference Qualification v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "documentType", "schemaVersion", "referenceOnly", "physicalIndependenceQualified",
+    "passed", "quorum", "maxClockSkewMs", "witnessIds", "declaredFailureDomains", "phases"
+  ],
+  "properties": {
+    "documentType": {"const": "org.upp.independent-witness-qualification"},
+    "schemaVersion": {"const": 1},
+    "referenceOnly": {"const": true},
+    "physicalIndependenceQualified": {"const": false},
+    "passed": {"type": "boolean"},
+    "quorum": {"type": "integer", "minimum": 1},
+    "maxClockSkewMs": {"type": "integer", "minimum": 50, "maximum": 10000},
+    "witnessIds": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "declaredFailureDomains": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true},
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["name", "expected"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "expected": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

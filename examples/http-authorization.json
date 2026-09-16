@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "users": {
+    "alex": {
+      "roles": ["performer"],
+      "players": ["alex"]
+    },
+    "foh-operator": {
+      "roles": ["operator", "authority"]
+    },
+    "read-only-reviewer": {
+      "roles": ["observer"]
+    }
+  }
+}

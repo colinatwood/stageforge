@@ -1,0 +1,298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "org.upp.hardware-diagnostics/1",
+  "type": "object",
+  "required": [
+    "documentType",
+    "schemaVersion",
+    "host",
+    "devices",
+    "issues",
+    "scanStatus",
+    "qualification",
+    "physicalOutputsArmed",
+    "lookupMode",
+    "officialGuidance",
+    "scope"
+  ],
+  "properties": {
+    "documentType": {
+      "const": "org.upp.hardware-diagnostics"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "host": {
+      "type": "object",
+      "required": [
+        "os",
+        "release",
+        "architecture"
+      ],
+      "properties": {
+        "os": {
+          "type": "string"
+        },
+        "release": {
+          "type": "string"
+        },
+        "architecture": {
+          "type": "string"
+        }
+      }
+    },
+    "scope": {
+      "type": "string"
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "hardwareId",
+          "driver",
+          "diagnosis",
+          "nextAction",
+          "qualified",
+          "driverLookup"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hardwareId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^USB:[0-9A-F]{4}:[0-9A-F]{4}$"
+          },
+          "driver": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "diagnosis": {
+            "enum": [
+              "os-reported-problem",
+              "driver-bound-unverified",
+              "driver-status-unknown"
+            ]
+          },
+          "nextAction": {
+            "type": "string"
+          },
+          "qualified": {
+            "const": false
+          },
+          "driverLookup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/link"
+            }
+          }
+        }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scanStatus": {
+      "enum": [
+        "complete",
+        "partial-or-unavailable"
+      ]
+    },
+    "qualification": {
+      "const": "hardware-tests-required"
+    },
+    "physicalOutputsArmed": {
+      "const": false
+    },
+    "lookupMode": {
+      "type": "string"
+    },
+    "officialGuidance": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/link"
+      }
+    },
+    "audioEndpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "platform",
+          "name",
+          "identityScope",
+          "qualified"
+        ],
+        "properties": {
+          "platform": {
+            "enum": [
+              "Windows",
+              "Darwin"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "manufacturer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "transport": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "endpointIdentityHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "inputChannels": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outputChannels": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identityScope": {
+            "type": "string"
+          },
+          "qualified": {
+            "const": false
+          }
+        }
+      }
+    },
+    "audioDrivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "platform",
+          "name",
+          "evidenceKind",
+          "packageSemantics",
+          "qualified"
+        ],
+        "properties": {
+          "platform": {
+            "enum": [
+              "Windows",
+              "Darwin"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "hardwareId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^USB:[0-9A-F]{4}:[0-9A-F]{4}$"
+          },
+          "deviceIdentityHash": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "infName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "signed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "signer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "evidenceKind": {
+            "type": "string"
+          },
+          "packageSemantics": {
+            "type": "string"
+          },
+          "qualified": {
+            "const": false
+          }
+        }
+      }
+    },
+    "endpointIssues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "link": {
+      "type": "object",
+      "required": [
+        "label",
+        "url"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      }
+    }
+  }
+}

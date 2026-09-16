@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/midi-clock-status.schema.json",
+  "type": "object",
+  "required": ["available", "configured", "running", "ppqn", "authorityEpoch", "bpm", "emitted", "received", "rejected", "lastSequence", "lastPulseShowNs", "maximumJitterNs", "physicalOutputsArmed"],
+  "properties": {
+    "available": {"type": "boolean"},
+    "configured": {"type": "boolean"},
+    "running": {"type": "boolean"},
+    "ppqn": {"const": 24},
+    "authorityEpoch": {"type": "integer", "minimum": 0},
+    "bpm": {"type": "number", "minimum": 20, "maximum": 400},
+    "emitted": {"type": "integer", "minimum": 0},
+    "received": {"type": "integer", "minimum": 0},
+    "rejected": {"type": "integer", "minimum": 0},
+    "lastSequence": {"type": "integer", "minimum": 0},
+    "lastPulseShowNs": {"type": "integer", "minimum": 0},
+    "maximumJitterNs": {"type": "integer", "minimum": 0},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

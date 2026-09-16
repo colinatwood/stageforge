@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.dev/schemas/le-uwb-hardware.schema.json",
+  "title": "StageForge LE ISO and UWB hardware status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kernelIsoSupported", "uwbOpen", "leConfigured", "leConnected",
+    "polls", "acceptedUwb", "rejectedUwb", "acceptedLe", "rejectedLe",
+    "physicalOutputsArmed"
+  ],
+  "properties": {
+    "kernelIsoSupported": {"type": "boolean"},
+    "uwbOpen": {"type": "boolean"},
+    "leConfigured": {"type": "integer", "minimum": 0, "maximum": 64},
+    "leConnected": {"type": "integer", "minimum": 0, "maximum": 64},
+    "polls": {"type": "integer", "minimum": 0},
+    "acceptedUwb": {"type": "integer", "minimum": 0},
+    "rejectedUwb": {"type": "integer", "minimum": 0},
+    "acceptedLe": {"type": "integer", "minimum": 0},
+    "rejectedLe": {"type": "integer", "minimum": 0},
+    "uwbValidFrames": {"type": "integer", "minimum": 0},
+    "uwbInvalidFrames": {"type": "integer", "minimum": 0},
+    "uwbResyncBytes": {"type": "integer", "minimum": 0},
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodeId", "open", "connecting", "connected", "receivedSdus", "ioErrors"],
+      "properties": {
+        "nodeId": {"type": "integer", "minimum": 1},
+        "open": {"type": "boolean"},
+        "connecting": {"type": "boolean"},
+        "connected": {"type": "boolean"},
+        "receivedSdus": {"type": "integer", "minimum": 0},
+        "transmittedSdus": {"type": "integer", "minimum": 0},
+        "ioErrors": {"type": "integer", "minimum": 0},
+        "lastError": {"type": "integer", "minimum": 0}
+      }
+    },
+    "physicalOutputsArmed": {"const": false}
+  }
+}

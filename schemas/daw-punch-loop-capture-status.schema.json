@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/daw-punch-loop-capture-status.schema.json",
+  "type": "object",
+  "required": ["generation", "captureStartFrame", "preRollFrames", "latencyCompensationFrames", "maximumPasses", "selectedFrames", "discardedFrames", "staleBlocks", "punchComplete", "physicalOutputsArmed"],
+  "properties": {
+    "generation": {"type": "integer", "minimum": 1},
+    "punchInFrame": {"type": "integer", "minimum": 0},
+    "punchOutFrame": {"type": ["integer", "null"], "minimum": 1},
+    "captureStartFrame": {"type": "integer", "minimum": 0},
+    "preRollFrames": {"type": "integer", "minimum": 0, "maximum": 65536},
+    "latencyCompensationFrames": {"type": "integer", "minimum": 0, "maximum": 65536},
+    "loopStartFrame": {"type": ["integer", "null"], "minimum": 0},
+    "loopEndFrame": {"type": ["integer", "null"], "minimum": 1},
+    "maximumPasses": {"type": "integer", "minimum": 1, "maximum": 128},
+    "completedPasses": {"type": "integer", "minimum": 0, "maximum": 128},
+    "selectedFrames": {"type": "integer", "minimum": 0},
+    "discardedFrames": {"type": "integer", "minimum": 0},
+    "staleBlocks": {"type": "integer", "minimum": 0},
+    "punchComplete": {"type": "boolean"},
+    "frameDomain": {"const": "capture-adapter"},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

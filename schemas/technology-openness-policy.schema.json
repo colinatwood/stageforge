@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/technology-openness-policy-v1.json",
+  "title": "UPP Technology Openness Policy v1",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "preserveUnknownCapabilities": {
+      "type": "boolean"
+    },
+    "allowUnregisteredExperimentalNamespaces": {
+      "type": "boolean"
+    },
+    "allowNoAiParticipant": {
+      "type": "boolean"
+    },
+    "requirePublicSpecForCandidate": {
+      "type": "boolean"
+    },
+    "requireConformanceForStandard": {
+      "type": "boolean"
+    },
+    "requireInteropForStandard": {
+      "type": "boolean"
+    },
+    "requireFallbackForStandard": {
+      "type": "boolean"
+    },
+    "requireUnknownPreservationForStandard": {
+      "type": "boolean"
+    },
+    "forbidMandatoryVendorDependency": {
+      "type": "boolean"
+    },
+    "forbidMandatoryCloudDependency": {
+      "type": "boolean"
+    },
+    "forbidMandatoryAiDependency": {
+      "type": "boolean"
+    },
+    "scaleSafeguards": {
+      "type": "boolean"
+    },
+    "emergingStandardGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "emergingCoreGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "growingStandardGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "growingCoreGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "largeStandardGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "largeCoreGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "infrastructureStandardGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "infrastructureCoreGroups": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxMandatoryCoreExtensions": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

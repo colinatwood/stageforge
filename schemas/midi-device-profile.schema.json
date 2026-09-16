@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.example/schema/midi-device-profile.schema.json",
+  "title": "UPP MIDI device profile",
+  "type": "object",
+  "required": ["id", "capabilities"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 96},
+    "name": {"type": "string", "maxLength": 160},
+    "backend": {"type": "string", "maxLength": 64},
+    "connected": {"type": "boolean"},
+    "capabilities": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "binding": {
+      "type": ["object", "null"],
+      "properties": {
+        "playerId": {"type": "string", "maxLength": 64},
+        "logicalRole": {"type": "string", "maxLength": 96}
+      },
+      "additionalProperties": true
+    },
+    "timing": {
+      "$ref": "timing-profile.schema.json"
+    }
+  },
+  "additionalProperties": true
+}

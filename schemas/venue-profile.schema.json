@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/venue-profile-v1.json",
+  "title": "UPP Venue Profile v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "documentType",
+    "schemaVersion",
+    "id",
+    "name"
+  ],
+  "properties": {
+    "documentType": {
+      "const": "org.upp.venue-profile"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "offlineCapable": {
+      "type": "boolean"
+    },
+    "preservesUnknown": {
+      "type": "boolean"
+    },
+    "clock": {
+      "$ref": "#/$defs/latency"
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "capabilities"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "expected",
+              "online",
+              "offline",
+              "degraded",
+              "unknown"
+            ]
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "matchIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "latency": {
+            "$ref": "#/$defs/latency"
+          }
+        }
+      }
+    },
+    "humans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "capabilities"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "authority": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "patch": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "minimumReaderSchemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unknownFieldsPreserved": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "latency": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "fixedMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "jitterMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "lookaheadMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "timestamped": {
+          "type": "boolean"
+        },
+        "clockClass": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

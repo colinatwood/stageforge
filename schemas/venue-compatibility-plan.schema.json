@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/venue-compatibility-plan-v1.json",
+  "title": "UPP Venue Compatibility Plan v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["compatible", "grade", "readiness", "execution", "devicePlan", "blockers"],
+  "properties": {
+    "compatible": {"type": "boolean"},
+    "grade": {"enum": ["direct", "equivalent", "acceptable", "degraded", "blocked"]},
+    "readiness": {"enum": ["ready", "needs-patch", "blocked"]},
+    "execution": {"type": "object"},
+    "devicePlan": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "departments": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "actions": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "devices": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "humans": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "unmappedRequired": {"type": "array", "items": {"type": "string"}},
+    "discoveryWarnings": {"type": "array", "items": {"type": "string"}},
+    "blockers": {"type": "array", "items": {"type": "string"}}
+  }
+}

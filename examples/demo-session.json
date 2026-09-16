@@ -1,0 +1,18 @@
+{
+  "documentType": "org.upp.daw-session",
+  "schemaVersion": 1,
+  "sessionId": "stageforge-demo",
+  "revision": 0,
+  "sampleRate": 192000,
+  "sampleFormat": "float32-planar",
+  "markers": [
+    {"markerId": "intro", "frame": 0, "name": "Intro", "kind": "section"},
+    {"markerId": "loop", "frame": 768000, "name": "Loop cue", "kind": "cue"}
+  ],
+  "tracks": [
+    {"trackId": "performance", "name": "Performance", "kind": "audio", "gain": 1.0, "pan": 0.0, "clips": []},
+    {"trackId": "samples", "name": "Samples", "kind": "midi", "gain": 1.0, "pan": 0.0, "clips": []},
+    {"trackId": "master", "name": "Master", "kind": "master", "gain": 0.8, "pan": 0.0, "clips": []}
+  ],
+  "physicalOutputsArmed": false
+}

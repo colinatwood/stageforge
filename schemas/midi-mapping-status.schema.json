@@ -1,0 +1,13 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://upp.dev/schemas/midi-mapping-status.schema.json",
+  "type":"object",
+  "required":["documentType","schemaVersion","revision","mappings","pendingActions","recentExecutions","physicalOutputsArmed"],
+  "properties":{
+    "documentType":{"const":"org.upp.midi-mapping-status"},"schemaVersion":{"const":1},"revision":{"type":"integer","minimum":0},
+    "learning":{"type":["object","null"]},"mappings":{"type":"array","maxItems":512},"pendingActions":{"type":"array","maxItems":64},"recentExecutions":{"type":"array","maxItems":32},
+    "nativeExecution":{"type":"object","required":["available","authority","bindings","submitted","rejected"],"properties":{"available":{"type":"boolean"},"authority":{"enum":["bridge","native-core"]},"bindings":{"type":"integer","minimum":0},"submitted":{"type":"integer","minimum":0},"rejected":{"type":"integer","minimum":0}},"additionalProperties":false},
+    "physicalOutputsArmed":{"const":false}
+  },
+  "additionalProperties":false
+}

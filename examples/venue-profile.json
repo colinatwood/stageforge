@@ -1,0 +1,94 @@
+{
+  "documentType": "org.upp.venue-profile",
+  "schemaVersion": 1,
+  "id": "example-club",
+  "name": "Example Club",
+  "offlineCapable": true,
+  "preservesUnknown": true,
+  "capabilities": [
+    "audio.transport",
+    "authority.fence"
+  ],
+  "devices": [
+    {
+      "id": "foh-interface",
+      "name": "FOH Interface",
+      "kind": "audio",
+      "status": "expected",
+      "capabilities": [
+        "audio.output.multi",
+        "audio.input.capture",
+        "audio.monitor"
+      ],
+      "latency": {
+        "fixedMs": 6,
+        "jitterMs": 1,
+        "timestamped": true,
+        "clockClass": "ptp-follow"
+      }
+    },
+    {
+      "id": "lighting-node",
+      "name": "Lighting Node",
+      "kind": "lighting",
+      "status": "expected",
+      "capabilities": [
+        "lighting.artnet.send",
+        "lighting.sacn.send",
+        "lighting.schedule",
+        "lighting.state"
+      ],
+      "latency": {
+        "fixedMs": 28,
+        "jitterMs": 4,
+        "timestamped": true,
+        "clockClass": "show-time"
+      }
+    }
+  ],
+  "humans": [
+    {
+      "id": "lighting-op",
+      "name": "House Lighting Operator",
+      "available": true,
+      "capabilities": [
+        "lighting.state"
+      ],
+      "authority": [
+        "lighting"
+      ]
+    }
+  ],
+  "patch": {
+    "audio.foh": {
+      "target": "foh-interface:out-1-2"
+    },
+    "audio.live-input": {
+      "target": "foh-interface:in-1-8"
+    },
+    "audio.monitor": {
+      "target": "foh-interface:out-3-8"
+    },
+    "lighting.primary": {
+      "target": "lighting-node:front-wash-left",
+      "execution": {
+        "protocol": "sacn",
+        "target": "127.0.0.1",
+        "port": 5568,
+        "universeBase": 101,
+        "fixtures": {
+          "front-wash-left": {
+            "universe": 0,
+            "address": 1,
+            "parameters": {
+              "intensity": 0,
+              "red": 1,
+              "green": 2,
+              "blue": 3
+            }
+          }
+        }
+      }
+    }
+  }
+}

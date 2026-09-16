@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/event-v1.json",
+  "title": "UPP Event v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["eventId", "category", "text", "showTimeSeconds", "wallTimeUnixMs", "revision", "payload"],
+  "properties": {
+    "eventId": {"type": "integer", "minimum": 1},
+    "category": {"type": "string", "minLength": 1},
+    "text": {"type": "string"},
+    "showTimeSeconds": {"type": "number", "minimum": 0},
+    "wallTimeUnixMs": {"type": "integer", "minimum": 0},
+    "revision": {"type": "integer", "minimum": 1},
+    "payload": {"type": "object", "additionalProperties": true}
+  }
+}

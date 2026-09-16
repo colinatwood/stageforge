@@ -1,0 +1,15 @@
+{
+  "id": "community.example.followspot",
+  "name": "Example Followspot Adapter",
+  "kind": "lighting",
+  "priority": 1,
+  "estimatedCpu": 2.5,
+  "estimatedMemoryMb": 16,
+  "capabilities": [
+    "lighting.follow",
+    "lighting.intensity",
+    "clock.follow"
+  ],
+  "fallbacks": ["full", "manual-follow", "off"],
+  "realtime": false
+}

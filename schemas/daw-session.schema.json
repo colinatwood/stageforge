@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/daw-session.schema.json",
+  "title": "UPP DAW session",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "sessionId", "revision", "sampleRate", "sampleFormat", "tracks", "physicalOutputsArmed"],
+  "properties": {
+    "documentType": {"const": "org.upp.daw-session"},
+    "schemaVersion": {"const": 1},
+    "sessionId": {"type": "string", "minLength": 1},
+    "revision": {"type": "integer", "minimum": 0},
+    "sampleRate": {"const": 192000},
+    "sampleFormat": {"const": "float32-planar"},
+    "markers": {"type": "array", "maxItems": 1024, "items": {"type": "object", "required": ["markerId", "frame", "name", "kind"], "properties": {"markerId": {"type": "string", "minLength": 1, "maxLength": 128}, "frame": {"type": "integer", "minimum": 0}, "name": {"type": "string", "maxLength": 128}, "kind": {"enum": ["note", "section", "cue"]}}, "additionalProperties": true}},
+    "tracks": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": ["trackId", "kind", "clips"],
+        "properties": {
+          "trackId": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["audio", "midi", "aux", "master"]},
+          "gain": {"type": "number", "minimum": 0, "maximum": 4},
+          "pan": {"type": "number", "minimum": -1, "maximum": 1},
+          "automation": {"type": "array", "maxItems": 4096, "items": {"type": "object", "required": ["pointId", "parameter", "frame", "value", "interpolation"], "properties": {"pointId": {"type": "string", "minLength": 1, "maxLength": 128}, "parameter": {"const": "volume"}, "frame": {"type": "integer", "minimum": 0}, "value": {"type": "number", "minimum": 0, "maximum": 2}, "interpolation": {"const": "linear"}}, "additionalProperties": true}},
+          "clips": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["clipId", "startFrame", "lengthFrames", "source"],
+              "properties": {
+                "clipId": {"type": "string", "minLength": 1},
+                "startFrame": {"type": "integer", "minimum": 0},
+                "lengthFrames": {"type": "integer", "minimum": 1},
+                "source": {
+                  "type": "object",
+                  "required": ["type"],
+                  "properties": {"type": {"enum": ["audio-file", "midi-sequence", "generator"]}},
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

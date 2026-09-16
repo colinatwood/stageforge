@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/handoff-decision-v1.json",
+  "title": "UPP Handoff Decision v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "mode",
+    "authorityReady",
+    "programLogicReady",
+    "executionReady",
+    "readyForAuthorityTransfer",
+    "readyForProgramTakeover",
+    "recommendedAction",
+    "authorityBlockers",
+    "programBlockers"
+  ],
+  "properties": {
+    "mode": {
+      "enum": [
+        "state-warm",
+        "deterministic-prebuffer-eligible",
+        "live-input-state-warm"
+      ]
+    },
+    "authorityReady": {
+      "type": "boolean"
+    },
+    "programLogicReady": {
+      "type": "boolean"
+    },
+    "readyForAuthorityTransfer": {
+      "type": "boolean"
+    },
+    "readyForProgramTakeover": {
+      "type": "boolean"
+    },
+    "deterministicPrebufferEligible": {
+      "type": "boolean"
+    },
+    "shadowRenderReady": {
+      "type": "boolean"
+    },
+    "prebufferReady": {
+      "type": "boolean"
+    },
+    "recommendedAction": {
+      "enum": [
+        "wait-for-authority-readiness",
+        "authority-transfer-ready",
+        "authority-transfer-ready-live-feeds",
+        "start-shadow-prebuffer",
+        "authority-transfer-only",
+        "hold",
+        "program-takeover-ready",
+        "program-takeover-ready-live-feeds"
+      ]
+    },
+    "authorityBlockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "programBlockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "missingLiveInputSlots": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+      }
+    },
+    "unreadyDeterministicSourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "localLagMs": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "missingLiveInputExecutionSlots": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+      }
+    },
+    "unreadyDeterministicExecutionSourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "executionReady": {
+      "type": "boolean"
+    }
+  }
+}

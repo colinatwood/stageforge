@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/community-vote-invitation.schema.json",
+  "title": "UPP Time-Bound Vote Invitation",
+  "type": "object",
+  "required": [
+    "id",
+    "proposalId",
+    "proposalVersion",
+    "userId",
+    "status",
+    "windowHours"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "proposalId": {
+      "type": "string"
+    },
+    "proposalVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "userId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pending-send",
+        "sent",
+        "delivery-failed",
+        "voted",
+        "expired"
+      ]
+    },
+    "windowHours": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8760
+    },
+    "sentAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "expiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "votedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "deliveryAcceptedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "deliveryMode": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "publicRecordRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^upp-public-record:record-[A-Za-z0-9]+:[0-9a-f]{64}$"
+    },
+    "publicRecordPending": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

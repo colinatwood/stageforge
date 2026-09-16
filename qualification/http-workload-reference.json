@@ -1,0 +1,40 @@
+{
+  "abusiveBurst": {
+    "maxMs": 1441.875,
+    "p50Ms": 17.908,
+    "p95Ms": 1022.979,
+    "passed": true,
+    "requests": 320,
+    "statusCounts": {
+      "200": 287,
+      "429": 33
+    },
+    "throttled": 33,
+    "unexpected": 0
+  },
+  "deployedLanQualified": false,
+  "documentType": "org.upp.http-workload-qualification-report",
+  "normalControllerBurst": {
+    "maxMs": 1031.79,
+    "p50Ms": 13.233,
+    "p95Ms": 22.903,
+    "passed": true,
+    "requests": 120,
+    "statusCounts": {
+      "200": 120
+    },
+    "unexpected": 0
+  },
+  "passed": true,
+  "physicalControllerQualified": false,
+  "ratePolicyModel": {
+    "attackerAllowed": 698,
+    "attackerDenied": 802,
+    "controllersAllowed": 400,
+    "controllersDenied": 0,
+    "durationSeconds": 5.0,
+    "passed": true
+  },
+  "referenceOnly": true,
+  "schemaVersion": 1
+}

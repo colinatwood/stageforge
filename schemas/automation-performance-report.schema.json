@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/automation-performance-report.schema.json",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "points", "frames", "blockFrames", "blocks", "preparedPointReads", "expectedPreparedPointReads", "blockEntrySearch", "equivalentAtProbeFrames", "elapsedMilliseconds", "timingIsInformational", "passed"],
+  "properties": {
+    "documentType": {"const": "org.upp.automation-performance-report"},
+    "schemaVersion": {"const": 1},
+    "points": {"type": "integer", "minimum": 0},
+    "frames": {"type": "integer", "minimum": 0},
+    "blockFrames": {"type": "integer", "minimum": 1},
+    "blocks": {"type": "integer", "minimum": 0},
+    "preparedPointReads": {"type": "integer", "minimum": 0},
+    "expectedPreparedPointReads": {"type": "integer", "minimum": 0},
+    "blockEntrySearch": {"const": "binary"},
+    "equivalentAtProbeFrames": {"type": "boolean"},
+    "elapsedMilliseconds": {"type": "number", "minimum": 0},
+    "timingIsInformational": {"const": true},
+    "passed": {"type": "boolean"}
+  },
+  "additionalProperties": true
+}

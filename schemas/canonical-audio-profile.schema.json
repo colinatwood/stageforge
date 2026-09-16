@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.dev/schemas/canonical-audio-profile.schema.json",
+  "title": "StageForge Canonical Audio Profile",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["engineSampleRate", "engineSampleFormat", "bitsPerSample", "processingDomain"],
+  "properties": {
+    "engineSampleRate": {"const": 192000},
+    "engineSampleFormat": {"const": "float32"},
+    "bitsPerSample": {"const": 32},
+    "processingDomain": {"const": "planar"},
+    "sourceSampleRate": {"type": "number", "minimum": 8000, "maximum": 768000},
+    "sinkSampleRate": {"type": "number", "minimum": 8000, "maximum": 768000},
+    "inputFrames": {"type": "integer", "minimum": 0},
+    "outputFrames": {"type": "integer", "minimum": 0},
+    "convertedBlocks": {"type": "integer", "minimum": 0},
+    "rejectedBlocks": {"type": "integer", "minimum": 0}
+  }
+}

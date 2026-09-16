@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/node-authority-v1.json",
+  "title": "UPP Node Authority v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["nodeId", "role", "epoch", "physicalAuthority"],
+  "properties": {
+    "nodeId": {"type": "string", "minLength": 1, "maxLength": 64},
+    "role": {"enum": ["primary", "standby"]},
+    "epoch": {"type": "integer", "minimum": 1},
+    "physicalAuthority": {"type": "boolean"},
+    "sourceNodeId": {"type": ["string", "null"]},
+    "lastAppliedEpoch": {"type": "integer", "minimum": 0},
+    "lastAppliedSequence": {"type": "integer", "minimum": 0},
+    "lastAppliedRevision": {"type": "integer", "minimum": 0},
+    "replicaAgeMs": {"type": ["integer", "null"], "minimum": 0},
+    "replicationAuthenticated": {"type": "boolean"}
+  }
+}

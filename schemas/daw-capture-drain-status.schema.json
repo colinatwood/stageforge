@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/daw-capture-drain-status.schema.json",
+  "type": "object",
+  "required": ["state", "blocks", "frames", "dropoutBlocks", "physicalInputArmed", "physicalOutputsArmed"],
+  "properties": {
+    "state": {"enum": ["idle", "recording", "punch-complete", "complete", "aborted"]},
+    "track": {"type": "integer", "minimum": 0, "maximum": 7},
+    "takeId": {"type": "string", "maxLength": 128},
+    "fileName": {"type": "string", "maxLength": 255},
+    "blocks": {"type": "integer", "minimum": 0},
+    "frames": {"type": "integer", "minimum": 0},
+    "dropoutBlocks": {"type": "integer", "minimum": 0},
+    "physicalInputArmed": {"type": "boolean"},
+    "physicalOutputsArmed": {"const": false},
+    "receipt": {"type": "object"}
+  },
+  "additionalProperties": true
+}

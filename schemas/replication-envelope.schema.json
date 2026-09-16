@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/replication-envelope-v1.json",
+  "title": "UPP Replication Envelope v1/v2",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "protocolVersion",
+    "sourceNodeId",
+    "epoch",
+    "sequence",
+    "revision",
+    "snapshot",
+    "digestSha256",
+    "hmacSha256"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "sourceNodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "snapshot": {
+      "$ref": "show-state.schema.json"
+    },
+    "digestSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "hmacSha256": {
+      "type": "string",
+      "pattern": "^$|^[0-9a-f]{64}$"
+    },
+    "executionTelemetry": {
+      "$ref": "execution-telemetry.schema.json"
+    },
+    "keyId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    }
+  }
+}

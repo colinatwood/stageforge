@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/automation-state-v1.json",
+  "title": "UPP Core Automation State v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "revision",
+    "registered",
+    "applied",
+    "ownerConflicts",
+    "capacityRejects"
+  ],
+  "properties": {
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "registered": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "applied": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ownerConflicts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "capacityRejects": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "invalid": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ownerReleases": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

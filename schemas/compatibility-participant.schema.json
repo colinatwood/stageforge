@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/compatibility-participant-v1.json",
+  "title": "UPP Compatibility Participant v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "apiVersions",
+    "capabilities"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "apiVersions": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "uniqueItems": true
+    },
+    "schemaVersions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uniqueItems": true
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quality": {
+            "enum": [
+              "direct",
+              "equivalent",
+              "acceptable",
+              "degraded",
+              "unavailable"
+            ]
+          }
+        }
+      }
+    },
+    "preservesUnknown": {
+      "type": "boolean"
+    },
+    "offlineCapable": {
+      "type": "boolean"
+    },
+    "legacyApiAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "legacy",
+          "current",
+          "status"
+        ],
+        "properties": {
+          "legacy": {
+            "type": "string"
+          },
+          "current": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "schemaMigrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "documentType",
+          "fromApiVersion",
+          "toApiVersion"
+        ],
+        "properties": {
+          "documentType": {
+            "type": "string"
+          },
+          "fromApiVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "toApiVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "losslessUnknownPreservation": {
+            "type": "boolean"
+          },
+          "semanticGuessing": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

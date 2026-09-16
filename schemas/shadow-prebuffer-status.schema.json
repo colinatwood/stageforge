@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/shadow-prebuffer-status.schema.json",
+  "title": "UPP Core Shadow Prebuffer Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceId", "generation", "showRevision", "contentHash", "contiguousFromShowNs", "bufferedUntilShowNs", "renderedFrames", "renderedBlocks", "discontinuities", "healthy"],
+  "properties": {
+    "sourceId": {"type": "integer", "minimum": 1},
+    "generation": {"type": "integer", "minimum": 0},
+    "showRevision": {"type": "integer", "minimum": 0},
+    "contentHash": {"type": "integer", "minimum": 0},
+    "contiguousFromShowNs": {"type": "integer", "minimum": 0},
+    "bufferedUntilShowNs": {"type": "integer", "minimum": 0},
+    "renderedFrames": {"type": "integer", "minimum": 0},
+    "renderedBlocks": {"type": "integer", "minimum": 0},
+    "discontinuities": {"type": "integer", "minimum": 0},
+    "healthy": {"type": "boolean"}
+  }
+}

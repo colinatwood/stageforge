@@ -1,0 +1,185 @@
+{
+  "build": {
+    "nativeEngineSha256": "sha256:56cee8c0f3864b0eb897909c8152ea26d2a83a5f3c8beba4cb1728c19c48de59",
+    "sourceFingerprint": "sha256:8d092a5e9f53cbd67d1fa2a570db6bbbd8571763100864db66c9e4e16c88c19f"
+  },
+  "documentType": "org.upp.external-qualification-plan",
+  "physicalOutputsArmed": false,
+  "planId": "sha256:d000590055c25fc7445b28a7f5abe8117af7bb396cba538ff061f170f961eea7",
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "backlogIds": [
+        "REC-033",
+        "REC-034",
+        "SEC-039"
+      ],
+      "command": "stageforge-witness-qualify.py",
+      "environment": "three independently hosted witnesses plus primary/standby nodes",
+      "requiredArtifacts": [
+        "qualification-report",
+        "topology-inventory",
+        "clock-evidence"
+      ],
+      "requiredClaims": [
+        "physicalIndependenceQualified",
+        "twoOfThreeSurvivesOneWitnessLoss",
+        "oneOfThreeDenied",
+        "clockSkewWithinBound",
+        "recoveredNodeRemainsStandbyDisarmed"
+      ],
+      "taskId": "independent-witness"
+    },
+    {
+      "backlogIds": [
+        "SEC-040"
+      ],
+      "command": "stageforge-http-qualify.py",
+      "environment": "deployed TLS reverse proxy, IdP/auth proxy and venue/control LAN firewall",
+      "requiredArtifacts": [
+        "qualification-report",
+        "tls-certificate-chain",
+        "firewall-policy"
+      ],
+      "requiredClaims": [
+        "trustedCertificateQualified",
+        "hostOriginBoundaryQualified",
+        "idpIdentityQualified",
+        "firewallIngressQualified",
+        "controllerLoadQualified"
+      ],
+      "taskId": "lan-security"
+    },
+    {
+      "backlogIds": [
+        "PKG-033",
+        "PKG-034"
+      ],
+      "command": "stageforge-package-qualify.py",
+      "environment": "fresh Linux host or VM with representative audio/MIDI/device access",
+      "requiredArtifacts": [
+        "qualification-report",
+        "package-manifest",
+        "service-evidence"
+      ],
+      "requiredClaims": [
+        "cleanHostQualified",
+        "serviceBootQualified",
+        "upgradeStatePreserved",
+        "hardwarePermissionsQualified",
+        "uninstallPreservesState",
+        "purgeRemovesState"
+      ],
+      "taskId": "linux-packaging-host"
+    },
+    {
+      "backlogIds": [
+        "AUD-035",
+        "DEV-033",
+        "IPC-033",
+        "PLUG-034",
+        "PLUG-035"
+      ],
+      "command": null,
+      "environment": "supported Windows host with audio/MIDI hardware and plugin fixtures",
+      "requiredArtifacts": [
+        "qualification-report",
+        "platform-observation",
+        "security-evidence"
+      ],
+      "requiredClaims": [
+        "audioNegotiationQualified",
+        "hotplugLifecycleQualified",
+        "namedPipeDaclQualified",
+        "pluginLaunchBindingQualified"
+      ],
+      "taskId": "windows-platform"
+    },
+    {
+      "backlogIds": [
+        "AUD-036",
+        "DEV-034",
+        "PLUG-034",
+        "PLUG-036"
+      ],
+      "command": null,
+      "environment": "supported macOS host with audio/MIDI hardware and plugin fixtures",
+      "requiredArtifacts": [
+        "qualification-report",
+        "platform-observation",
+        "security-evidence"
+      ],
+      "requiredClaims": [
+        "audioNegotiationQualified",
+        "hotplugLifecycleQualified",
+        "pluginLaunchBindingQualified"
+      ],
+      "taskId": "macos-platform"
+    },
+    {
+      "backlogIds": [
+        "UX-035"
+      ],
+      "command": null,
+      "environment": "real operator browser plus selected screen reader/keyboard AT stack",
+      "requiredArtifacts": [
+        "qualification-report",
+        "at-transcript"
+      ],
+      "requiredClaims": [
+        "keyboardWorkflowQualified",
+        "screenReaderWorkflowQualified",
+        "statusAnnouncementsQualified"
+      ],
+      "taskId": "assistive-technology"
+    },
+    {
+      "backlogIds": [
+        "PLUG-033",
+        "PLUG-037",
+        "PLUG-038"
+      ],
+      "command": null,
+      "environment": "licensed real plugin fixtures on every claimed OS/architecture",
+      "requiredArtifacts": [
+        "qualification-report",
+        "fixture-inventory",
+        "compatibility-matrix"
+      ],
+      "requiredClaims": [
+        "fixtureLicensesReviewed",
+        "loadControlAudioRestartMatrixQualified",
+        "delayCompensationQualified",
+        "failureBypassQualified"
+      ],
+      "taskId": "licensed-plugin-matrix"
+    },
+    {
+      "backlogIds": [
+        "AUD-034",
+        "DEV-035",
+        "LIVE-033",
+        "HW-033",
+        "HW-034",
+        "HW-035",
+        "HW-036",
+        "HW-037"
+      ],
+      "command": "stageforge-qualify.py",
+      "environment": "named production hardware and rehearsal topology",
+      "requiredArtifacts": [
+        "qualification-report",
+        "hardware-inventory",
+        "measurement-summary"
+      ],
+      "requiredClaims": [
+        "latencySoakQualified",
+        "audibleRecordingLoopQualified",
+        "controllerTimingQualified",
+        "rfClockQualified",
+        "failoverTimingQualified"
+      ],
+      "taskId": "stage-hardware"
+    }
+  ]
+}

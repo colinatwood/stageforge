@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/technology-conformance-receipt-v1.json",
+  "title": "UPP Technology Conformance Receipt v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adoptionRecordRef", "publicRecord", "receipt"],
+  "properties": {
+    "adoptionRecordRef": {
+      "type": "string",
+      "pattern": "^upp-public-record:record-[0-9a-f]{20}:[0-9a-f]{64}$"
+    },
+    "publicRecord": {"$ref": "public-record-reference.schema.json"},
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version", "extensionId", "evidenceDigestSha256", "declaredMaturity",
+        "scaleTier", "ecosystemParticipants", "currentScaleStandardReady",
+        "coreEligible", "standardIndependentGroupsRequired",
+        "coreIndependentGroupsRequired", "independentGroupCount",
+        "conformingIndependentGroupCount", "interopPairCount"
+      ],
+      "properties": {
+        "version": {"const": 1},
+        "extensionId": {"type": "string", "minLength": 3, "maxLength": 160},
+        "evidenceDigestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "declaredMaturity": {"enum": ["experimental", "community", "candidate", "standard"]},
+        "scaleTier": {"enum": ["emerging", "growing", "large", "infrastructure"]},
+        "ecosystemParticipants": {"type": "integer", "minimum": 1},
+        "currentScaleStandardReady": {"type": "boolean"},
+        "coreEligible": {"type": "boolean"},
+        "standardIndependentGroupsRequired": {"type": "integer", "minimum": 1},
+        "coreIndependentGroupsRequired": {"type": "integer", "minimum": 1},
+        "independentGroupCount": {"type": "integer", "minimum": 0},
+        "conformingIndependentGroupCount": {"type": "integer", "minimum": 0},
+        "interopPairCount": {"type": "integer", "minimum": 0},
+        "requestedBy": {"type": "string", "maxLength": 128}
+      }
+    }
+  }
+}

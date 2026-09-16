@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "org.upp.audio-preflight/1",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "request", "status", "supported", "physicalOutputsArmed", "streamStarted", "qualification", "stage", "errorCode", "nextAction", "scope"],
+  "properties": {
+    "documentType": {"const": "org.upp.audio-preflight"},
+    "schemaVersion": {"const": 1},
+    "request": {"type": "object", "required": ["address", "direction", "format", "sampleRate", "channels", "periodFrames"], "properties": {
+      "address": {"type": "string", "pattern": "^hw:[0-9]{1,3},[0-9]{1,3}$"},
+      "direction": {"enum": ["playback", "capture"]},
+      "format": {"enum": ["FLOAT_LE", "S32_LE", "S24_3LE", "S16_LE"]},
+      "sampleRate": {"type": "integer", "minimum": 8000, "maximum": 384000},
+      "channels": {"type": "integer", "minimum": 1, "maximum": 32},
+      "periodFrames": {"type": "integer", "minimum": 16, "maximum": 8192}
+    }},
+    "status": {"enum": ["constraints-supported", "constraints-unsupported", "busy", "permission-denied", "disconnected-or-missing", "unavailable", "probe-error"]},
+    "supported": {"type": ["boolean", "null"]},
+    "physicalOutputsArmed": {"const": false}, "streamStarted": {"const": false},
+    "qualification": {"const": "hardware-tests-required"},
+    "stage": {"type": ["string", "null"]},
+    "errorCode": {"type": ["integer", "null"]},
+    "nextAction": {"type": "string"}, "scope": {"type": "string"}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "constraints-supported"}}}, "then": {"properties": {"supported": {"const": true}}}},
+    {"if": {"properties": {"status": {"const": "constraints-unsupported"}}}, "then": {"properties": {"supported": {"const": false}}}},
+    {"if": {"properties": {"status": {"enum": ["busy", "permission-denied", "disconnected-or-missing", "unavailable", "probe-error"]}}}, "then": {"properties": {"supported": {"const": null}}}}
+  ]
+}

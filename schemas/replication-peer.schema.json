@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/replication-peer-v1.json",
+  "title": "UPP Replication Peer v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "peerUrl",
+    "heartbeatSeconds",
+    "failureDetection"
+  ],
+  "properties": {
+    "peerUrl": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "heartbeatSeconds": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 60
+    },
+    "failureDetection": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "suspectAfterMs",
+        "promotionEligibleAfterMs",
+        "mode"
+      ],
+      "properties": {
+        "suspectAfterMs": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "promotionEligibleAfterMs": {
+          "type": "integer",
+          "minimum": 200
+        },
+        "mode": {
+          "enum": [
+            "manual-after-failure-detection",
+            "external-witness"
+          ]
+        }
+      }
+    }
+  }
+}

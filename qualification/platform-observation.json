@@ -1,0 +1,14 @@
+{
+  "audio": {"devices": [], "qualified": false},
+  "canonicalAudio": {
+    "sampleFormat": "float32-planar",
+    "sampleRate": 192000,
+    "upscalingRestoresMissingBandwidth": false
+  },
+  "documentType": "org.upp.platform-qualification",
+  "leAudio": {"bapQualified": false, "bluezAvailable": false, "controllers": []},
+  "physicalOutputsArmed": false,
+  "qualification": "hardware-tests-required",
+  "schemaVersion": 1,
+  "uwb": {"devices": [], "qualified": false}
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/planned-handoff-status.schema.json",
+  "title": "UPP Core Planned Handoff Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transactionId", "sourceEpoch", "targetEpoch", "targetShowNs", "state", "allowDegradedProgram", "programReady", "authorityCommitted", "physicalOutputsArmed", "prepares", "commits", "aborts", "conflicts"],
+  "properties": {
+    "transactionId": {"type": "integer", "minimum": 0},
+    "sourceEpoch": {"type": "integer", "minimum": 0},
+    "targetEpoch": {"type": "integer", "minimum": 0},
+    "targetShowNs": {"type": "integer", "minimum": 0},
+    "state": {"enum": ["idle", "prepared", "target-ready", "committed", "aborted"]},
+    "allowDegradedProgram": {"type": "boolean"},
+    "programReady": {"type": "boolean"},
+    "authorityCommitted": {"type": "boolean"},
+    "physicalOutputsArmed": {"const": false},
+    "prepares": {"type": "integer", "minimum": 0},
+    "commits": {"type": "integer", "minimum": 0},
+    "aborts": {"type": "integer", "minimum": 0},
+    "conflicts": {"type": "integer", "minimum": 0}
+  }
+}

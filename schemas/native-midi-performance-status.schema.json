@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/native-midi-performance-status.schema.json",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "bindings", "received", "matched", "dropped", "submitted", "rejected", "ignored", "physicalOutputsArmed"],
+  "properties": {
+    "documentType": {"const": "org.upp.native-midi-performance-status"},
+    "schemaVersion": {"const": 1},
+    "bindings": {"type": "integer", "minimum": 0, "maximum": 512},
+    "received": {"type": "integer", "minimum": 0},
+    "matched": {"type": "integer", "minimum": 0},
+    "dropped": {"type": "integer", "minimum": 0},
+    "submitted": {"type": "integer", "minimum": 0},
+    "rejected": {"type": "integer", "minimum": 0},
+    "ignored": {"type": "integer", "minimum": 0},
+    "lastEventId": {"type": "integer", "minimum": 0},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": false
+}

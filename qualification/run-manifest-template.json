@@ -1,0 +1,20 @@
+{
+  "template": true,
+  "status": "not-run",
+  "baseline": "Core 5.10.5 / engine 5.0 / ABI 1.67",
+  "runId": null,
+  "operator": null,
+  "startedAtUtc": null,
+  "endedAtUtc": null,
+  "host": {"os": null, "kernel": null, "cpu": null, "powerPolicy": null},
+  "audio": {"model": null, "firmware": null, "driver": null, "connection": null, "nativeSampleRate": null, "periodFrames": null, "clockSource": null, "loopbackChannels": null},
+  "midi": {"model": null, "firmware": null, "transport": null},
+  "leAudio": {"controller": null, "endpoint": null, "firmware": null, "codec": null, "isoIntervalUs": null, "presentationDelayUs": null},
+  "uwb": {"radio": null, "firmware": null, "adapter": null, "timestampReference": null},
+  "workload": {"session": null, "pluginsAndVersions": [], "durationSeconds": null},
+  "acceptanceLimits": {"roundTripP99Ms": null, "syncErrorMaxUs": null, "allowedDropouts": null, "requiredDurationSeconds": null},
+  "measurement": {"method": null, "referenceClock": null, "uncertaintyUs": null},
+  "evidenceFiles": [],
+  "observations": [],
+  "decision": "unqualified"
+}
