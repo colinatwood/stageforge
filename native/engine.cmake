@@ -50,6 +50,13 @@ endif()
 
 add_executable(stageforge_engine src/engine_main.cpp)
 target_link_libraries(stageforge_engine PRIVATE stageforge_core)
+# Checkpoint 86: the full engine consumes the target-OS endpoint ownership bridge
+# on Windows/macOS. stageforge_devices is defined by devices.cmake before this file
+# is included; Linux keeps its existing ALSA execution path while still compiling
+# the portable identity/fence contract.
+if(TARGET stageforge_devices)
+    target_link_libraries(stageforge_engine PRIVATE stageforge_devices)
+endif()
 target_compile_features(stageforge_engine PRIVATE cxx_std_20)
 if(MSVC)
     target_compile_options(stageforge_engine PRIVATE /W4 /permissive-)
