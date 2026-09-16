@@ -8,6 +8,8 @@
 
 #if defined(__linux__)
 #include <dlfcn.h>
+#elif defined(_WIN32) || defined(__APPLE__)
+#include "device_monitor.h"
 #endif
 
 namespace stageforge {
@@ -38,6 +40,18 @@ std::string clean_description(std::string value) {
     }
     return value;
 }
+
+#if defined(_WIN32) || defined(__APPLE__)
+std::string identity_token(const DeviceRecord& record) {
+    // This value is returned through the legacy engine "address" field. Both
+    // native/persistent values are already one-way SHA-256 tokens. Never place
+    // a raw MMDevice ID, CoreAudio UID or other OS identifier in this channel.
+    return std::string("native=") + record.native_hash +
+        ";persistent=" + record.persistent_hash +
+        ";strength=" + identity_strength_name(record.identity_strength) +
+        ";auto=" + (record.automatic_reconnect ? "1" : "0");
+}
+#endif
 
 } // namespace
 
@@ -141,6 +155,33 @@ void AudioDeviceManager::scan_platform() noexcept {
 
     device_name_free_hint(hints);
     dlclose(library);
+#elif defined(_WIN32) || defined(__APPLE__)
+    try {
+        DeviceMonitor monitor;
+        monitor.start();
+        const auto snapshot = monitor.snapshot();
+        monitor.stop();
+        const std::string_view backend =
+#if defined(_WIN32)
+            "wasapi";
+#else
+            "coreaudio";
+#endif
+        for (const auto& record : snapshot.devices) {
+            if (record.kind != DeviceKind::Audio || count_ >= devices_.size()) continue;
+            add_endpoint(
+#if defined(_WIN32)
+                "Windows Audio Endpoint",
+#else
+                "CoreAudio Endpoint",
+#endif
+                identity_token(record), backend, record.input, record.output);
+        }
+    } catch (...) {
+        // Discovery remains observation-only and non-fatal. The engine keeps the
+        // null endpoint when the target-OS topology changes during this snapshot.
+        return;
+    }
 #endif
 }
 
