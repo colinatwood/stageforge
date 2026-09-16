@@ -763,13 +763,20 @@ int main(int argc, char** argv) {
             continue;
         }
 
+        // Each handled command ends this iteration; avoid a compiler-depth-limited else chain.
         if (command == "AUTH") {
             ok("authenticated=1");
-        } else if (command == "HELLO") {
+            continue;
+        }
+        if (command == "HELLO") {
             ok(std::string("engineVersion=") + std::string(kEngineVersion) + " protocol=1 coreControl=1 showEvents=1 showLoop=1 cueState=1 automationState=1 parameterRegistry=1 cueActions=1 runtimeShow=1 routingTx=1 coreJournal=1 shadowPlanner=1 shadowPrebuffer=1 plannedHandoff=1 effectChain=1 canonicalAudio=1 physicalPcmConversion=1 leUwbHub=1 leIsoHardware=1 uwbHardwareBridge=1 userProfile=1 interoperabilityHandshake=1 authenticatedInteropSession=1 profileProjection=1 hardwareBench=1 sessionChannel=1 localIpc=1 persistentSecurity=1 isolatedPluginHost=1 platformQualification=1 realtimeAudit=1 realtimeQualification=" + std::string(stageforge::RealtimeAudit::qualification_enabled()?"1":"0") + " ingressAudit=1 dawSession=1 dawRenderPlan=1 dawMedia=1 dawEditHistory=1 dawRenderer=1 dawRecording=1 dawTempoMap=1 dawMediaLibrary=1 dawPluginCatalog=1 dawRecovery=1 dawStreamRenderer=1 dawPlaybackPrefetch=1 dawRecordingSpool=1 dawPlaybackQueue=1 dawMultitrackCapture=1 dawArrangementProducer=1 dawPcmBlockTransfer=1 dawCaptureDrain=1 dawPunchLoopCapture=1 pluginDelayCompensation=1 pluginDelayGraph=1 midiLearnMapping=1 masterMusicalSync=1 nativeMidiPerformance=1 samplerVoiceEngine=1 transportDiscipline=1 midiClock24Ppqn=1 engineRate=192000 sampleFormat=float32");
-        } else if (command == "PING") {
+            continue;
+        }
+        if (command == "PING") {
             ok("pong=1");
-        } else if(command=="SAMPLER_LOAD_BEGIN"&&parts.size()==8){
+            continue;
+        }
+        if(command=="SAMPLER_LOAD_BEGIN"&&parts.size()==8){
             std::uint64_t sample_id=0;unsigned int total=0,choke=0,looped=0,loop_begin=0,loop_end=0,crossfade=0;
             if(!parse_number(parts[1],sample_id)||!parse_number(parts[2],total)||!parse_number(parts[3],choke)||!parse_number(parts[4],looped)||
                !parse_number(parts[5],loop_begin)||!parse_number(parts[6],loop_end)||!parse_number(parts[7],crossfade)||sample_id==0||total==0||total>kSamplerAssetFrames||
@@ -777,53 +784,103 @@ int main(int argc, char** argv) {
             EngineSamplerAsset*slot=nullptr;for(auto&candidate:sampler_assets)if(candidate.sample_id==0&&!candidate.staging&&!candidate.published){slot=&candidate;break;}
             if(!slot){error("capacity","sampler asset capacity");continue;}slot->sample_id=sample_id;slot->total_frames=total;slot->written_frames=0;slot->choke_group=static_cast<std::uint8_t>(choke);
             slot->looped=looped!=0;slot->loop_begin=loop_begin;slot->loop_end=looped?loop_end:total;slot->crossfade_frames=static_cast<std::uint16_t>(crossfade);slot->staging=true;staged_sampler_asset=slot;ok("staging=1 physicalOutputsArmed=0");
-        } else if(command=="SAMPLER_LOAD_PCM"&&parts.size()==4){
+            continue;
+        }
+        if(command=="SAMPLER_LOAD_PCM"&&parts.size()==4){
             unsigned int offset=0,frames=0;if(!staged_sampler_asset||!parse_number(parts[1],offset)||!parse_number(parts[2],frames)||frames==0||frames>8192||
                offset!=staged_sampler_asset->written_frames||offset+frames>staged_sampler_asset->total_frames||
                !decode_hex_pcm(parts[3],staged_sampler_asset->left.data()+offset,staged_sampler_asset->right.data()+offset,frames)){error("argument","invalid sampler PCM block");continue;}
             staged_sampler_asset->written_frames+=frames;ok(std::string("writtenFrames=")+std::to_string(staged_sampler_asset->written_frames));
-        } else if(command=="SAMPLER_LOAD_COMMIT"&&parts.size()==1){
+            continue;
+        }
+        if(command=="SAMPLER_LOAD_COMMIT"&&parts.size()==1){
             if(!staged_sampler_asset||staged_sampler_asset->written_frames!=staged_sampler_asset->total_frames){error("state","sampler asset incomplete");continue;}
             const stageforge::SamplerSampleDescriptor descriptor{staged_sampler_asset->sample_id,staged_sampler_asset->left.data(),staged_sampler_asset->right.data(),staged_sampler_asset->total_frames,
                 staged_sampler_asset->loop_begin,staged_sampler_asset->loop_end,staged_sampler_asset->crossfade_frames,staged_sampler_asset->choke_group,staged_sampler_asset->looped};
             if(!sampler.register_sample(descriptor)){error("conflict","sampler asset refused");continue;}staged_sampler_asset->staging=false;staged_sampler_asset->published=true;staged_sampler_asset=nullptr;ok("committed=1 physicalOutputsArmed=0");
-        } else if(command=="SAMPLER_TRIGGER"&&parts.size()==6){
+            continue;
+        }
+        if(command=="SAMPLER_TRIGGER"&&parts.size()==6){
             stageforge::ShowEvent event{};unsigned int note=0;float velocity=0;
             if(!parse_number(parts[1],event.event_id)||!parse_number(parts[2],event.show_time_ns)||!parse_number(parts[3],event.payload.sampler.sample_id)||
                !parse_number(parts[4],velocity)||!parse_number(parts[5],note)||note>127||!std::isfinite(velocity)){error("argument","invalid sampler trigger");continue;}
             event.type=stageforge::ShowEventType::sampler;event.priority=SF_PRIORITY_SHOW;event.revision=core.metrics().revision;event.payload.sampler.velocity=velocity;event.payload.sampler.note=static_cast<std::uint8_t>(note);event.payload.sampler.action=stageforge::ShowSamplerAction::trigger;
             if(!show_loop.submit(event)){error("busy","sampler trigger ingress full");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="SAMPLER_STOP"&&(parts.size()==3||parts.size()==4)){
+            continue;
+        }
+        if(command=="SAMPLER_STOP"&&(parts.size()==3||parts.size()==4)){
             stageforge::ShowEvent event{};if(!parse_number(parts[1],event.event_id)||!parse_number(parts[2],event.show_time_ns)||(parts.size()==4&&!parse_number(parts[3],event.payload.sampler.sample_id))){error("argument","invalid sampler stop");continue;}
             event.type=stageforge::ShowEventType::sampler;event.priority=SF_PRIORITY_SHOW;event.revision=core.metrics().revision;event.payload.sampler.action=parts.size()==3?stageforge::ShowSamplerAction::stop_all:stageforge::ShowSamplerAction::stop_sample;
             if(!show_loop.submit(event)){error("busy","sampler stop ingress full");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="SAMPLER_STATUS"&&parts.size()==1){
+            continue;
+        }
+        if(command=="SAMPLER_STATUS"&&parts.size()==1){
             const auto status=sampler.status();std::cout<<"OK samples="<<status.samples<<" activeVoices="<<status.active_voices<<" pendingVoices="<<status.pending_voices<<" queued="<<status.queued
                 <<" submitted="<<status.submitted<<" renderedFrames="<<status.rendered_frames<<" completedVoices="<<status.completed_voices<<" stolenVoices="<<status.stolen_voices
                 <<" chokedVoices="<<status.choked_voices<<" rejected="<<status.rejected_commands<<" overflows="<<status.queue_overflows<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="STREAM_VOICE_START"&&parts.size()==5){unsigned int slot=0,loop=0;std::uint64_t generation=0;float gain=0;if(!parse_number(parts[1],slot)||!parse_number(parts[2],generation)||!parse_number(parts[3],gain)||!parse_number(parts[4],loop)||slot>=16||loop>1||!streaming_voices.start(slot,generation,gain,loop!=0)){error("argument","streaming voice start refused");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="STREAM_VOICE_BLOCK"&&parts.size()==7){unsigned int slot=0,frames=0,terminal=0;stageforge::StreamingVoiceBlock<256>block{};if(!parse_number(parts[1],slot)||!parse_number(parts[2],block.generation)||!parse_number(parts[3],block.sequence)||!parse_number(parts[4],frames)||!parse_number(parts[5],terminal)||slot>=16||frames==0||frames>256||terminal>1||!decode_hex_pcm(parts[6],block.left.data(),block.right.data(),frames)){error("argument","invalid streaming voice block");continue;}block.frames=frames;block.terminal=terminal!=0;if(!streaming_voices.push(slot,block)){error("busy","streaming voice feed full");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="STREAM_VOICE_STOP"&&parts.size()==3){unsigned int slot=0;std::uint64_t generation=0;if(!parse_number(parts[1],slot)||!parse_number(parts[2],generation)||!streaming_voices.stop(slot,generation)){error("argument","streaming voice stop refused");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="STREAM_VOICE_STOP_ALL"&&parts.size()==1){if(!streaming_voices.stop_all()){error("busy","streaming voice command queue full");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="STREAM_VOICE_SLOT"&&parts.size()==2){unsigned int slot=0;std::uint64_t generation=0;bool active=false;if(!parse_number(parts[1],slot)||!streaming_voices.slot_status(slot,generation,active)){error("argument","invalid streaming voice slot");continue;}std::cout<<"OK slot="<<slot<<" generation="<<generation<<" active="<<(active?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="STREAM_VOICE_STATUS"&&parts.size()==1){const auto status=streaming_voices.status();std::cout<<"OK activeVoices="<<status.active_voices<<" activeMask="<<status.active_mask<<" queuedBlocks="<<status.queued_blocks<<" starts="<<status.starts<<" stops="<<status.stops<<" renderedFrames="<<status.rendered_frames<<" starvedBlocks="<<status.starved_blocks<<" staleBlocks="<<status.stale_blocks<<" discontinuities="<<status.discontinuities<<" completedVoices="<<status.completed_voices<<" overflows="<<status.queue_overflows<<" diskIoInAudioCallback=0 physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="DAW_PLAYBACK_PUSH"&&parts.size()==6){std::uint64_t generation=0,start=0;std::uint32_t frames=0;float left=0,right=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],start)||!parse_number(parts[3],frames)||!parse_number(parts[4],left)||!parse_number(parts[5],right)||frames>8192){error("argument","invalid playback block");continue;}stageforge::DawPlaybackQueue<8192,32>::Block block{};block.generation=generation;block.start_frame=start;block.frames=frames;std::fill_n(block.left.data(),frames,left);std::fill_n(block.right.data(),frames,right);if(!daw_playback.push(block)){error("busy","playback queue refused block");continue;}ok("queued=1 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_PCM"&&parts.size()==5){std::uint64_t generation=0,start=0;std::uint32_t frames=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],start)||!parse_number(parts[3],frames)||frames==0||frames>256){error("argument","invalid PCM block");continue;}stageforge::DawPlaybackQueue<8192,32>::Block block{};block.generation=generation;block.start_frame=start;block.frames=frames;if(!decode_hex_pcm(parts[4],block.left.data(),block.right.data(),frames)){error("argument","invalid PCM payload");continue;}if(!daw_playback.push(block)){error("busy","playback queue refused PCM block");continue;}ok("queued=1 pcm=1 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_START"){daw_playback.start();ok("running=1 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_STOP"){daw_playback.stop();ok("running=0 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_SEEK"&&parts.size()==2){std::uint64_t frame=0;if(!parse_number(parts[1],frame)){error("argument","invalid seek frame");continue;}daw_playback.seek(frame);ok("seeked=1 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_LOOP"&&parts.size()==3){std::uint64_t begin=0,end=0;if(!parse_number(parts[1],begin)||!parse_number(parts[2],end)||!daw_playback.set_loop(begin,end)){error("argument","invalid loop range");continue;}ok("looping=1 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_LOOP_CLEAR"){daw_playback.clear_loop();ok("looping=0 physicalOutputsArmed=0");
-        } else if(command=="DAW_PLAYBACK_STATUS"){const auto s=daw_playback.status();std::cout<<"OK generation="<<s.generation<<" playheadFrame="<<s.playhead_frame<<" queuedBlocks="<<s.queued_blocks<<" renderedBlocks="<<s.rendered_blocks<<" renderedFrames="<<s.rendered_frames<<" underrunBlocks="<<s.underrun_blocks<<" discontinuities="<<s.discontinuities<<" seeks="<<s.seeks<<" loopWraps="<<s.loop_wraps<<" running="<<(s.running?1:0)<<" looping="<<(s.looping?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="DAW_RECORD_ARM"&&parts.size()==3){unsigned int track=0,ack=0;if(!parse_number(parts[1],track)||!parse_number(parts[2],ack)||!daw_recording.arm(track,ack!=0)){error("permission","record arm refused");continue;}const auto generation=daw_recording.generation(track);for(auto&input:audio_inputs)if(input.recording_track==track){input.recording_generation.store(generation,std::memory_order_release);input.recording_sequence.store(0);input.recording_frame.store(0);}std::cout<<"OK armed=1 generation="<<generation<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="DAW_RECORD_DISARM"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}daw_recording.disarm(track);ok("armed=0 physicalOutputsArmed=0");
-        } else if(command=="DAW_RECORD_STATUS"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}const auto s=daw_recording.status(track);std::cout<<"OK generation="<<s.generation<<" submitted="<<s.submitted<<" written="<<s.written<<" dropped="<<s.dropped<<" stale="<<s.stale<<" sequenceGaps="<<s.sequence_gaps<<" queued="<<s.queued<<" armed="<<(s.armed?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="DAW_RECORD_POP"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}stageforge::DawRecordingQueue<8,256,64>::Block block{};if(!daw_recording.pop(track,block)){error("empty","record queue empty");continue;}std::cout<<"OK generation="<<block.generation<<" sequence="<<block.sequence<<" showFrame="<<block.show_frame<<" frames="<<block.frames<<" pcm="<<encode_hex_pcm(block.left.data(),block.right.data(),block.frames)<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "PROFILE_CONFIG" && parts.size() == 3) {
+            continue;
+        }
+        if(command=="STREAM_VOICE_START"&&parts.size()==5){unsigned int slot=0,loop=0;std::uint64_t generation=0;float gain=0;if(!parse_number(parts[1],slot)||!parse_number(parts[2],generation)||!parse_number(parts[3],gain)||!parse_number(parts[4],loop)||slot>=16||loop>1||!streaming_voices.start(slot,generation,gain,loop!=0)){error("argument","streaming voice start refused");continue;}ok("queued=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="STREAM_VOICE_BLOCK"&&parts.size()==7){unsigned int slot=0,frames=0,terminal=0;stageforge::StreamingVoiceBlock<256>block{};if(!parse_number(parts[1],slot)||!parse_number(parts[2],block.generation)||!parse_number(parts[3],block.sequence)||!parse_number(parts[4],frames)||!parse_number(parts[5],terminal)||slot>=16||frames==0||frames>256||terminal>1||!decode_hex_pcm(parts[6],block.left.data(),block.right.data(),frames)){error("argument","invalid streaming voice block");continue;}block.frames=frames;block.terminal=terminal!=0;if(!streaming_voices.push(slot,block)){error("busy","streaming voice feed full");continue;}ok("queued=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="STREAM_VOICE_STOP"&&parts.size()==3){unsigned int slot=0;std::uint64_t generation=0;if(!parse_number(parts[1],slot)||!parse_number(parts[2],generation)||!streaming_voices.stop(slot,generation)){error("argument","streaming voice stop refused");continue;}ok("queued=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="STREAM_VOICE_STOP_ALL"&&parts.size()==1){if(!streaming_voices.stop_all()){error("busy","streaming voice command queue full");continue;}ok("queued=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="STREAM_VOICE_SLOT"&&parts.size()==2){unsigned int slot=0;std::uint64_t generation=0;bool active=false;if(!parse_number(parts[1],slot)||!streaming_voices.slot_status(slot,generation,active)){error("argument","invalid streaming voice slot");continue;}std::cout<<"OK slot="<<slot<<" generation="<<generation<<" active="<<(active?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="STREAM_VOICE_STATUS"&&parts.size()==1){const auto status=streaming_voices.status();std::cout<<"OK activeVoices="<<status.active_voices<<" activeMask="<<status.active_mask<<" queuedBlocks="<<status.queued_blocks<<" starts="<<status.starts<<" stops="<<status.stops<<" renderedFrames="<<status.rendered_frames<<" starvedBlocks="<<status.starved_blocks<<" staleBlocks="<<status.stale_blocks<<" discontinuities="<<status.discontinuities<<" completedVoices="<<status.completed_voices<<" overflows="<<status.queue_overflows<<" diskIoInAudioCallback=0 physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_PUSH"&&parts.size()==6){std::uint64_t generation=0,start=0;std::uint32_t frames=0;float left=0,right=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],start)||!parse_number(parts[3],frames)||!parse_number(parts[4],left)||!parse_number(parts[5],right)||frames>8192){error("argument","invalid playback block");continue;}stageforge::DawPlaybackQueue<8192,32>::Block block{};block.generation=generation;block.start_frame=start;block.frames=frames;std::fill_n(block.left.data(),frames,left);std::fill_n(block.right.data(),frames,right);if(!daw_playback.push(block)){error("busy","playback queue refused block");continue;}ok("queued=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_PCM"&&parts.size()==5){std::uint64_t generation=0,start=0;std::uint32_t frames=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],start)||!parse_number(parts[3],frames)||frames==0||frames>256){error("argument","invalid PCM block");continue;}stageforge::DawPlaybackQueue<8192,32>::Block block{};block.generation=generation;block.start_frame=start;block.frames=frames;if(!decode_hex_pcm(parts[4],block.left.data(),block.right.data(),frames)){error("argument","invalid PCM payload");continue;}if(!daw_playback.push(block)){error("busy","playback queue refused PCM block");continue;}ok("queued=1 pcm=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_START"){daw_playback.start();ok("running=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_STOP"){daw_playback.stop();ok("running=0 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_SEEK"&&parts.size()==2){std::uint64_t frame=0;if(!parse_number(parts[1],frame)){error("argument","invalid seek frame");continue;}daw_playback.seek(frame);ok("seeked=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_LOOP"&&parts.size()==3){std::uint64_t begin=0,end=0;if(!parse_number(parts[1],begin)||!parse_number(parts[2],end)||!daw_playback.set_loop(begin,end)){error("argument","invalid loop range");continue;}ok("looping=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_LOOP_CLEAR"){daw_playback.clear_loop();ok("looping=0 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_PLAYBACK_STATUS"){const auto s=daw_playback.status();std::cout<<"OK generation="<<s.generation<<" playheadFrame="<<s.playhead_frame<<" queuedBlocks="<<s.queued_blocks<<" renderedBlocks="<<s.rendered_blocks<<" renderedFrames="<<s.rendered_frames<<" underrunBlocks="<<s.underrun_blocks<<" discontinuities="<<s.discontinuities<<" seeks="<<s.seeks<<" loopWraps="<<s.loop_wraps<<" running="<<(s.running?1:0)<<" looping="<<(s.looping?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="DAW_RECORD_ARM"&&parts.size()==3){unsigned int track=0,ack=0;if(!parse_number(parts[1],track)||!parse_number(parts[2],ack)||!daw_recording.arm(track,ack!=0)){error("permission","record arm refused");continue;}const auto generation=daw_recording.generation(track);for(auto&input:audio_inputs)if(input.recording_track==track){input.recording_generation.store(generation,std::memory_order_release);input.recording_sequence.store(0);input.recording_frame.store(0);}std::cout<<"OK armed=1 generation="<<generation<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="DAW_RECORD_DISARM"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}daw_recording.disarm(track);ok("armed=0 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="DAW_RECORD_STATUS"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}const auto s=daw_recording.status(track);std::cout<<"OK generation="<<s.generation<<" submitted="<<s.submitted<<" written="<<s.written<<" dropped="<<s.dropped<<" stale="<<s.stale<<" sequenceGaps="<<s.sequence_gaps<<" queued="<<s.queued<<" armed="<<(s.armed?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="DAW_RECORD_POP"&&parts.size()==2){unsigned int track=0;if(!parse_number(parts[1],track)||track>=8){error("argument","invalid record track");continue;}stageforge::DawRecordingQueue<8,256,64>::Block block{};if(!daw_recording.pop(track,block)){error("empty","record queue empty");continue;}std::cout<<"OK generation="<<block.generation<<" sequence="<<block.sequence<<" showFrame="<<block.show_frame<<" frames="<<block.frames<<" pcm="<<encode_hex_pcm(block.left.data(),block.right.data(),block.frames)<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if (command == "PROFILE_CONFIG" && parts.size() == 3) {
             std::uint64_t profile_id=0,epoch=0;
             if(!parse_number(parts[1],profile_id)||!parse_number(parts[2],epoch)||!user_profile.configure(profile_id,epoch)){error("conflict","profile configuration refused");continue;}
             ok(std::string("profileId=")+std::to_string(profile_id)+" authorityEpoch="+std::to_string(epoch)+" physicalOutputsArmed=0");
-        } else if (command == "PROFILE_SET" && parts.size() == 7) {
+            continue;
+        }
+        if (command == "PROFILE_SET" && parts.size() == 7) {
             stageforge::ProfilePreference preference{};unsigned int layer=0,type=0;
             if(!parse_number(parts[1],preference.namespace_id)||!parse_number(parts[2],preference.key_id)||!parse_number(parts[3],layer)||
                !parse_number(parts[4],preference.revision)||!parse_number(parts[5],type)||layer>4||type>3){error("argument","invalid profile preference");continue;}
@@ -834,20 +891,28 @@ int main(int argc, char** argv) {
             else parsed=parse_number(parts[6],preference.token_value);
             if(!parsed||!user_profile.set(preference)){error("conflict","profile preference refused");continue;}
             ok(std::string("revision=")+std::to_string(preference.revision)+" physicalOutputsArmed=0");
-        } else if (command == "PROFILE_GET" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "PROFILE_GET" && parts.size() == 3) {
             std::uint64_t namespace_id=0,key_id=0;stageforge::ProfilePreference preference{};
             if(!parse_number(parts[1],namespace_id)||!parse_number(parts[2],key_id)||!user_profile.resolve(namespace_id,key_id,preference)){error("not_found","profile preference unavailable");continue;}
             std::cout<<"OK namespaceId="<<preference.namespace_id<<" keyId="<<preference.key_id<<" layer="<<static_cast<unsigned int>(preference.layer)
                      <<" type="<<static_cast<unsigned int>(preference.type)<<" revision="<<preference.revision<<" integer="<<preference.integer_value
                      <<" scalar="<<preference.scalar_value<<" token="<<preference.token_value<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "PROFILE_CLEAR_LAYER" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "PROFILE_CLEAR_LAYER" && parts.size() == 2) {
             unsigned int layer=0;if(!parse_number(parts[1],layer)||layer>4){error("argument","invalid profile layer");continue;}
             ok(std::string("removed=")+std::to_string(user_profile.clear_layer(static_cast<stageforge::ProfileLayer>(layer)))+" physicalOutputsArmed=0");
-        } else if (command == "PROFILE_STATUS" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "PROFILE_STATUS" && parts.size() == 1) {
             const auto status=user_profile.status();std::cout<<"OK configured="<<(status.configured?1:0)<<" profileId="<<status.profile_id<<" authorityEpoch="<<status.authority_epoch
                      <<" revision="<<status.revision<<" preferences="<<status.stored_preferences<<" accepted="<<status.accepted_updates<<" rejected="<<status.rejected_updates
                      <<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if ((command == "INTEROP_LOCAL_BEGIN"||command == "INTEROP_REMOTE_BEGIN") && parts.size() == 8) {
+            continue;
+        }
+        if ((command == "INTEROP_LOCAL_BEGIN"||command == "INTEROP_REMOTE_BEGIN") && parts.size() == 8) {
             stageforge::HandshakeOffer<64> offer{};unsigned int preserve=0,offline=0;
             if(!parse_number(parts[1],offer.participant_id)||!parse_number(parts[2],offer.protocol_min)||!parse_number(parts[3],offer.protocol_max)||
                !parse_number(parts[4],offer.profile_schema_min)||!parse_number(parts[5],offer.profile_schema_max)||!parse_number(parts[6],preserve)||
@@ -855,68 +920,108 @@ int main(int argc, char** argv) {
             offer.preserves_unknown=preserve!=0;offer.offline_capable=offline!=0;
             if(command=="INTEROP_LOCAL_BEGIN")staged_local_offer=offer;else staged_remote_offer=offer;
             ok(std::string("staged=")+(command=="INTEROP_LOCAL_BEGIN"?"local":"remote")+" physicalOutputsArmed=0");
-        } else if ((command == "INTEROP_LOCAL_CAP"||command == "INTEROP_REMOTE_CAP") && parts.size() == 3) {
+            continue;
+        }
+        if ((command == "INTEROP_LOCAL_CAP"||command == "INTEROP_REMOTE_CAP") && parts.size() == 3) {
             std::uint64_t capability=0;unsigned int required=0;auto& offer=command=="INTEROP_LOCAL_CAP"?staged_local_offer:staged_remote_offer;
             if(!parse_number(parts[1],capability)||!parse_number(parts[2],required)||capability==0||required>1||offer.capability_count>=offer.capabilities.size()){error("argument","invalid interoperability capability");continue;}
             offer.capabilities[offer.capability_count++]={capability,required!=0};ok(std::string("capabilities=")+std::to_string(offer.capability_count));
-        } else if (command == "INTEROP_LOCAL_COMMIT" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "INTEROP_LOCAL_COMMIT" && parts.size() == 1) {
             if(!interoperability.configure_local(staged_local_offer)){error("argument","invalid local interoperability offer");continue;}ok("localCommitted=1 physicalOutputsArmed=0");
-        } else if (command == "INTEROP_ADAPTER" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "INTEROP_ADAPTER" && parts.size() == 4) {
             stageforge::HandshakeAdapter adapter{};unsigned int quality=0;
             if(!parse_number(parts[1],adapter.from)||!parse_number(parts[2],adapter.to)||!parse_number(parts[3],quality)||quality==0||quality>100){error("argument","invalid interoperability adapter");continue;}
             adapter.quality=static_cast<std::uint8_t>(quality);if(!interoperability.add_adapter(adapter)){error("busy","interoperability adapter refused");continue;}ok("adapterRegistered=1");
-        } else if (command == "INTEROP_PLAN" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "INTEROP_PLAN" && parts.size() == 1) {
             const auto plan=interoperability.negotiate(staged_remote_offer);
             std::cout<<"OK compatible="<<(plan.compatible?1:0)<<" protocolVersion="<<plan.protocol_version<<" profileSchemaVersion="<<plan.profile_schema_version
                      <<" direct="<<plan.direct_capabilities<<" translated="<<plan.translated_capabilities<<" unknownPreserved="<<plan.preserved_unknown_capabilities
                      <<" missingRequired="<<plan.missing_required<<" adapterQuality="<<static_cast<unsigned int>(plan.minimum_adapter_quality)
                      <<" unknownPreservation="<<(plan.unknown_preservation?1:0)<<" offlineCompatible="<<(plan.offline_compatible?1:0)<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "SESSION_OFFER" && parts.size() == 7) {
+            continue;
+        }
+        if (command == "SESSION_OFFER" && parts.size() == 7) {
             std::uint64_t id=0,transcript=0,nonce=0,epoch=0,sequence=0,expires=0;
             if(!parse_number(parts[1],id)||!parse_number(parts[2],transcript)||!parse_number(parts[3],nonce)||!parse_number(parts[4],epoch)||!parse_number(parts[5],sequence)||!parse_number(parts[6],expires)||!interop_session.offer(id,transcript,nonce,epoch,sequence,expires)){error("conflict","session offer refused");continue;}ok("state=offered physicalOutputsArmed=0");
-        } else if (command == "SESSION_AUTH" && parts.size() == 5) {
+            continue;
+        }
+        if (command == "SESSION_AUTH" && parts.size() == 5) {
             unsigned int verified=0;std::uint64_t now=0,epoch=0,minimum_sequence=0;
             if(!parse_number(parts[1],verified)||verified>1||!parse_number(parts[2],now)||!parse_number(parts[3],epoch)||!parse_number(parts[4],minimum_sequence)||!interop_session.authenticate(verified!=0,now,epoch,minimum_sequence)){error("permission","session authentication refused");continue;}ok("state=authenticated physicalOutputsArmed=0");
-        } else if (command == "SESSION_NEGOTIATE" && parts.size() == 6) {
+            continue;
+        }
+        if (command == "SESSION_NEGOTIATE" && parts.size() == 6) {
             unsigned int compatible=0,protocol=0,schema=0;std::uint64_t profile_revision=0,registry_revision=0;
             if(!parse_number(parts[1],compatible)||compatible>1||!parse_number(parts[2],protocol)||!parse_number(parts[3],schema)||!parse_number(parts[4],profile_revision)||!parse_number(parts[5],registry_revision)||!interop_session.negotiate(compatible!=0,protocol,schema,profile_revision,registry_revision)){error("conflict","session negotiation refused");continue;}ok("state=negotiated physicalOutputsArmed=0");
-        } else if (command == "SESSION_CONSENT" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "SESSION_CONSENT" && parts.size() == 3) {
             unsigned int accepted=0;std::uint64_t projection=0;if(!parse_number(parts[1],accepted)||accepted>1||!parse_number(parts[2],projection)||!interop_session.consent(accepted!=0,projection)){error("permission","session consent refused");continue;}ok("state=consented physicalOutputsArmed=0");
-        } else if (command == "SESSION_ACTIVATE" && parts.size() == 5) {
+            continue;
+        }
+        if (command == "SESSION_ACTIVATE" && parts.size() == 5) {
             std::uint64_t now=0,epoch=0,profile_revision=0,registry_revision=0;
             if(!parse_number(parts[1],now)||!parse_number(parts[2],epoch)||!parse_number(parts[3],profile_revision)||!parse_number(parts[4],registry_revision)||!interop_session.activate(now,epoch,profile_revision,registry_revision)){error("conflict","session activation refused");continue;}ok("state=active physicalOutputsArmed=0");
-        } else if (command == "SESSION_INVALIDATE" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "SESSION_INVALIDATE" && parts.size() == 4) {
             std::uint64_t epoch=0,profile_revision=0,registry_revision=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],profile_revision)||!parse_number(parts[3],registry_revision)){error("argument","invalid session state identity");continue;}interop_session.invalidate_if_changed(epoch,profile_revision,registry_revision);ok("checked=1 physicalOutputsArmed=0");
-        } else if (command == "SESSION_STATUS" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "SESSION_STATUS" && parts.size() == 1) {
             const auto status=interop_session.status();std::cout<<"OK sessionId="<<status.session_id<<" state="<<static_cast<unsigned int>(status.state)<<" authenticated="<<(status.authenticated?1:0)<<" compatible="<<(status.compatible?1:0)
                      <<" transcriptHash="<<status.transcript_hash<<" nonce="<<status.nonce<<" authorityEpoch="<<status.authority_epoch<<" sequence="<<status.sequence<<" expiresUnixMs="<<status.expires_unix_ms
                      <<" protocolVersion="<<status.protocol_version<<" profileSchemaVersion="<<status.profile_schema_version<<" profileRevision="<<status.profile_revision<<" registryRevision="<<status.registry_revision
                      <<" consentDigest="<<status.consent_digest<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "CHANNEL_BEGIN" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "CHANNEL_BEGIN" && parts.size() == 4) {
             if(!parse_number(parts[1],staged_channel_high)||!parse_number(parts[2],staged_channel_low)||!parse_number(parts[3],staged_channel_epoch)||
                (staged_channel_high==0&&staged_channel_low==0)||staged_channel_epoch==0){error("argument","invalid session channel identity");continue;}
             staged_channel_capability_count=0;ok("staged=channel physicalOutputsArmed=0");
-        } else if (command == "CHANNEL_CAP" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "CHANNEL_CAP" && parts.size() == 2) {
             std::uint64_t capability=0;if(!parse_number(parts[1],capability)||capability==0||staged_channel_capability_count>=staged_channel_capabilities.size()){error("argument","invalid session channel capability");continue;}
             staged_channel_capabilities[staged_channel_capability_count++]=capability;ok(std::string("capabilities=")+std::to_string(staged_channel_capability_count));
-        } else if (command == "CHANNEL_COMMIT" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "CHANNEL_COMMIT" && parts.size() == 1) {
             if(!session_channel.configure(staged_channel_high,staged_channel_low,staged_channel_epoch,staged_channel_capabilities.data(),staged_channel_capability_count)){error("conflict","session channel configuration refused");continue;}ok("channelConfigured=1 authenticated=1 confidential=0 physicalOutputsArmed=0");
-        } else if (command == "CHANNEL_OUT" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "CHANNEL_OUT" && parts.size() == 3) {
             std::uint64_t capability=0;std::uint32_t size=0;stageforge::SessionFrameHeader frame{};
             if(!parse_number(parts[1],capability)||!parse_number(parts[2],size)||!session_channel.next_outbound(capability,size,frame)){error("permission","outbound session frame refused");continue;}
             std::cout<<"OK keyEpoch="<<frame.key_epoch<<" sequence="<<frame.sequence<<" capabilityId="<<frame.capability_id<<" payloadSize="<<frame.payload_size<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "CHANNEL_IN" && parts.size() == 8) {
+            continue;
+        }
+        if (command == "CHANNEL_IN" && parts.size() == 8) {
             stageforge::SessionFrameHeader frame{};unsigned int verified=0;
             if(!parse_number(parts[1],frame.session_id_high)||!parse_number(parts[2],frame.session_id_low)||!parse_number(parts[3],frame.key_epoch)||!parse_number(parts[4],frame.sequence)||!parse_number(parts[5],frame.capability_id)||!parse_number(parts[6],frame.payload_size)||!parse_number(parts[7],verified)||verified>1||!session_channel.authorize_inbound(frame,verified!=0)){error("permission","inbound session frame refused");continue;}ok("accepted=1 physicalOutputsArmed=0");
-        } else if (command == "CHANNEL_ROTATE" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "CHANNEL_ROTATE" && parts.size() == 3) {
             std::uint64_t epoch=0;std::uint32_t grace=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],grace)||!session_channel.rotate(epoch,grace)){error("conflict","session channel rotation refused");continue;}ok(std::string("keyEpoch=")+std::to_string(epoch)+" physicalOutputsArmed=0");
-        } else if (command == "CHANNEL_RESTORE" && parts.size() == 5) {
+            continue;
+        }
+        if (command == "CHANNEL_RESTORE" && parts.size() == 5) {
             std::uint64_t epoch=0,outbound=0,inbound=0;unsigned int verified=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],outbound)||!parse_number(parts[3],inbound)||!parse_number(parts[4],verified)||verified>1||!session_channel.restore_sequences(epoch,outbound,inbound,verified!=0)){error("permission","session channel checkpoint refused");continue;}ok("restored=1 physicalOutputsArmed=0");
-        } else if (command == "CHANNEL_STATUS" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "CHANNEL_STATUS" && parts.size() == 1) {
             const auto status=session_channel.status();std::cout<<"OK sessionHigh="<<status.session_id_high<<" sessionLow="<<status.session_id_low<<" keyEpoch="<<status.key_epoch<<" previousKeyEpoch="<<status.previous_key_epoch
                      <<" outboundSequence="<<status.outbound_sequence<<" inboundSequence="<<status.inbound_sequence<<" accepted="<<status.accepted<<" rejected="<<status.rejected<<" capabilities="<<status.capability_count
                      <<" authenticated="<<(status.authenticated?1:0)<<" confidential=0 physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "CORE_STATUS") {
+            continue;
+        }
+        if (command == "CORE_STATUS") {
             const auto metrics = core.metrics();
             std::cout << "OK revision=" << metrics.revision
                       << " externalRevision=" << metrics.external_revision
@@ -928,20 +1033,26 @@ int main(int argc, char** argv) {
                       << " staleSnapshots=" << metrics.stale_snapshots
                       << " invalidCommands=" << metrics.invalid_commands
                       << '\n' << std::flush;
-        } else if (command == "CORE_SYNC_BEGIN" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "CORE_SYNC_BEGIN" && parts.size() == 2) {
             std::uint64_t revision = 0;
             if (!parse_number(parts[1], revision)) { error("argument", "invalid snapshot revision"); continue; }
             staged_monitor_players.clear();
             if (!core.begin_snapshot(revision)) { error("conflict", "snapshot begin refused"); continue; }
             ok(std::string("externalRevision=") + std::to_string(revision));
-        } else if (command == "CORE_SYNC_TRANSPORT" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "CORE_SYNC_TRANSPORT" && parts.size() == 4) {
             double bpm = 0.0, seconds = 0.0; int running = 0;
             if (!parse_number(parts[1], bpm) || !parse_number(parts[2], seconds) || !parse_number(parts[3], running) ||
                 !core.stage_transport(bpm, seconds, running != 0)) {
                 error("argument", "invalid staged transport"); continue;
             }
             ok("staged=transport");
-        } else if (command == "CORE_SYNC_MONITOR" && parts.size() == 10) {
+            continue;
+        }
+        if (command == "CORE_SYNC_MONITOR" && parts.size() == 10) {
             stageforge::MonitorBusSnapshot snapshot{};
             int muted = 0;
             if (!parse_number(parts[2], snapshot.master) ||
@@ -959,7 +1070,9 @@ int main(int argc, char** argv) {
             if (std::find(staged_monitor_players.begin(), staged_monitor_players.end(), parts[1]) == staged_monitor_players.end())
                 staged_monitor_players.push_back(parts[1]);
             ok(std::string("staged=monitor player=") + parts[1]);
-        } else if (command == "CORE_SYNC_COMMIT") {
+            continue;
+        }
+        if (command == "CORE_SYNC_COMMIT") {
             const auto result = core.commit_snapshot();
             if (result.status == stageforge::CoreMutationStatus::applied || result.status == stageforge::CoreMutationStatus::duplicate) {
                 for (const auto& player_id : staged_monitor_players) {
@@ -975,20 +1088,28 @@ int main(int argc, char** argv) {
                 staged_monitor_players.clear();
                 error("conflict", stageforge::core_mutation_status_name(result.status));
             }
-        } else if (command == "CORE_SYNC_ABORT") {
+            continue;
+        }
+        if (command == "CORE_SYNC_ABORT") {
             core.abort_snapshot();
             staged_monitor_players.clear();
             ok("aborted=1");
-        } else if (command == "TIME") {
+            continue;
+        }
+        if (command == "TIME") {
             write_time(clock);
-        } else if (command == "CLOCK_SOURCE" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "CLOCK_SOURCE" && parts.size() == 2) {
             if (parts[1].empty() || parts[1].size() > 63) { error("argument", "invalid clock source"); continue; }
             clock_source = parts[1];
             clock_discipline.reset();
             clock.set_clock_rate(1.0);
             show_loop.wake();
             ok(std::string("source=") + clock_source);
-        } else if (command == "CLOCK_OBSERVE" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "CLOCK_OBSERVE" && parts.size() == 3) {
             std::uint64_t local_ns = 0, source_ns = 0;
             if (!parse_number(parts[1], local_ns) || !parse_number(parts[2], source_ns)) {
                 error("argument", "invalid clock observation"); continue;
@@ -1005,7 +1126,9 @@ int main(int argc, char** argv) {
                       << " ageNs=" << status.source_age_ns
                       << " projectedNs=" << status.projected_time_ns
                       << " observations=" << status.observations << '\n' << std::flush;
-        } else if (command == "CLOCK_STATUS") {
+            continue;
+        }
+        if (command == "CLOCK_STATUS") {
             std::uint64_t local_ns = clock.snapshot().monotonic_ns;
             if (parts.size() == 2 && !parse_number(parts[1], local_ns)) { error("argument", "invalid local clock time"); continue; }
             if (parts.size() > 2) { error("argument", "clock status takes zero or one timestamp"); continue; }
@@ -1017,25 +1140,47 @@ int main(int argc, char** argv) {
                       << " ageNs=" << status.source_age_ns
                       << " projectedNs=" << status.projected_time_ns
                       << " observations=" << status.observations << '\n' << std::flush;
-        } else if(command=="TRANSPORT_DISCIPLINE_CONFIG"&&parts.size()==6){
+            continue;
+        }
+        if(command=="TRANSPORT_DISCIPLINE_CONFIG"&&parts.size()==6){
             std::uint64_t source=0,epoch=0,holdover=0,recovery=0;double slew=0;
             if(!parse_number(parts[1],source)||!parse_number(parts[2],epoch)||!parse_number(parts[3],holdover)||!parse_number(parts[4],slew)||!parse_number(parts[5],recovery)||!transport_discipline.configure(source,epoch,holdover,slew,recovery)){error("argument","invalid transport discipline policy");continue;}
             clock.set_clock_rate(1);show_loop.wake();ok("configured=1 physicalOutputsArmed=0");
-        } else if(command=="TRANSPORT_DISCIPLINE_OBSERVE"&&parts.size()==7){
+            continue;
+        }
+        if(command=="TRANSPORT_DISCIPLINE_OBSERVE"&&parts.size()==7){
             std::uint64_t sequence=0,epoch=0,local=0,source=0,local_show=0,source_show=0;
             if(!parse_number(parts[1],sequence)||!parse_number(parts[2],epoch)||!parse_number(parts[3],local)||!parse_number(parts[4],source)||!parse_number(parts[5],local_show)||!parse_number(parts[6],source_show)||!transport_discipline.observe(sequence,epoch,local,source,local_show,source_show)){error("conflict","transport discipline observation refused");continue;}
             clock.set_clock_rate(transport_discipline.update(local));show_loop.wake();const auto s=transport_discipline.status(local);std::cout<<"OK state="<<clock_state_name(s.state)<<" phaseErrorNs="<<s.phase_error_ns<<" driftPpm="<<s.drift_ppm<<" correctionPpm="<<s.correction_ppm<<" appliedRate="<<s.applied_rate<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="TRANSPORT_DISCIPLINE_STATUS"&&(parts.size()==1||parts.size()==2)){
+            continue;
+        }
+        if(command=="TRANSPORT_DISCIPLINE_STATUS"&&(parts.size()==1||parts.size()==2)){
             std::uint64_t local=clock.snapshot().monotonic_ns;if(parts.size()==2&&!parse_number(parts[1],local)){error("argument","invalid discipline status time");continue;}clock.set_clock_rate(transport_discipline.update(local));const auto s=transport_discipline.status(local);
             std::cout<<"OK configured="<<(s.configured?1:0)<<" state="<<clock_state_name(s.state)<<" sourceId="<<s.source_id<<" authorityEpoch="<<s.authority_epoch<<" lastSequence="<<s.last_sequence<<" phaseErrorNs="<<s.phase_error_ns<<" driftPpm="<<s.drift_ppm<<" correctionPpm="<<s.correction_ppm<<" appliedRate="<<s.applied_rate<<" sourceAgeNs="<<s.source_age_ns<<" observations="<<s.observations<<" rejected="<<s.rejected<<" holdoverEntries="<<s.holdover_entries<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="MIDI_CLOCK_CONFIG"&&parts.size()==4){std::uint64_t epoch=0,boundary=0;double bpm=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],bpm)||!parse_number(parts[3],boundary)||!midi_clock.configure(epoch,bpm,boundary)){error("argument","invalid MIDI Clock configuration");continue;}ok("configured=1 ppqn=24 physicalOutputsArmed=0");
-        } else if(command=="MIDI_CLOCK_START"&&parts.size()==3){std::uint64_t epoch=0,boundary=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],boundary)||!midi_clock.start(epoch,boundary)||!midi.schedule({0xC000000000000000ULL|epoch,boundary,0xFA,0,0})){error("conflict","MIDI Clock start refused");continue;}ok("running=1 physicalOutputsArmed=0");
-        } else if(command=="MIDI_CLOCK_STOP"&&parts.size()==3){std::uint64_t epoch=0,show=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],show)||!midi_clock.stop(epoch)||!midi.schedule({0xC100000000000000ULL|epoch,show,0xFC,0,0})){error("conflict","MIDI Clock stop refused");continue;}ok("running=0 physicalOutputsArmed=0");
-        } else if(command=="MIDI_CLOCK_TEMPO"&&parts.size()==4){std::uint64_t epoch=0,boundary=0;double bpm=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],bpm)||!parse_number(parts[3],boundary)||!midi_clock.set_tempo(epoch,bpm,boundary)){error("conflict","MIDI Clock tempo boundary refused");continue;}ok("tempo=updated physicalOutputsArmed=0");
-        } else if(command=="MIDI_CLOCK_OBSERVE"&&parts.size()==4){std::uint64_t epoch=0,sequence=0,show=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],sequence)||!parse_number(parts[3],show)||!midi_clock.observe(epoch,sequence,show)){error("conflict","MIDI Clock pulse refused");continue;}ok("observed=1 physicalOutputsArmed=0");
-        } else if(command=="MIDI_CLOCK_EMIT"&&(parts.size()==2||parts.size()==3)){std::uint64_t until=0;unsigned int maximum=4096;if(!parse_number(parts[1],until)||(parts.size()==3&&!parse_number(parts[2],maximum))||maximum==0||maximum>4096){error("argument","invalid MIDI Clock emit range");continue;}const auto emitted=midi_clock.emit_until(until,&schedule_midi_clock_pulse,&midi_clock_sink,maximum);std::cout<<"OK emitted="<<emitted<<" queued="<<midi.size()<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="MIDI_CLOCK_STATUS"&&parts.size()==1){const auto s=midi_clock.status();std::cout<<"OK configured="<<(s.configured?1:0)<<" running="<<(s.running?1:0)<<" ppqn=24 authorityEpoch="<<s.authority_epoch<<" bpm="<<s.bpm<<" emitted="<<s.emitted<<" received="<<s.received<<" rejected="<<s.rejected<<" lastSequence="<<s.last_sequence<<" lastPulseShowNs="<<s.last_pulse_show_ns<<" maximumJitterNs="<<s.maximum_jitter_ns<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "TRANSPORT" && parts.size() == 2) {
+            continue;
+        }
+        if(command=="MIDI_CLOCK_CONFIG"&&parts.size()==4){std::uint64_t epoch=0,boundary=0;double bpm=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],bpm)||!parse_number(parts[3],boundary)||!midi_clock.configure(epoch,bpm,boundary)){error("argument","invalid MIDI Clock configuration");continue;}ok("configured=1 ppqn=24 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="MIDI_CLOCK_START"&&parts.size()==3){std::uint64_t epoch=0,boundary=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],boundary)||!midi_clock.start(epoch,boundary)||!midi.schedule({0xC000000000000000ULL|epoch,boundary,0xFA,0,0})){error("conflict","MIDI Clock start refused");continue;}ok("running=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="MIDI_CLOCK_STOP"&&parts.size()==3){std::uint64_t epoch=0,show=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],show)||!midi_clock.stop(epoch)||!midi.schedule({0xC100000000000000ULL|epoch,show,0xFC,0,0})){error("conflict","MIDI Clock stop refused");continue;}ok("running=0 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="MIDI_CLOCK_TEMPO"&&parts.size()==4){std::uint64_t epoch=0,boundary=0;double bpm=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],bpm)||!parse_number(parts[3],boundary)||!midi_clock.set_tempo(epoch,bpm,boundary)){error("conflict","MIDI Clock tempo boundary refused");continue;}ok("tempo=updated physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="MIDI_CLOCK_OBSERVE"&&parts.size()==4){std::uint64_t epoch=0,sequence=0,show=0;if(!parse_number(parts[1],epoch)||!parse_number(parts[2],sequence)||!parse_number(parts[3],show)||!midi_clock.observe(epoch,sequence,show)){error("conflict","MIDI Clock pulse refused");continue;}ok("observed=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="MIDI_CLOCK_EMIT"&&(parts.size()==2||parts.size()==3)){std::uint64_t until=0;unsigned int maximum=4096;if(!parse_number(parts[1],until)||(parts.size()==3&&!parse_number(parts[2],maximum))||maximum==0||maximum>4096){error("argument","invalid MIDI Clock emit range");continue;}const auto emitted=midi_clock.emit_until(until,&schedule_midi_clock_pulse,&midi_clock_sink,maximum);std::cout<<"OK emitted="<<emitted<<" queued="<<midi.size()<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="MIDI_CLOCK_STATUS"&&parts.size()==1){const auto s=midi_clock.status();std::cout<<"OK configured="<<(s.configured?1:0)<<" running="<<(s.running?1:0)<<" ppqn=24 authorityEpoch="<<s.authority_epoch<<" bpm="<<s.bpm<<" emitted="<<s.emitted<<" received="<<s.received<<" rejected="<<s.rejected<<" lastSequence="<<s.last_sequence<<" lastPulseShowNs="<<s.last_pulse_show_ns<<" maximumJitterNs="<<s.maximum_jitter_ns<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if (command == "TRANSPORT" && parts.size() == 2) {
             stageforge::CoreTransportAction action{};
             if (parts[1] == "play") action = stageforge::CoreTransportAction::play;
             else if (parts[1] == "pause") action = stageforge::CoreTransportAction::pause;
@@ -1046,24 +1191,32 @@ int main(int argc, char** argv) {
             if (!result.applied()) { error("core", stageforge::core_mutation_status_name(result.status)); continue; }
             show_loop.wake();
             write_time(clock);
-        } else if (command == "SET_BPM" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "SET_BPM" && parts.size() == 2) {
             double bpm = 0.0;
             if (!parse_number(parts[1], bpm)) { error("argument", "invalid bpm"); continue; }
             const auto result = core.mutate_transport(next_core_command_id++, stageforge::core_any_revision, stageforge::CoreTransportAction::set_bpm, bpm);
             if (!result.applied()) { error("core", stageforge::core_mutation_status_name(result.status)); continue; }
             show_loop.wake();
             write_time(clock);
-        } else if (command == "SEEK" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "SEEK" && parts.size() == 2) {
             double seconds = 0.0;
             if (!parse_number(parts[1], seconds)) { error("argument", "invalid seconds"); continue; }
             const auto result = core.mutate_transport(next_core_command_id++, stageforge::core_any_revision, stageforge::CoreTransportAction::seek_seconds, seconds);
             if (!result.applied()) { error("core", stageforge::core_mutation_status_name(result.status)); continue; }
             show_loop.wake();
             write_time(clock);
-        } else if (command == "AUDIO_SCAN") {
+            continue;
+        }
+        if (command == "AUDIO_SCAN") {
             const auto count = audio_devices.scan();
             ok(std::string("count=") + std::to_string(count) + " selected=" + selected_audio_outputs[0]);
-        } else if (command == "AUDIO_DEVICE" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "AUDIO_DEVICE" && parts.size() == 2) {
             std::size_t index = 0;
             if (!parse_number(parts[1], index)) { error("argument", "invalid audio device index"); continue; }
             const auto* device = audio_devices.device(index);
@@ -1079,7 +1232,9 @@ int main(int argc, char** argv) {
                       << " selected=" << (std::any_of(selected_audio_outputs.begin(), selected_audio_outputs.end(), [&](const std::string& value){ return value == device->id.data(); }) ? 1 : 0)
                       << " inputSelected=" << (std::any_of(selected_audio_inputs.begin(), selected_audio_inputs.end(), [&](const std::string& value){ return value == device->id.data(); }) ? 1 : 0)
                       << '\n' << std::flush;
-        } else if (command == "AUDIO_SELECT" && (parts.size() == 2 || parts.size() == 3)) {
+            continue;
+        }
+        if (command == "AUDIO_SELECT" && (parts.size() == 2 || parts.size() == 3)) {
             std::size_t slot = 0;
             const std::string* device_id = nullptr;
             if (parts.size() == 2) device_id = &parts[1];
@@ -1091,7 +1246,9 @@ int main(int argc, char** argv) {
             if (!device || !device->connected || !device->output) { error("not_found", "audio output unavailable"); continue; }
             selected_audio_outputs[slot] = device->id.data();
             ok(std::string("slot=") + std::to_string(slot) + " selected=" + selected_audio_outputs[slot] + " execution=" + execution_audio_backends[slot]);
-        } else if (command == "AUDIO_INPUT_SELECT" && (parts.size() == 2 || parts.size() == 3)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_SELECT" && (parts.size() == 2 || parts.size() == 3)) {
             std::size_t slot = 0;
             const std::string* device_id = nullptr;
             if (parts.size() == 2) {
@@ -1104,7 +1261,9 @@ int main(int argc, char** argv) {
             if (!device || !device->connected || !device->input) { error("not_found", "audio input unavailable"); continue; }
             selected_audio_inputs[slot] = device->id.data();
             ok(std::string("slot=") + std::to_string(slot) + " selected=" + selected_audio_inputs[slot] + " execution=" + execution_audio_input_backends[slot]);
-        } else if (command == "AUDIO_INPUT_BIND_PLAYER" && (parts.size() == 2 || parts.size() == 3)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_BIND_PLAYER" && (parts.size() == 2 || parts.size() == 3)) {
             std::size_t slot = 0;
             const std::string* player = nullptr;
             if (parts.size() == 2) player = &parts[1];
@@ -1117,7 +1276,9 @@ int main(int argc, char** argv) {
             if (output < 0 || source < 0) { error("capacity", "unable to allocate player audio source"); continue; }
             audio_inputs[slot].source.store(static_cast<std::uint8_t>(source), std::memory_order_release);
             std::cout << "OK slot=" << slot << " player=" << token_safe(*player) << " source=" << source << " monitorOutput=" << output << '\n' << std::flush;
-        } else if (command == "AUDIO_INPUT_ACTIVATE" && (parts.size() == 5 || parts.size() == 6 || parts.size() == 7 || parts.size() == 8)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_ACTIVATE" && (parts.size() == 5 || parts.size() == 6 || parts.size() == 7 || parts.size() == 8)) {
             std::size_t slot = 0;
             std::size_t base = 1;
             if (parts.size() >= 6) {
@@ -1163,7 +1324,9 @@ int main(int argc, char** argv) {
             audio_inputs[slot].enabled.store(true, std::memory_order_release);
             execution_audio_input_backends[slot] = "alsa";
             ok(std::string("slot=") + std::to_string(slot) + " execution=alsa running=1 device=" + selected_audio_inputs[slot] + " source=" + std::to_string(source_index) + " actualRate=" + std::to_string(actual_input.sample_rate) + " actualPeriodFrames=" + std::to_string(actual_input.frames_per_buffer) + " actualChannels=" + std::to_string(actual_input.input_channels) + " actualFormat=" + std::string(alsa_inputs[slot].sample_format()));
-        } else if (command == "AUDIO_INPUT_DEACTIVATE" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_DEACTIVATE" && (parts.size() == 1 || parts.size() == 2)) {
             std::size_t slot = 0;
             if (parts.size() == 2 && (!parse_number(parts[1], slot) || slot >= kAudioInputSlots)) { error("argument", "invalid audio input slot"); continue; }
             audio_inputs[slot].enabled.store(false, std::memory_order_release);
@@ -1171,7 +1334,9 @@ int main(int argc, char** argv) {
             audio_inputs[slot].ring.reset();
             execution_audio_input_backends[slot] = "none";
             ok(std::string("slot=") + std::to_string(slot) + " execution=none running=0");
-        } else if (command == "AUDIO_INPUT_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
             std::size_t slot = 0;
             if (parts.size() == 2 && (!parse_number(parts[1], slot) || slot >= kAudioInputSlots)) { error("argument", "invalid audio input slot"); continue; }
             const auto stream = alsa_inputs[slot].status();
@@ -1196,7 +1361,9 @@ int main(int argc, char** argv) {
                       << " underruns=" << ([&](){ std::uint64_t total=0; for(std::size_t reader=0; reader<kAudioOutputSlots; ++reader) total += audio_inputs[slot].ring.underruns(reader); return total; })()
                       << " error=" << token_safe(alsa_inputs[slot].last_error().empty() ? "none" : alsa_inputs[slot].last_error())
                       << '\n' << std::flush;
-        } else if (command == "AUDIO_INPUT_ROUTE" && (parts.size() == 3 || parts.size() == 4)) {
+            continue;
+        }
+        if (command == "AUDIO_INPUT_ROUTE" && (parts.size() == 3 || parts.size() == 4)) {
             std::size_t slot = 0;
             std::size_t base = 1;
             if (parts.size() == 4) {
@@ -1211,7 +1378,9 @@ int main(int argc, char** argv) {
             audio_graph.set_route_gain(source, static_cast<std::uint8_t>(output), gain);
             std::cout << "OK slot=" << slot << " source=" << static_cast<unsigned int>(source) << " output=" << output
                       << " gain=" << audio_graph.route_gain(source, static_cast<std::uint8_t>(output)) << '\n' << std::flush;
-        } else if (command == "AUDIO_OUTPUT_BIND_PLAYER" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "AUDIO_OUTPUT_BIND_PLAYER" && parts.size() == 3) {
             std::size_t slot = 0;
             if (!parse_number(parts[1], slot) || slot >= kAudioOutputSlots) { error("argument", "invalid audio output slot"); continue; }
             const int graph_output = monitor_router.ensure_player(parts[2]);
@@ -1220,7 +1389,9 @@ int main(int argc, char** argv) {
             if (graph_output < 0 || !monitor_router.sync(parts[2], *bus, audio_graph)) { error("capacity", "unable to allocate monitor output"); continue; }
             audio_render_contexts[slot].output.store(static_cast<std::uint8_t>(graph_output), std::memory_order_release);
             std::cout << "OK slot=" << slot << " player=" << token_safe(parts[2]) << " output=" << graph_output << '\n' << std::flush;
-        } else if (command == "AUDIO_DRIFT_CONFIG" && parts.size() == 5) {
+            continue;
+        }
+        if (command == "AUDIO_DRIFT_CONFIG" && parts.size() == 5) {
             std::size_t slot = 0; int enabled = 0; double max_ppm = 0.0, queue_gain_ppm = 0.0;
             if (!parse_number(parts[1], slot) || slot >= kAudioOutputSlots || !parse_number(parts[2], enabled) ||
                 !parse_number(parts[3], max_ppm) || !parse_number(parts[4], queue_gain_ppm) ||
@@ -1239,7 +1410,9 @@ int main(int argc, char** argv) {
             context.compensated_blocks.store(0, std::memory_order_relaxed);
             std::cout << "OK slot=" << slot << " enabled=" << (enabled != 0 ? 1 : 0)
                       << " maxPpm=" << max_ppm << " queueGainPpm=" << queue_gain_ppm << '\n' << std::flush;
-        } else if (command == "AUDIO_ACTIVATE" && (parts.size() == 4 || parts.size() == 5 || parts.size() == 6 || parts.size() == 8)) {
+            continue;
+        }
+        if (command == "AUDIO_ACTIVATE" && (parts.size() == 4 || parts.size() == 5 || parts.size() == 6 || parts.size() == 8)) {
             std::size_t slot = 0;
             std::size_t base = 1;
             if (parts.size() >= 5) {
@@ -1307,14 +1480,18 @@ int main(int argc, char** argv) {
             audio_render_contexts[slot].expected_sample_rate.store(actual_output.sample_rate,std::memory_order_relaxed);
             execution_audio_backends[slot] = "alsa";
             ok(std::string("slot=") + std::to_string(slot) + " execution=alsa running=1 device=" + selected_audio_outputs[slot] + " output=" + std::to_string(output_index) + " actualRate=" + std::to_string(actual_output.sample_rate) + " actualPeriodFrames=" + std::to_string(actual_output.frames_per_buffer) + " actualChannels=" + std::to_string(actual_output.output_channels) + " actualFormat=" + std::string(alsa_outputs[slot].sample_format()));
-        } else if (command == "AUDIO_DEACTIVATE" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "AUDIO_DEACTIVATE" && (parts.size() == 1 || parts.size() == 2)) {
             std::size_t slot = 0;
             if (parts.size() == 2 && (!parse_number(parts[1], slot) || slot >= kAudioOutputSlots)) { error("argument", "invalid audio output slot"); continue; }
             alsa_outputs[slot].close();
             execution_audio_backends[slot] = slot == 0 ? "null-audio" : "none";
             for (auto& input : audio_inputs) input.ring.set_reader_active(slot, false);
             ok(std::string("slot=") + std::to_string(slot) + " execution=" + execution_audio_backends[slot] + " running=0");
-        } else if (command == "AUDIO_STREAM_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "AUDIO_STREAM_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
             std::size_t slot = 0;
             if (parts.size() == 2 && (!parse_number(parts[1], slot) || slot >= kAudioOutputSlots)) { error("argument", "invalid audio output slot"); continue; }
             const auto stream = alsa_outputs[slot].status();
@@ -1367,7 +1544,9 @@ int main(int argc, char** argv) {
                       << " lastBlockEndShowNs=" << audio_render_contexts[slot].last_block_end_show_ns.load(std::memory_order_relaxed)
                       << " error=" << token_safe(alsa_outputs[slot].last_error().empty() ? "none" : alsa_outputs[slot].last_error())
                       << '\n' << std::flush;
-        } else if (command == "AUDIO_ROUTE" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "AUDIO_ROUTE" && parts.size() == 4) {
             unsigned int source = 0, output = 0;
             float gain = 0.0F;
             if (!parse_number(parts[1], source) || !parse_number(parts[2], output) || !parse_number(parts[3], gain) ||
@@ -1378,7 +1557,9 @@ int main(int argc, char** argv) {
             std::cout << "OK source=" << source << " output=" << output
                       << " gain=" << audio_graph.route_gain(static_cast<std::uint8_t>(source), static_cast<std::uint8_t>(output))
                       << '\n' << std::flush;
-        } else if (command == "AUDIO_OUTPUT" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "AUDIO_OUTPUT" && parts.size() == 4) {
             unsigned int output = 0;
             float master = 0.0F, ceiling = 0.0F;
             if (!parse_number(parts[1], output) || !parse_number(parts[2], master) || !parse_number(parts[3], ceiling) ||
@@ -1391,33 +1572,45 @@ int main(int argc, char** argv) {
                       << " master=" << audio_graph.output_master(static_cast<std::uint8_t>(output))
                       << " ceilingDb=" << audio_graph.limiter_ceiling_db(static_cast<std::uint8_t>(output))
                       << '\n' << std::flush;
-        } else if (command == "HUB_HW_UWB_OPEN" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "HUB_HW_UWB_OPEN" && parts.size() == 3) {
             unsigned int baud=0;
             if(!parse_number(parts[2],baud)||parts[1].empty()||!le_uwb_hardware.open_uwb(parts[1].c_str(),baud)){
                 const auto status=le_uwb_hardware.uwb_status();
                 error("hardware",std::string("unable to open UWB bridge errno ")+std::to_string(status.last_errno));continue;
             }
             ok(std::string("uwbOpen=1 baud=")+std::to_string(baud)+" physicalOutputsArmed=0");
-        } else if (command == "HUB_HW_UWB_CLOSE" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "HUB_HW_UWB_CLOSE" && parts.size() == 1) {
             le_uwb_hardware.close_uwb();ok("uwbOpen=0 physicalOutputsArmed=0");
-        } else if (command == "HUB_HW_LE_OPEN" && parts.size() == 5) {
+            continue;
+        }
+        if (command == "HUB_HW_LE_OPEN" && parts.size() == 5) {
             std::uint64_t node_id=0;unsigned int random_address=0;
             if(!parse_number(parts[1],node_id)||!parse_number(parts[4],random_address)||random_address>1||
                !le_uwb_hardware.connect_le(node_id,parts[2].c_str(),parts[3].c_str(),random_address!=0)){
                 error("hardware","unable to open Linux LE ISO socket");continue;
             }
             ok(std::string("nodeId=")+std::to_string(node_id)+" leOpen=1 physicalOutputsArmed=0");
-        } else if (command == "HUB_HW_LE_CLOSE" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "HUB_HW_LE_CLOSE" && parts.size() == 2) {
             std::uint64_t node_id=0;if(!parse_number(parts[1],node_id)){error("argument","invalid LE node id");continue;}
             le_uwb_hardware.close_le(node_id);ok(std::string("nodeId=")+std::to_string(node_id)+" leOpen=0 physicalOutputsArmed=0");
-        } else if (command == "HUB_HW_POLL" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "HUB_HW_POLL" && (parts.size() == 1 || parts.size() == 2)) {
             std::size_t budget=64;
             if(parts.size()==2&&(!parse_number(parts[1],budget)||budget==0||budget>1024)){error("argument","invalid hardware poll budget");continue;}
             const auto handled=le_uwb_hardware.poll(budget);const auto status=le_uwb_hardware.status();
             std::cout<<"OK handled="<<handled<<" polls="<<status.polls<<" acceptedUwb="<<status.accepted_uwb_frames
                      <<" rejectedUwb="<<status.rejected_uwb_frames<<" acceptedLe="<<status.accepted_le_frames
                      <<" rejectedLe="<<status.rejected_le_frames<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "HUB_HW_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
+            continue;
+        }
+        if (command == "HUB_HW_STATUS" && (parts.size() == 1 || parts.size() == 2)) {
             const auto status=le_uwb_hardware.status();const auto uwb=le_uwb_hardware.uwb_status();
             std::cout<<"OK kernelIsoSupported="<<(status.kernel_iso_supported?1:0)<<" uwbOpen="<<(status.uwb_open?1:0)
                      <<" leConfigured="<<status.configured_le_slots<<" leConnected="<<status.connected_le_slots
@@ -1433,7 +1626,9 @@ int main(int argc, char** argv) {
                          <<" leTransmittedSdus="<<le.transmitted_sdus<<" leIoErrors="<<le.io_errors<<" leErrno="<<le.last_errno;
             }
             std::cout<<'\n'<<std::flush;
-        } else if (command == "HUB_CONFIG" && parts.size() == 11) {
+            continue;
+        }
+        if (command == "HUB_CONFIG" && parts.size() == 11) {
             std::uint64_t epoch=0,target_lead=0,max_end_to_end=0,fresh=0,holdover=0,max_clock=0,max_jitter=0;
             double max_range=0.0,max_drift=0.0;unsigned int require_auth=0;
             if(!parse_number(parts[1],epoch)||!parse_number(parts[2],target_lead)||!parse_number(parts[3],max_end_to_end)||
@@ -1446,14 +1641,18 @@ int main(int argc, char** argv) {
             policy.require_authenticated_observations=require_auth!=0;
             if(!le_uwb_hub.configure(epoch,policy)){error("conflict","LE-UWB hub policy refused");continue;}
             ok(std::string("epoch=")+std::to_string(epoch)+" physicalOutputsArmed=0");
-        } else if (command == "HUB_NODE" && parts.size() == 6) {
+            continue;
+        }
+        if (command == "HUB_NODE" && parts.size() == 6) {
             std::uint64_t node_id=0,presentation_delay=0;unsigned int stream_id=0,role=0,required=0;
             if(!parse_number(parts[1],node_id)||!parse_number(parts[2],stream_id)||!parse_number(parts[3],role)||
                !parse_number(parts[4],presentation_delay)||!parse_number(parts[5],required)||role>4||required>1||
                !le_uwb_hub.register_node({node_id,stream_id,static_cast<stageforge::LeUwbNodeRole>(role),presentation_delay,required!=0})){
                 error("argument","invalid LE-UWB node");continue;}
             ok(std::string("nodeId=")+std::to_string(node_id)+" registered=1 physicalOutputsArmed=0");
-        } else if (command == "HUB_UWB" && parts.size() == 10) {
+            continue;
+        }
+        if (command == "HUB_UWB" && parts.size() == 10) {
             std::uint64_t node_id=0,sequence=0,epoch=0,hub_ns=0,node_ns=0,clock_uncertainty=0;
             double distance_mm=0.0,range_uncertainty_mm=0.0;unsigned int authenticated=0;
             if(!parse_number(parts[1],node_id)||!parse_number(parts[2],sequence)||!parse_number(parts[3],epoch)||
@@ -1463,7 +1662,9 @@ int main(int argc, char** argv) {
                !le_uwb_hub.observe_uwb(node_id,sequence,epoch,hub_ns,node_ns,distance_mm,range_uncertainty_mm,clock_uncertainty,authenticated!=0)){
                 error("evidence","UWB observation refused");continue;}
             ok(std::string("nodeId=")+std::to_string(node_id)+" uwbSequence="+std::to_string(sequence));
-        } else if (command == "HUB_LE" && parts.size() == 9) {
+            continue;
+        }
+        if (command == "HUB_LE" && parts.size() == 9) {
             std::uint64_t node_id=0,sequence=0,epoch=0,event_counter=0,hub_ns=0,latency_ns=0,jitter_ns=0;unsigned int authenticated=0;
             if(!parse_number(parts[1],node_id)||!parse_number(parts[2],sequence)||!parse_number(parts[3],epoch)||
                !parse_number(parts[4],event_counter)||!parse_number(parts[5],hub_ns)||!parse_number(parts[6],latency_ns)||
@@ -1471,7 +1672,9 @@ int main(int argc, char** argv) {
                !le_uwb_hub.observe_le(node_id,sequence,epoch,event_counter,hub_ns,latency_ns,jitter_ns,authenticated!=0)){
                 error("evidence","LE isochronous observation refused");continue;}
             ok(std::string("nodeId=")+std::to_string(node_id)+" leSequence="+std::to_string(sequence)+" eventCounter="+std::to_string(event_counter));
-        } else if (command == "HUB_PLAN" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "HUB_PLAN" && parts.size() == 4) {
             std::uint64_t hub_now=0,show_now=0,epoch=0;
             if(!parse_number(parts[1],hub_now)||!parse_number(parts[2],show_now)||!parse_number(parts[3],epoch)){
                 error("argument","invalid LE-UWB plan request");continue;}
@@ -1482,12 +1685,16 @@ int main(int argc, char** argv) {
                      <<" required="<<plan.required_nodes<<" readyNodes="<<plan.ready_nodes
                      <<" holdover="<<plan.holdover_nodes<<" blocked="<<plan.blocked_nodes
                      <<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "HUB_TARGET" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "HUB_TARGET" && parts.size() == 3) {
             std::uint64_t node_id=0,generation=0,target=0;
             if(!parse_number(parts[1],node_id)||!parse_number(parts[2],generation)||
                !le_uwb_hub.target_for(node_id,generation,target)){error("not_ready","LE-UWB target unavailable");continue;}
             std::cout<<"OK nodeId="<<node_id<<" generation="<<generation<<" targetNodeNs="<<target<<"\n"<<std::flush;
-        } else if (command == "HUB_STATUS" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "HUB_STATUS" && parts.size() == 2) {
             std::uint64_t node_id=0;stageforge::LeUwbNodeStatus status{};
             if(!parse_number(parts[1],node_id)||!le_uwb_hub.status(node_id,status)){error("not_found","LE-UWB node unavailable");continue;}
             std::cout<<"OK nodeId="<<status.descriptor.node_id<<" streamId="<<status.descriptor.le_stream_id
@@ -1500,33 +1707,51 @@ int main(int argc, char** argv) {
                      <<" transportLatencyNs="<<status.transport_latency_ns<<" jitterNs="<<status.jitter_ns
                      <<" authenticated="<<(status.authenticated?1:0)<<" rejected="<<status.rejected_observations
                      <<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="RT_AUDIT_STATUS"&&parts.size()==2){unsigned int slot=0;if(!parse_number(parts[1],slot)||slot>=kAudioOutputSlots){error("argument","invalid audit output slot");continue;}const auto s=realtime_audits[slot].status();std::cout<<"OK slot="<<slot<<" callbacks="<<s.callbacks<<" deadlineMisses="<<s.deadline_misses<<" consecutiveMisses="<<s.consecutive_misses<<" maxDurationNs="<<s.max_duration_ns<<" nonfiniteSamples="<<s.nonfinite_samples<<" queuePressureEvents="<<s.queue_pressure_events<<" optionalShedBlocks="<<s.optional_shed_blocks<<" recoveryTransitions="<<s.recovery_transitions<<" allocationAttempts="<<s.allocation_attempts<<" allocatedBytes="<<s.allocated_bytes<<" lockAttempts="<<s.lock_attempts<<" qualificationEnabled="<<(s.qualification_enabled?1:0)<<" overloadLevel="<<s.overload_level<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if(command=="PDC_PREPARE"&&parts.size()>=5){std::uint64_t generation=0,show_ns=0;unsigned int count=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],show_ns)||!parse_number(parts[3],count)||count==0||count>kAudioOutputSlots||parts.size()!=4+count){error("argument","invalid delay graph plan");continue;}std::array<std::uint32_t,kAudioOutputSlots>latencies{};bool valid=true;for(unsigned int i=0;i<count;++i)valid=valid&&parse_number(parts[4+i],latencies[i]);if(!valid||!effect_delay_transaction.prepare(generation,show_ns,latencies.data(),count,nullptr,0)){error("conflict","delay graph plan refused");continue;}ok("prepared=1 physicalOutputsArmed=0");
-        } else if(command=="FXPDC_PREPARE"&&parts.size()>=6){
+            continue;
+        }
+        if(command=="RT_AUDIT_STATUS"&&parts.size()==2){unsigned int slot=0;if(!parse_number(parts[1],slot)||slot>=kAudioOutputSlots){error("argument","invalid audit output slot");continue;}const auto s=realtime_audits[slot].status();std::cout<<"OK slot="<<slot<<" callbacks="<<s.callbacks<<" deadlineMisses="<<s.deadline_misses<<" consecutiveMisses="<<s.consecutive_misses<<" maxDurationNs="<<s.max_duration_ns<<" nonfiniteSamples="<<s.nonfinite_samples<<" queuePressureEvents="<<s.queue_pressure_events<<" optionalShedBlocks="<<s.optional_shed_blocks<<" recoveryTransitions="<<s.recovery_transitions<<" allocationAttempts="<<s.allocation_attempts<<" allocatedBytes="<<s.allocated_bytes<<" lockAttempts="<<s.lock_attempts<<" qualificationEnabled="<<(s.qualification_enabled?1:0)<<" overloadLevel="<<s.overload_level<<" physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if(command=="PDC_PREPARE"&&parts.size()>=5){std::uint64_t generation=0,show_ns=0;unsigned int count=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],show_ns)||!parse_number(parts[3],count)||count==0||count>kAudioOutputSlots||parts.size()!=4+count){error("argument","invalid delay graph plan");continue;}std::array<std::uint32_t,kAudioOutputSlots>latencies{};bool valid=true;for(unsigned int i=0;i<count;++i)valid=valid&&parse_number(parts[4+i],latencies[i]);if(!valid||!effect_delay_transaction.prepare(generation,show_ns,latencies.data(),count,nullptr,0)){error("conflict","delay graph plan refused");continue;}ok("prepared=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="FXPDC_PREPARE"&&parts.size()>=6){
             std::uint64_t generation=0,show_ns=0;unsigned int paths=0;
             if(!parse_number(parts[1],generation)||!parse_number(parts[2],show_ns)||!parse_number(parts[3],paths)||paths==0||paths>kAudioOutputSlots||parts.size()<5+paths){error("argument","invalid effect/delay transaction");continue;}
             std::array<std::uint32_t,kAudioOutputSlots>latencies{};bool valid=true;for(unsigned int i=0;i<paths;++i)valid=valid&&parse_number(parts[4+i],latencies[i]);
             unsigned int changes=0;const auto change_count_index=4+paths;if(!valid||!parse_number(parts[change_count_index],changes)||changes>kAudioOutputSlots*16||parts.size()!=change_count_index+1+changes*3){error("argument","invalid effect/delay transaction");continue;}
             std::array<EngineEffectDelayTransaction::Change,kAudioOutputSlots*16>staged{};for(unsigned int i=0;i<changes;++i){unsigned int output=0,bypassed=0;const auto offset=change_count_index+1+i*3;if(!parse_number(parts[offset],output)||!parse_number(parts[offset+1],staged[i].effect_id)||!parse_number(parts[offset+2],bypassed)||output>=kAudioOutputSlots||bypassed>1){valid=false;break;}staged[i].output=static_cast<std::uint8_t>(output);staged[i].bypassed=bypassed!=0;}
             if(!valid||!effect_delay_transaction.prepare(generation,show_ns,latencies.data(),paths,staged.data(),changes)){error("conflict","effect/delay transaction refused");continue;}ok("prepared=1 atomicEffectDelay=1 physicalOutputsArmed=0");
-        } else if(command=="FXPDC_ROLLBACK"&&parts.size()==3){std::uint64_t generation=0,show_ns=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],show_ns)||!effect_delay_transaction.prepare_rollback(generation,show_ns)){error("conflict","effect/delay rollback refused");continue;}ok("prepared=1 rollback=1 physicalOutputsArmed=0");
-        } else if(command=="PDC_ACTIVATE"&&parts.size()==2){std::uint64_t show_ns=0;if(!parse_number(parts[1],show_ns)||!effect_delay_transaction.activate(show_ns)){error("not_ready","delay graph activation boundary not reached");continue;}ok("activated=1 physicalOutputsArmed=0");
-        } else if(command=="PDC_STATUS"){const auto s=effect_delay_transaction.status();std::cout<<"OK activeGeneration="<<s.active_generation<<" preparedGeneration="<<s.prepared_generation<<" activationShowNs="<<s.activation_show_ns<<" paths="<<s.paths<<" changes="<<s.changes<<" maximumLatencyFrames="<<s.maximum_latency_frames<<" swaps="<<s.commits<<" rollbacks="<<s.rollbacks<<" rejected="<<s.rejected<<" processedFrames="<<s.processed_frames<<" prepared="<<(s.prepared?1:0)<<" transactionConnected=1 audioGraphConnected=1 pathBinding=output-slot-index physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "EFFECT_STATUS" && parts.size() == 2) {
+            continue;
+        }
+        if(command=="FXPDC_ROLLBACK"&&parts.size()==3){std::uint64_t generation=0,show_ns=0;if(!parse_number(parts[1],generation)||!parse_number(parts[2],show_ns)||!effect_delay_transaction.prepare_rollback(generation,show_ns)){error("conflict","effect/delay rollback refused");continue;}ok("prepared=1 rollback=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="PDC_ACTIVATE"&&parts.size()==2){std::uint64_t show_ns=0;if(!parse_number(parts[1],show_ns)||!effect_delay_transaction.activate(show_ns)){error("not_ready","delay graph activation boundary not reached");continue;}ok("activated=1 physicalOutputsArmed=0");
+            continue;
+        }
+        if(command=="PDC_STATUS"){const auto s=effect_delay_transaction.status();std::cout<<"OK activeGeneration="<<s.active_generation<<" preparedGeneration="<<s.prepared_generation<<" activationShowNs="<<s.activation_show_ns<<" paths="<<s.paths<<" changes="<<s.changes<<" maximumLatencyFrames="<<s.maximum_latency_frames<<" swaps="<<s.commits<<" rollbacks="<<s.rollbacks<<" rejected="<<s.rejected<<" processedFrames="<<s.processed_frames<<" prepared="<<(s.prepared?1:0)<<" transactionConnected=1 audioGraphConnected=1 pathBinding=output-slot-index physicalOutputsArmed=0\n"<<std::flush;
+            continue;
+        }
+        if (command == "EFFECT_STATUS" && parts.size() == 2) {
             unsigned int output = 0;
             if (!parse_number(parts[1], output) || output >= kAudioOutputSlots) { error("argument", "invalid effect output slot"); continue; }
             const auto st = effect_chains[output].status();
             std::cout << "OK output=" << output << " registered=" << st.registered << " active=" << st.active
                       << " bypassed=" << st.bypassed << " latencyFrames=" << st.total_latency_frames
                       << " processedBlocks=" << st.processed_blocks << " failures=" << st.failures << '\n' << std::flush;
-        } else if (command == "EFFECT_BYPASS" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "EFFECT_BYPASS" && parts.size() == 4) {
             unsigned int output = 0, enabled = 0; std::uint64_t effect_id = 0;
             if (!parse_number(parts[1], output) || !parse_number(parts[2], effect_id) || !parse_number(parts[3], enabled) ||
                 output >= kAudioOutputSlots || !effect_chains[output].set_bypass(effect_id, enabled != 0)) {
                 error("not_found", "effect bypass target unavailable"); continue;
             }
             ok(std::string("bypassed=") + (enabled ? "1" : "0"));
-        } else if (command == "MONITOR_SET" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "MONITOR_SET" && parts.size() == 4) {
             double value = 0.0;
             if (!parse_number(parts[3], value)) { error("argument", "invalid monitor value"); continue; }
             const auto result = core.mutate_monitor(next_core_command_id++, stageforge::core_any_revision, parts[1], parts[2], value);
@@ -1537,11 +1762,15 @@ int main(int argc, char** argv) {
                 error("busy", "no monitor graph output available"); continue;
             }
             write_monitor(parts[1], *bus);
-        } else if (command == "MONITOR_GET" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "MONITOR_GET" && parts.size() == 2) {
             auto* bus = monitors.find(parts[1]);
             if (!bus) { error("not_found", "unknown player"); continue; }
             write_monitor(parts[1], *bus);
-        } else if (command == "PARAM_BIND_AUDIO_MASTER" && parts.size() == 7) {
+            continue;
+        }
+        if (command == "PARAM_BIND_AUDIO_MASTER" && parts.size() == 7) {
             std::uint64_t target=0, parameter=0; unsigned int output=0; float minv=0, maxv=0, defv=0;
             if (!parse_number(parts[1],target)||!parse_number(parts[2],parameter)||!parse_number(parts[3],output)||
                 !parse_number(parts[4],minv)||!parse_number(parts[5],maxv)||!parse_number(parts[6],defv)||output>=stageforge::audio_graph_max_outputs) {
@@ -1553,7 +1782,9 @@ int main(int argc, char** argv) {
                 stageforge::CoreParameterSafety::normal,stageforge::CoreParameterEndpointKind::mixer_gain,minv,maxv,defv,0.0F,true,true,true};
             if(!parameter_registry.register_endpoint(d,&apply_engine_parameter,ctx)){--parameter_endpoint_context_count;error("conflict","parameter registration refused");continue;}
             (void)automation_state.seed(target,parameter,defv); ok("registered=1 endpoint=audio-master");
-        } else if (command == "PARAM_BIND_AUDIO_ROUTE" && parts.size() == 8) {
+            continue;
+        }
+        if (command == "PARAM_BIND_AUDIO_ROUTE" && parts.size() == 8) {
             std::uint64_t target=0, parameter=0; unsigned int source=0,output=0; float minv=0,maxv=0,defv=0;
             if(!parse_number(parts[1],target)||!parse_number(parts[2],parameter)||!parse_number(parts[3],source)||!parse_number(parts[4],output)||
                !parse_number(parts[5],minv)||!parse_number(parts[6],maxv)||!parse_number(parts[7],defv)||source>=stageforge::audio_graph_max_sources||output>=stageforge::audio_graph_max_outputs){error("argument","invalid audio route parameter binding");continue;}
@@ -1563,102 +1794,176 @@ int main(int argc, char** argv) {
                 stageforge::CoreParameterSafety::normal,stageforge::CoreParameterEndpointKind::mixer_gain,minv,maxv,defv,0.0F,true,true,false};
             if(!parameter_registry.register_endpoint(d,&apply_engine_parameter,ctx)){--parameter_endpoint_context_count;error("conflict","parameter registration refused");continue;}
             (void)automation_state.seed(target,parameter,defv); ok("registered=1 endpoint=audio-route");
-        } else if (command == "PARAM_BIND_MONITOR_MASTER" && parts.size() == 7) {
+            continue;
+        }
+        if (command == "PARAM_BIND_MONITOR_MASTER" && parts.size() == 7) {
             std::uint64_t target=0,parameter=0;float minv=0,maxv=0,defv=0;
             if(!parse_number(parts[1],target)||!parse_number(parts[2],parameter)||parts[3].empty()||parts[3].size()>=64||!parse_number(parts[4],minv)||!parse_number(parts[5],maxv)||!parse_number(parts[6],defv)){error("argument","invalid monitor parameter binding");continue;}
             auto& bus=monitors.get_or_create(parts[3]);(void)monitor_router.sync(parts[3],bus,audio_graph);
             auto* ctx=allocate_parameter_context();if(!ctx){error("capacity","parameter endpoint capacity");continue;}ctx->kind=EngineParameterEndpointContext::Kind::monitor_master;ctx->graph=&audio_graph;ctx->core=&core;ctx->monitor_router=&monitor_router;std::strncpy(ctx->player.data(),parts[3].c_str(),ctx->player.size()-1);
             stageforge::CoreParameterDescriptor d{target,parameter,stageforge::CoreParameterUnit::percent,stageforge::CoreParameterTiming::show,stageforge::CoreParameterSafety::normal,stageforge::CoreParameterEndpointKind::monitor_gain,minv,maxv,defv,0.0F,true,true,false};
             if(!parameter_registry.register_endpoint(d,&apply_engine_parameter,ctx)){--parameter_endpoint_context_count;error("conflict","parameter registration refused");continue;}(void)automation_state.seed(target,parameter,defv); ok("registered=1 endpoint=monitor-master");
-        } else if (command == "PARAM_BIND_MONITOR_CHANNEL" && parts.size() == 8) {
+            continue;
+        }
+        if (command == "PARAM_BIND_MONITOR_CHANNEL" && parts.size() == 8) {
             std::uint64_t target=0,parameter=0;float minv=0,maxv=0,defv=0;stageforge::MonitorChannel channel{};
             if(!parse_number(parts[1],target)||!parse_number(parts[2],parameter)||parts[3].empty()||parts[3].size()>=64||!stageforge::MonitorBus::parse_channel(parts[4],channel)||!parse_number(parts[5],minv)||!parse_number(parts[6],maxv)||!parse_number(parts[7],defv)){error("argument","invalid monitor channel parameter binding");continue;}
             auto& bus=monitors.get_or_create(parts[3]);(void)monitor_router.sync(parts[3],bus,audio_graph);
             auto* ctx=allocate_parameter_context();if(!ctx){error("capacity","parameter endpoint capacity");continue;}ctx->kind=EngineParameterEndpointContext::Kind::monitor_channel;ctx->graph=&audio_graph;ctx->core=&core;ctx->monitor_router=&monitor_router;ctx->monitor_channel=channel;std::strncpy(ctx->player.data(),parts[3].c_str(),ctx->player.size()-1);
             stageforge::CoreParameterDescriptor d{target,parameter,stageforge::CoreParameterUnit::percent,stageforge::CoreParameterTiming::show,stageforge::CoreParameterSafety::normal,stageforge::CoreParameterEndpointKind::monitor_gain,minv,maxv,defv,0.0F,true,true,false};
             if(!parameter_registry.register_endpoint(d,&apply_engine_parameter,ctx)){--parameter_endpoint_context_count;error("conflict","parameter registration refused");continue;}(void)automation_state.seed(target,parameter,defv); ok("registered=1 endpoint=monitor-channel");
-        } else if (command == "PARAM_BIND_LIGHT" && parts.size() == 8) {
+            continue;
+        }
+        if (command == "PARAM_BIND_LIGHT" && parts.size() == 8) {
             std::uint64_t target=0,parameter=0;unsigned int universe=0,channel=0;float minv=0,maxv=0,defv=0;
             if(!parse_number(parts[1],target)||!parse_number(parts[2],parameter)||!parse_number(parts[3],universe)||!parse_number(parts[4],channel)||!parse_number(parts[5],minv)||!parse_number(parts[6],maxv)||!parse_number(parts[7],defv)||universe>=dmx_universes.size()||channel<1||channel>512){error("argument","invalid lighting parameter binding");continue;}
             auto* ctx=allocate_parameter_context();if(!ctx){error("capacity","parameter endpoint capacity");continue;}ctx->kind=EngineParameterEndpointContext::Kind::lighting;ctx->dmx=&dmx_universes;ctx->universe=static_cast<std::uint16_t>(universe);ctx->channel=static_cast<std::uint16_t>(channel);
             stageforge::CoreParameterDescriptor d{target,parameter,stageforge::CoreParameterUnit::dmx,stageforge::CoreParameterTiming::show,stageforge::CoreParameterSafety::physical_output,stageforge::CoreParameterEndpointKind::lighting,minv,maxv,defv,0.0F,true,true,false};
             if(!parameter_registry.register_endpoint(d,&apply_engine_parameter,ctx)){--parameter_endpoint_context_count;error("conflict","parameter registration refused");continue;}(void)automation_state.seed(target,parameter,defv); ok("registered=1 endpoint=lighting");
-        } else if (command == "PARAM_STATUS") {
+            continue;
+        }
+        if (command == "PARAM_STATUS") {
             const auto m=parameter_registry.metrics();std::cout<<"OK registered="<<m.registered<<" applications="<<m.applications<<" rejected="<<m.rejected<<" clamps="<<m.clamps<<'\n'<<std::flush;
-        } else if (command == "PARAM_GET" && parts.size()==3) {
+            continue;
+        }
+        if (command == "PARAM_GET" && parts.size()==3) {
             std::uint64_t target=0,parameter=0;if(!parse_number(parts[1],target)||!parse_number(parts[2],parameter)){error("argument","invalid parameter identity");continue;}stageforge::CoreParameterStatus st{};if(!parameter_registry.status(target,parameter,st)){error("not_found","parameter not registered");continue;}
             std::cout<<"OK targetId="<<target<<" parameterId="<<parameter<<" value="<<std::setprecision(9)<<st.last_applied<<" applications="<<st.applications<<" automationRevision="<<st.automation_revision<<" timing="<<static_cast<unsigned>(st.descriptor.timing)<<" endpoint="<<static_cast<unsigned>(st.descriptor.endpoint_kind)<<'\n'<<std::flush;
-        } else if (command == "CUE_GRAPH_BEGIN" && parts.size()==2) {
+            continue;
+        }
+        if (command == "CUE_GRAPH_BEGIN" && parts.size()==2) {
             if(!parse_number(parts[1],staged_cue_graph_id)||staged_cue_graph_id==0){error("argument","invalid cue id");continue;}staged_cue_action_count=0;ok("staged=1");
-        } else if (command == "CUE_GRAPH_ADD_AUTOMATION" && parts.size()==7) {
+            continue;
+        }
+        if (command == "CUE_GRAPH_ADD_AUTOMATION" && parts.size()==7) {
             if(staged_cue_graph_id==0||staged_cue_action_count>=staged_cue_actions.size()){error("state","cue graph not open or full");continue;}std::uint64_t target=0,param=0,owner=0;float value=0;unsigned int duration=0,offset_ms=0;
             if(!parse_number(parts[1],target)||!parse_number(parts[2],param)||!parse_number(parts[3],value)||!parse_number(parts[4],duration)||!parse_number(parts[5],owner)||!parse_number(parts[6],offset_ms)){error("argument","invalid cue automation action");continue;}
             auto&a=staged_cue_actions[staged_cue_action_count++];a={};a.type=stageforge::CueActionType::automation;a.owner_id=owner;a.offset_ns=static_cast<std::uint64_t>(offset_ms)*1'000'000ULL;a.payload.automation={target,param,value,duration};ok("action=automation");
-        } else if (command == "CUE_GRAPH_ADD_TRANSPORT" && parts.size()==4) {
+            continue;
+        }
+        if (command == "CUE_GRAPH_ADD_TRANSPORT" && parts.size()==4) {
             if(staged_cue_graph_id==0||staged_cue_action_count>=staged_cue_actions.size()){error("state","cue graph not open or full");continue;}sf_core_transport_action action{};if(parts[1]=="play")action=SF_CORE_TRANSPORT_PLAY;else if(parts[1]=="pause")action=SF_CORE_TRANSPORT_PAUSE;else if(parts[1]=="bpm")action=SF_CORE_TRANSPORT_SET_BPM;else if(parts[1]=="seek")action=SF_CORE_TRANSPORT_SEEK_SECONDS;else{error("argument","invalid transport action");continue;}double value=0;unsigned int offset_ms=0;if(!parse_number(parts[2],value)||!parse_number(parts[3],offset_ms)){error("argument","invalid transport cue action");continue;}auto&a=staged_cue_actions[staged_cue_action_count++];a={};a.type=stageforge::CueActionType::transport;a.offset_ns=static_cast<std::uint64_t>(offset_ms)*1'000'000ULL;a.payload.transport={action,value};ok("action=transport");
-        } else if (command == "CUE_GRAPH_ADD_MIDI" && parts.size()==6) {
+            continue;
+        }
+        if (command == "CUE_GRAPH_ADD_MIDI" && parts.size()==6) {
             if(staged_cue_graph_id==0||staged_cue_action_count>=staged_cue_actions.size()){error("state","cue graph not open or full");continue;}unsigned int status=0,d1=0,d2=0,port=0,offset_ms=0;if(!parse_number(parts[1],status)||!parse_number(parts[2],d1)||!parse_number(parts[3],d2)||!parse_number(parts[4],port)||!parse_number(parts[5],offset_ms)||status<0x80||status>255||d1>127||d2>127||port>255){error("argument","invalid MIDI cue action");continue;}auto&a=staged_cue_actions[staged_cue_action_count++];a={};a.type=stageforge::CueActionType::midi;a.offset_ns=static_cast<std::uint64_t>(offset_ms)*1'000'000ULL;a.payload.midi={static_cast<std::uint8_t>(status),static_cast<std::uint8_t>(d1),static_cast<std::uint8_t>(d2),static_cast<std::uint8_t>(port)};ok("action=midi");
-        } else if (command == "CUE_GRAPH_ADD_LIGHT" && parts.size()==5) {
+            continue;
+        }
+        if (command == "CUE_GRAPH_ADD_LIGHT" && parts.size()==5) {
             if(staged_cue_graph_id==0||staged_cue_action_count>=staged_cue_actions.size()){error("state","cue graph not open or full");continue;}unsigned int universe=0,channel=0,value=0,offset_ms=0;if(!parse_number(parts[1],universe)||!parse_number(parts[2],channel)||!parse_number(parts[3],value)||!parse_number(parts[4],offset_ms)||channel<1||channel>512||value>255||universe>65535){error("argument","invalid lighting cue action");continue;}auto&a=staged_cue_actions[staged_cue_action_count++];a={};a.type=stageforge::CueActionType::lighting;a.offset_ns=static_cast<std::uint64_t>(offset_ms)*1'000'000ULL;a.payload.lighting={static_cast<std::uint16_t>(universe),static_cast<std::uint16_t>(channel),static_cast<std::uint8_t>(value),{0,0,0}};ok("action=lighting");
-        } else if (command == "CUE_GRAPH_COMMIT") {
+            continue;
+        }
+        if (command == "CUE_GRAPH_COMMIT") {
             if(staged_cue_graph_id==0||!cue_graph.define(staged_cue_graph_id,staged_cue_actions.data(),staged_cue_action_count)){error("state","cue graph commit refused");continue;}std::cout<<"OK cueId="<<staged_cue_graph_id<<" actions="<<staged_cue_action_count<<" revision="<<cue_graph.revision()<<'\n'<<std::flush;staged_cue_graph_id=0;staged_cue_action_count=0;
-        } else if (command == "SHOW_COMPILE_BEGIN" && parts.size()==3) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_BEGIN" && parts.size()==3) {
             std::uint64_t rev=0,hash=0;if(!parse_number(parts[1],rev)||!parse_number(parts[2],hash)){error("argument","invalid runtime show identity");continue;}runtime_show.begin(rev,hash);ok("compile=begin");
-        } else if (command == "SHOW_COMPILE_ROLE" && parts.size()==3) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_ROLE" && parts.size()==3) {
             std::uint64_t id=0;unsigned int mask=0;if(!parse_number(parts[1],id)||!parse_number(parts[2],mask)||!runtime_show.add_role({id,mask})){error("argument","runtime role refused");continue;}ok("compile=role");
-        } else if (command == "SHOW_COMPILE_CUE" && parts.size()==3) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_CUE" && parts.size()==3) {
             std::uint64_t id=0,hash=0;if(!parse_number(parts[1],id)||!parse_number(parts[2],hash)||!runtime_show.add_cue({id,hash})){error("argument","runtime cue refused");continue;}ok("compile=cue");
-        } else if (command == "SHOW_COMPILE_ROUTE" && parts.size()==5) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_ROUTE" && parts.size()==5) {
             std::uint64_t from=0,to=0;unsigned int channels=0,timing=0;if(!parse_number(parts[1],from)||!parse_number(parts[2],to)||!parse_number(parts[3],channels)||!parse_number(parts[4],timing)||!runtime_show.add_route({from,to,static_cast<std::uint16_t>(channels),static_cast<std::uint8_t>(timing),true})){error("argument","runtime route refused");continue;}ok("compile=route");
-        } else if (command == "SHOW_COMPILE_PARAM" && parts.size()==8) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_PARAM" && parts.size()==8) {
             std::uint64_t target=0,param=0;float minv=0,maxv=0,defv=0;unsigned int timing=0,unit=0;
             if(!parse_number(parts[1],target)||!parse_number(parts[2],param)||!parse_number(parts[3],minv)||!parse_number(parts[4],maxv)||!parse_number(parts[5],defv)||!parse_number(parts[6],timing)||!parse_number(parts[7],unit)){error("argument","invalid runtime parameter");continue;}
             stageforge::CoreParameterDescriptor d{};d.target_id=target;d.parameter_id=param;d.minimum=minv;d.maximum=maxv;d.default_value=defv;d.timing=static_cast<stageforge::CoreParameterTiming>(timing);d.unit=static_cast<stageforge::CoreParameterUnit>(unit);
             if(!runtime_show.add_parameter(d)){error("capacity","runtime parameter refused");continue;}ok("compile=parameter");
-        } else if (command == "SHOW_COMPILE_COMMIT" && parts.size()==2) {
+            continue;
+        }
+        if (command == "SHOW_COMPILE_COMMIT" && parts.size()==2) {
             std::uint64_t boundary=0;if(!parse_number(parts[1],boundary)||!runtime_show.queue_publish(boundary)){error("conflict","runtime generation publish refused");continue;}show_loop.wake();const auto st=runtime_show.status();std::cout<<"OK pendingGeneration="<<st.pending_generation<<" boundaryShowNs="<<boundary<<'\n'<<std::flush;
-        } else if (command == "SHOW_RUNTIME_STATUS") {
+            continue;
+        }
+        if (command == "SHOW_RUNTIME_STATUS") {
             const auto st=runtime_show.status();const auto snap=runtime_show.snapshot();std::cout<<"OK generation="<<st.active_generation<<" pendingGeneration="<<st.pending_generation<<" sourceRevision="<<st.source_revision<<" pending="<<(st.pending?1:0)<<" swaps="<<st.swaps<<" rejected="<<st.rejected<<" roles="<<snap.role_count<<" cues="<<snap.cue_count<<" routes="<<snap.route_count<<" parameters="<<snap.parameter_count<<'\n'<<std::flush;
-        } else if (command == "ROUTE_TX_BEGIN" && parts.size()==2) {
+            continue;
+        }
+        if (command == "ROUTE_TX_BEGIN" && parts.size()==2) {
             std::uint64_t expected=0;if(!parse_number(parts[1],expected)||!routing_state.begin(expected)){error("conflict","routing transaction begin refused");continue;}staged_audio_route_change_count=0;ok("routing=staged");
-        } else if (command == "ROUTE_TX_SET" && parts.size()==6) {
+            continue;
+        }
+        if (command == "ROUTE_TX_SET" && parts.size()==6) {
             std::uint64_t from=0,to=0;unsigned int channels=0,timing=0,enabled=0;if(!parse_number(parts[1],from)||!parse_number(parts[2],to)||!parse_number(parts[3],channels)||!parse_number(parts[4],timing)||!parse_number(parts[5],enabled)||!routing_state.set({from,to,static_cast<std::uint16_t>(channels),static_cast<std::uint8_t>(timing),enabled!=0})){error("argument","routing edge refused");continue;}ok("routing=edge");
-        } else if (command == "ROUTE_TX_AUDIO" && parts.size()==5) {
+            continue;
+        }
+        if (command == "ROUTE_TX_AUDIO" && parts.size()==5) {
             unsigned int source=0,output=0,enabled=0;float gain=0.0F;if(!parse_number(parts[1],source)||!parse_number(parts[2],output)||!parse_number(parts[3],gain)||!parse_number(parts[4],enabled)||source>=stageforge::audio_graph_max_sources||output>=stageforge::audio_graph_max_outputs||staged_audio_route_change_count>=staged_audio_route_changes.size()){error("argument","invalid audio routing transaction edge");continue;}
             const std::uint64_t from=1ULL+source;const std::uint64_t to=1001ULL+output;if(!routing_state.set({from,to,2,0,enabled!=0})){error("argument","audio routing graph edge refused");continue;}staged_audio_route_changes[staged_audio_route_change_count++]={static_cast<std::uint8_t>(source),static_cast<std::uint8_t>(output),enabled!=0?gain:0.0F};ok("routing=audio-edge");
-        } else if (command == "ROUTE_TX_COMMIT") {
+            continue;
+        }
+        if (command == "ROUTE_TX_COMMIT") {
             if(!routing_state.commit()){error("invalid","routing graph contains cycle or transaction not open");continue;}
             if(staged_audio_route_change_count && !audio_graph.apply_route_transaction(std::span<const stageforge::AudioRouteChange>(staged_audio_route_changes.data(),staged_audio_route_change_count))){error("invalid","audio route publication refused");continue;}
             staged_audio_route_change_count=0;const auto st=routing_state.status();const auto now=clock.snapshot();const auto show_ns=static_cast<std::uint64_t>(std::max(0.0,now.show_seconds)*1'000'000'000.0);(void)core_journal.append(stageforge::CoreJournalKind::routing,show_ns,0,0,st.revision);std::cout<<"OK revision="<<st.revision<<" routes="<<st.route_count<<'\n'<<std::flush;
-        } else if (command == "ROUTE_TX_ROLLBACK") { routing_state.rollback();staged_audio_route_change_count=0;ok("rolledBack=1");
-        } else if (command == "ROUTE_STATUS") { const auto st=routing_state.status();std::cout<<"OK revision="<<st.revision<<" routes="<<st.route_count<<" commits="<<st.commits<<" conflicts="<<st.conflicts<<'\n'<<std::flush;
-        } else if (command == "JOURNAL_STATUS") { std::cout<<"OK pending="<<core_journal.pending()<<" dropped="<<core_journal.dropped()<<" lastHash="<<core_journal.last_hash()<<'\n'<<std::flush;
-        } else if (command == "JOURNAL_NEXT") { stageforge::CoreJournalRecord rec{};if(!core_journal.try_pop(rec)){ok("available=0");continue;}std::cout<<"OK available=1 sequence="<<rec.sequence<<" kind="<<static_cast<unsigned>(rec.kind)<<" showNs="<<rec.show_ns<<" eventId="<<rec.event_id<<" subjectId="<<rec.subject_id<<" revision="<<rec.revision<<" previousHash="<<rec.previous_hash<<" hash="<<rec.hash<<'\n'<<std::flush;
-        } else if (command == "SHADOW_DECLARE" && parts.size()==8) {
+            continue;
+        }
+        if (command == "ROUTE_TX_ROLLBACK") { routing_state.rollback();staged_audio_route_change_count=0;ok("rolledBack=1");
+            continue;
+        }
+        if (command == "ROUTE_STATUS") { const auto st=routing_state.status();std::cout<<"OK revision="<<st.revision<<" routes="<<st.route_count<<" commits="<<st.commits<<" conflicts="<<st.conflicts<<'\n'<<std::flush;
+            continue;
+        }
+        if (command == "JOURNAL_STATUS") { std::cout<<"OK pending="<<core_journal.pending()<<" dropped="<<core_journal.dropped()<<" lastHash="<<core_journal.last_hash()<<'\n'<<std::flush;
+            continue;
+        }
+        if (command == "JOURNAL_NEXT") { stageforge::CoreJournalRecord rec{};if(!core_journal.try_pop(rec)){ok("available=0");continue;}std::cout<<"OK available=1 sequence="<<rec.sequence<<" kind="<<static_cast<unsigned>(rec.kind)<<" showNs="<<rec.show_ns<<" eventId="<<rec.event_id<<" subjectId="<<rec.subject_id<<" revision="<<rec.revision<<" previousHash="<<rec.previous_hash<<" hash="<<rec.hash<<'\n'<<std::flush;
+            continue;
+        }
+        if (command == "SHADOW_DECLARE" && parts.size()==8) {
             stageforge::CoreShadowSource src{};unsigned int required=0,capable=0,asset=0;if(!parse_number(parts[1],src.id)||!parse_number(parts[2],src.show_revision)||!parse_number(parts[3],src.content_hash)||!parse_number(parts[4],src.generation)||!parse_number(parts[5],required)||!parse_number(parts[6],capable)||!parse_number(parts[7],asset)){error("argument","invalid shadow source");continue;}src.required=required!=0;src.capable=capable!=0;src.asset_ready=asset!=0;if(!shadow_planner.declare_source(src)){error("capacity","shadow source refused");continue;}ok("shadow=declared");
-        } else if (command == "SHADOW_REPORT" && parts.size()==7) {
+            continue;
+        }
+        if (command == "SHADOW_REPORT" && parts.size()==7) {
             std::uint64_t id=0,generation=0,rev=0,hash=0,until=0;unsigned int healthy=0;if(!parse_number(parts[1],id)||!parse_number(parts[2],generation)||!parse_number(parts[3],rev)||!parse_number(parts[4],hash)||!parse_number(parts[5],until)||!parse_number(parts[6],healthy)||!shadow_planner.report(id,generation,rev,hash,until,healthy!=0)){error("conflict","shadow report stale or unknown");continue;}ok("shadow=reported");
-        } else if (command == "SHADOW_BLOCK" && parts.size()==9) {
+            continue;
+        }
+        if (command == "SHADOW_BLOCK" && parts.size()==9) {
             std::uint64_t id=0,generation=0,rev=0,hash=0,start=0,end=0;unsigned int frames=0,healthy=0;
             if(!parse_number(parts[1],id)||!parse_number(parts[2],generation)||!parse_number(parts[3],rev)||!parse_number(parts[4],hash)||!parse_number(parts[5],start)||!parse_number(parts[6],end)||!parse_number(parts[7],frames)||!parse_number(parts[8],healthy)){error("argument","invalid shadow block");continue;}
             if(!shadow_prebuffer.configure(id,generation,rev,hash)||!shadow_prebuffer.ingest_block(id,generation,rev,hash,start,end,frames,healthy!=0)){error("conflict","shadow block discontinuity or stale identity");continue;}
             stageforge::CoreShadowPrebufferStatus ps{};if(!shadow_prebuffer.status(id,ps)){error("state","shadow prebuffer status unavailable");continue;}
             if(!shadow_planner.report(id,generation,rev,hash,ps.buffered_until_show_ns,ps.healthy)){error("conflict","shadow planner rejected block evidence");continue;}
             std::cout<<"OK shadow=block bufferedUntilShowNs="<<ps.buffered_until_show_ns<<" renderedFrames="<<ps.rendered_frames<<" renderedBlocks="<<ps.rendered_blocks<<" discontinuities="<<ps.discontinuities<<'\n'<<std::flush;
-        } else if (command == "SHADOW_INVALIDATE" && parts.size()==2) { std::uint64_t rev=0;if(!parse_number(parts[1],rev)){error("argument","invalid show revision");continue;}shadow_planner.invalidate_revision(rev);shadow_prebuffer.invalidate_revision(rev);ok("shadow=invalidated");
-        } else if (command == "SHADOW_PLAN" && parts.size()==3) { std::uint64_t target=0,prebuffer=0;if(!parse_number(parts[1],target)||!parse_number(parts[2],prebuffer)){error("argument","invalid shadow plan");continue;}const auto st=shadow_planner.plan(target,prebuffer);std::cout<<"OK targetShowNs="<<st.target_show_ns<<" requiredUntilShowNs="<<st.required_until_show_ns<<" sources="<<st.sources<<" readySources="<<st.ready_sources<<" blockedSources="<<st.blocked_sources<<" ready="<<(st.ready?1:0)<<'\n'<<std::flush;
-        } else if (command == "HANDOFF_TX_PREPARE" && parts.size()==6) {
+            continue;
+        }
+        if (command == "SHADOW_INVALIDATE" && parts.size()==2) { std::uint64_t rev=0;if(!parse_number(parts[1],rev)){error("argument","invalid show revision");continue;}shadow_planner.invalidate_revision(rev);shadow_prebuffer.invalidate_revision(rev);ok("shadow=invalidated");
+            continue;
+        }
+        if (command == "SHADOW_PLAN" && parts.size()==3) { std::uint64_t target=0,prebuffer=0;if(!parse_number(parts[1],target)||!parse_number(parts[2],prebuffer)){error("argument","invalid shadow plan");continue;}const auto st=shadow_planner.plan(target,prebuffer);std::cout<<"OK targetShowNs="<<st.target_show_ns<<" requiredUntilShowNs="<<st.required_until_show_ns<<" sources="<<st.sources<<" readySources="<<st.ready_sources<<" blockedSources="<<st.blocked_sources<<" ready="<<(st.ready?1:0)<<'\n'<<std::flush;
+            continue;
+        }
+        if (command == "HANDOFF_TX_PREPARE" && parts.size()==6) {
             std::uint64_t id=0,source_epoch=0,target_epoch=0,target_show=0;unsigned int degraded=0;
             if(!parse_number(parts[1],id)||!parse_number(parts[2],source_epoch)||!parse_number(parts[3],target_epoch)||!parse_number(parts[4],target_show)||!parse_number(parts[5],degraded)||!planned_handoff.prepare(id,source_epoch,target_epoch,target_show,degraded!=0)){error("conflict","planned handoff prepare refused");continue;}ok("handoff=prepared");
-        } else if (command == "HANDOFF_TX_ACK" && parts.size()==3) {
+            continue;
+        }
+        if (command == "HANDOFF_TX_ACK" && parts.size()==3) {
             std::uint64_t id=0;unsigned int ready=0;if(!parse_number(parts[1],id)||!parse_number(parts[2],ready)||!planned_handoff.acknowledge_target(id,ready!=0)){error("conflict","planned handoff acknowledgement refused");continue;}ok("handoff=target-ready");
-        } else if (command == "HANDOFF_TX_COMMIT" && parts.size()==5) {
+            continue;
+        }
+        if (command == "HANDOFF_TX_COMMIT" && parts.size()==5) {
             std::uint64_t id=0,source_epoch=0,witness_epoch=0,show_ns=0;if(!parse_number(parts[1],id)||!parse_number(parts[2],source_epoch)||!parse_number(parts[3],witness_epoch)||!parse_number(parts[4],show_ns)||!planned_handoff.commit(id,source_epoch,witness_epoch,show_ns)){error("conflict","planned handoff commit refused");continue;}ok("handoff=committed physicalOutputsArmed=0");
-        } else if (command == "HANDOFF_TX_ABORT" && parts.size()==2) {
+            continue;
+        }
+        if (command == "HANDOFF_TX_ABORT" && parts.size()==2) {
             std::uint64_t id=0;if(!parse_number(parts[1],id)||!planned_handoff.abort(id)){error("conflict","planned handoff abort refused");continue;}ok("handoff=aborted");
-        } else if (command == "HANDOFF_TX_STATUS") {
+            continue;
+        }
+        if (command == "HANDOFF_TX_STATUS") {
             const auto st=planned_handoff.status();std::cout<<"OK transactionId="<<st.transaction_id<<" state="<<static_cast<unsigned>(st.state)<<" sourceEpoch="<<st.source_epoch<<" targetEpoch="<<st.target_epoch<<" targetShowNs="<<st.target_show_ns<<" programReady="<<(st.program_ready?1:0)<<" authorityCommitted="<<(st.authority_committed?1:0)<<" physicalOutputsArmed=0 prepares="<<st.prepares<<" commits="<<st.commits<<" aborts="<<st.aborts<<" conflicts="<<st.conflicts<<'\n'<<std::flush;
-        } else if (command == "EVENT_LOOP_STATUS") {
+            continue;
+        }
+        if (command == "EVENT_LOOP_STATUS") {
             const auto loop = show_loop.loop_metrics();
             const auto dispatch = show_loop.dispatch_metrics();
             std::cout << "OK running=" << (loop.running ? 1 : 0)
@@ -1671,14 +1976,18 @@ int main(int argc, char** argv) {
                       << " lastShowNs=" << loop.last_show_time_ns
                       << " pending=" << dispatch.pending
                       << " nextShowNs=" << dispatch.next_show_time_ns << '\n' << std::flush;
-        } else if (command == "CUE_STATUS") {
+            continue;
+        }
+        if (command == "CUE_STATUS") {
             const auto cue = cue_state.snapshot();
             std::cout << "OK currentCueId=" << cue.current_cue_id
                       << " previousCueId=" << cue.previous_cue_id
                       << " lastEventId=" << cue.last_event_id
                       << " lastShowNs=" << cue.last_show_time_ns
                       << " transitions=" << cue.transitions << '\n' << std::flush;
-        } else if (command == "AUTOMATION_STATUS") {
+            continue;
+        }
+        if (command == "AUTOMATION_STATUS") {
             const auto metrics = automation_state.metrics();
             std::cout << "OK revision=" << metrics.revision
                       << " registered=" << metrics.registered
@@ -1687,7 +1996,9 @@ int main(int argc, char** argv) {
                       << " capacityRejects=" << metrics.capacity_rejections
                       << " invalid=" << metrics.invalid
                       << " ownerReleases=" << metrics.owner_releases << '\n' << std::flush;
-        } else if (command == "AUTOMATION_GET" && (parts.size() == 3 || parts.size() == 4)) {
+            continue;
+        }
+        if (command == "AUTOMATION_GET" && (parts.size() == 3 || parts.size() == 4)) {
             std::uint64_t target = 0, parameter = 0, show_ns = 0;
             if (!parse_number(parts[1], target) || !parse_number(parts[2], parameter) || target == 0 || parameter == 0) {
                 error("argument", "invalid automation parameter"); continue;
@@ -1712,7 +2023,9 @@ int main(int argc, char** argv) {
                       << " value=" << std::setprecision(9) << state.current_value
                       << " ramping=" << (state.ramping ? 1 : 0)
                       << " updates=" << state.updates << '\n' << std::flush;
-        } else if (command == "AUTOMATION_BLOCK" && parts.size() == 6) {
+            continue;
+        }
+        if (command == "AUTOMATION_BLOCK" && parts.size() == 6) {
             std::uint64_t target = 0, parameter = 0, start_ns = 0, step_ns = 0;
             unsigned int frames = 0;
             if (!parse_number(parts[1], target) || !parse_number(parts[2], parameter) ||
@@ -1732,7 +2045,9 @@ int main(int argc, char** argv) {
             std::cout << "OK frames=" << frames << " first=" << std::setprecision(9) << values[0]
                       << " last=" << std::setprecision(9) << values[frames - 1]
                       << " min=" << std::setprecision(9) << minimum << " max=" << std::setprecision(9) << maximum << '\n' << std::flush;
-        } else if (command == "EVENT_STATUS") {
+            continue;
+        }
+        if (command == "EVENT_STATUS") {
             const auto metrics = show_loop.dispatch_metrics();
             std::cout << "OK submitted=" << metrics.submitted
                       << " accepted=" << metrics.accepted
@@ -1747,14 +2062,18 @@ int main(int argc, char** argv) {
                       << " droppedLate=" << metrics.dropped_late
                       << " failures=" << metrics.dispatch_failures
                       << " cancelled=" << metrics.cancelled << '\n' << std::flush;
-        } else if (command == "EVENT_DRAIN" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "EVENT_DRAIN" && parts.size() == 2) {
             std::uint64_t now_ns = 0;
             if (!parse_number(parts[1], now_ns)) { error("argument", "invalid event drain time"); continue; }
             const auto routed = show_loop.drain_until(now_ns);
             const auto metrics = show_loop.dispatch_metrics();
             std::cout << "OK routed=" << routed << " pending=" << metrics.pending
                       << " dispatched=" << metrics.dispatched << " late=" << metrics.late << '\n' << std::flush;
-        } else if (command == "EVENT_CANCEL" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "EVENT_CANCEL" && parts.size() == 3) {
             stageforge::ShowEventType type{};
             if (parts[1] == "TRANSPORT") type = stageforge::ShowEventType::transport;
             else if (parts[1] == "MIDI") type = stageforge::ShowEventType::midi;
@@ -1766,7 +2085,9 @@ int main(int argc, char** argv) {
             if (!parse_number(parts[2], event_id)) { error("argument", "invalid event id"); continue; }
             if (!show_loop.cancel(type, event_id)) { error("not_found", "event not pending"); continue; }
             ok(std::string("cancelled=1 eventId=") + std::to_string(event_id));
-        } else if (command == "EVENT_NEXT" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "EVENT_NEXT" && parts.size() == 2) {
             stageforge::ShowEvent event{};
             bool available = false;
             if (parts[1] == "CUE") available = cue_events.try_pop(event);
@@ -1782,7 +2103,9 @@ int main(int argc, char** argv) {
                            << " durationMs=" << event.payload.automation.duration_ms
                            << " ownerId=" << event.owner_id;
             std::cout << '\n' << std::flush;
-        } else if (command == "EVENT_SUBMIT" && parts.size() >= 2) {
+            continue;
+        }
+        if (command == "EVENT_SUBMIT" && parts.size() >= 2) {
             stageforge::ShowEvent event{};
             event.revision = core.metrics().revision;
             unsigned int priority = SF_PRIORITY_SHOW;
@@ -1850,12 +2173,16 @@ int main(int argc, char** argv) {
             if (!show_loop.submit(event)) { error("busy", "show event ingress rejected"); continue; }
             const auto metrics = show_loop.dispatch_metrics();
             ok(std::string("eventId=") + std::to_string(event.event_id) + " pending=" + std::to_string(metrics.pending));
-        } else if (command == "MIDI_MAP_MASTER" && parts.size() == 4) {
+            continue;
+        }
+        if (command == "MIDI_MAP_MASTER" && parts.size() == 4) {
             double bpm=0.0;unsigned int root=0,mask=0;
             if(!parse_number(parts[1],bpm)||!parse_number(parts[2],root)||!parse_number(parts[3],mask)||root>11||mask>0x0FFF){error("argument","invalid MIDI master mapping state");continue;}
             midi_mapping.configure_master(bpm,static_cast<std::uint8_t>(root),static_cast<std::uint16_t>(mask));
             ok("configured=1 physicalOutputsArmed=0");
-        } else if (command == "MIDI_MAP_UPSERT" && parts.size() == 15) {
+            continue;
+        }
+        if (command == "MIDI_MAP_UPSERT" && parts.size() == 15) {
             stageforge::MidiLearnBinding binding{};unsigned int channel=0,number=0,message=0,behavior=0,action=0,steps=0,key_sync=0;
             if(!parse_number(parts[1],binding.mapping_id)||!parse_number(parts[2],binding.device_id)||!parse_number(parts[3],binding.target_id)||
                !parse_number(parts[4],binding.resource_id)||!parse_number(parts[5],binding.parameter_id)||!parse_number(parts[6],channel)||!parse_number(parts[7],number)||
@@ -1867,16 +2194,24 @@ int main(int argc, char** argv) {
             binding.message=static_cast<stageforge::MidiLearnMessage>(message);binding.behavior=static_cast<stageforge::MidiMapBehavior>(behavior);
             binding.action=static_cast<stageforge::MidiMappedActionKind>(action);binding.key_sync=key_sync!=0;
             if(!midi_mapping.upsert(binding)){error("capacity","MIDI mapping refused");continue;}ok("mapped=1 physicalOutputsArmed=0");
-        } else if (command == "MIDI_MAP_REMOVE" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "MIDI_MAP_REMOVE" && parts.size() == 2) {
             std::uint64_t mapping_id=0;if(!parse_number(parts[1],mapping_id)||!midi_mapping.remove(mapping_id)){error("not_found","MIDI mapping unavailable");continue;}ok("removed=1 physicalOutputsArmed=0");
-        } else if (command == "MIDI_MAP_CLEAR" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "MIDI_MAP_CLEAR" && parts.size() == 1) {
             midi_mapping.clear();ok("cleared=1 physicalOutputsArmed=0");
-        } else if (command == "MIDI_MAP_STATUS" && parts.size() == 1) {
+            continue;
+        }
+        if (command == "MIDI_MAP_STATUS" && parts.size() == 1) {
             const auto mapping=midi_mapping.status();const auto dispatch=midi_action_dispatcher.status();
             std::cout<<"OK bindings="<<mapping.bindings<<" received="<<mapping.received<<" matched="<<mapping.matched<<" dropped="<<mapping.dropped
                      <<" queued="<<mapping.queued<<" submitted="<<dispatch.submitted<<" rejected="<<dispatch.rejected<<" ignored="<<dispatch.ignored
                      <<" lastEventId="<<dispatch.last_event_id<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "MIDI_SCHEDULE" && parts.size() == 6) {
+            continue;
+        }
+        if (command == "MIDI_SCHEDULE" && parts.size() == 6) {
             stageforge::ShowEvent event{};
             unsigned int status = 0, data1 = 0, data2 = 0;
             if (!parse_number(parts[1], event.event_id) || !parse_number(parts[2], event.show_time_ns) ||
@@ -1891,7 +2226,9 @@ int main(int argc, char** argv) {
             if (!show_loop.submit(event)) { error("busy", "show event ingress full"); continue; }
             const auto metrics = show_loop.dispatch_metrics();
             ok(std::string("queued=") + std::to_string(metrics.pending));
-        } else if (command == "MIDI_DRAIN" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "MIDI_DRAIN" && parts.size() == 2) {
             std::uint64_t now_ns = 0;
             if (!parse_number(parts[1], now_ns)) { error("argument", "invalid midi drain time"); continue; }
             (void)show_loop.drain_until(now_ns);
@@ -1900,10 +2237,14 @@ int main(int argc, char** argv) {
             stageforge::MidiEvent event{};
             while (midi.pop_due(now_ns, event)) ++count;
             ok(std::string("drained=") + std::to_string(count) + " queued=" + std::to_string(midi.size()));
-        } else if (command == "MIDI_SCAN") {
+            continue;
+        }
+        if (command == "MIDI_SCAN") {
             const auto count = midi_inputs.scan();
             ok(std::string("count=") + std::to_string(count) + " attached=" + std::to_string(midi_inputs.attached_count()));
-        } else if (command == "MIDI_DEVICE" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "MIDI_DEVICE" && parts.size() == 2) {
             std::size_t index = 0;
             if (!parse_number(parts[1], index)) { error("argument", "invalid midi device index"); continue; }
             const auto* device = midi_inputs.device(index);
@@ -1915,18 +2256,26 @@ int main(int argc, char** argv) {
                       << " input=" << (device->input ? 1 : 0)
                       << " connected=" << (device->connected ? 1 : 0)
                       << " attached=" << (midi_inputs.attached(device->id.data()) ? 1 : 0) << '\n' << std::flush;
-        } else if (command == "MIDI_ATTACH" && parts.size() == 3) {
+            continue;
+        }
+        if (command == "MIDI_ATTACH" && parts.size() == 3) {
             if (!midi_inputs.attach(parts[1], parts[2])) { error("not_found", "unable to attach midi input"); continue; }
             ok(std::string("device=") + parts[1] + " player=" + parts[2] + " attached=1");
-        } else if (command == "MIDI_DETACH" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "MIDI_DETACH" && parts.size() == 2) {
             if (!midi_inputs.detach(parts[1])) { error("not_found", "unknown midi input"); continue; }
             ok(std::string("device=") + parts[1] + " attached=0");
-        } else if (command == "MIDI_INPUT_POLL") {
+            continue;
+        }
+        if (command == "MIDI_INPUT_POLL") {
             const auto snapshot = clock.snapshot();
             const auto show_time_ns = static_cast<std::uint64_t>(std::max(0.0, snapshot.show_seconds) * 1000000000.0);
             (void)midi_inputs.poll(show_time_ns);const auto routed=route_captured_midi();
             ok(std::string("captured=") + std::to_string(routed.first) + " mapped="+std::to_string(routed.second)+" queued=" + std::to_string(midi_observer_queue.size_approx()));
-        } else if (command == "MIDI_INPUT_NEXT") {
+            continue;
+        }
+        if (command == "MIDI_INPUT_NEXT") {
             stageforge::CapturedMidiInput event{};
             if (!midi_observer_queue.try_pop(event)) { ok("available=0"); continue; }
             std::cout << "OK available=1"
@@ -1936,13 +2285,21 @@ int main(int argc, char** argv) {
                       << " status=" << static_cast<unsigned int>(event.message.status)
                       << " data1=" << static_cast<unsigned int>(event.message.data1)
                       << " data2=" << static_cast<unsigned int>(event.message.data2) << '\n' << std::flush;
-        } else if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 2 && parts[1] == "MIDI") {
+            continue;
+        }
+        if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 2 && parts[1] == "MIDI") {
             const auto s=midi_inputs.audit_status();std::cout<<"OK domain=midi polls="<<s.polls<<" bytes="<<s.bytes<<" messages="<<s.messages<<" queueDrops="<<s.queue_drops<<" injectedMessages="<<s.injected_messages<<" maxDurationNs="<<s.max_poll_duration_ns<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 3 && parts[1] == "CAPTURE") {
+            continue;
+        }
+        if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 3 && parts[1] == "CAPTURE") {
             unsigned int slot=0;if(!parse_number(parts[2],slot)||slot>=kAudioInputSlots){error("argument","invalid capture audit slot");continue;}const auto s=audio_inputs[slot].audit.status();std::cout<<"OK domain=capture slot="<<slot<<" callbacks="<<s.callbacks<<" frames="<<s.frames<<" recordBlocks="<<s.record_blocks<<" queueRejections="<<s.queue_rejections<<" nonfiniteSamples="<<s.nonfinite_samples<<" maxDurationNs="<<s.max_duration_ns<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 2 && parts[1] == "LIGHTING") {
+            continue;
+        }
+        if (command == "INGRESS_AUDIT_STATUS" && parts.size() == 2 && parts[1] == "LIGHTING") {
             const auto s=lighting_ingress_audit.status();std::cout<<"OK domain=lighting accepted="<<s.accepted<<" queueRejections="<<s.queue_rejections<<" drained="<<s.drained<<" drainCalls="<<s.drain_calls<<" maxDurationNs="<<s.max_drain_duration_ns<<" physicalOutputsArmed=0\n"<<std::flush;
-        } else if (command == "MIDI_INPUT_INJECT" && parts.size() == 7) {
+            continue;
+        }
+        if (command == "MIDI_INPUT_INJECT" && parts.size() == 7) {
             stageforge::MidiInputMessage message{};
             unsigned int status = 0, data1 = 0, data2 = 0;
             if (!parse_number(parts[3], message.show_time_ns) || !parse_number(parts[4], status) ||
@@ -1955,7 +2312,9 @@ int main(int argc, char** argv) {
             message.data2 = static_cast<std::uint8_t>(data2);
             if (!midi_inputs.inject(parts[1], parts[2], message)) { error("busy", "midi input queue full"); continue; }
             const auto routed=route_captured_midi();ok(std::string("queued=") + std::to_string(midi_observer_queue.size_approx())+" mapped="+std::to_string(routed.second));
-        } else if (command == "LIGHT_SCHEDULE" && parts.size() == 6) {
+            continue;
+        }
+        if (command == "LIGHT_SCHEDULE" && parts.size() == 6) {
             stageforge::ShowEvent event{};
             unsigned int universe = 0, channel = 0, value = 0;
             if (!parse_number(parts[1], event.event_id) || !parse_number(parts[2], event.show_time_ns) ||
@@ -1970,7 +2329,9 @@ int main(int argc, char** argv) {
             if (!show_loop.submit(event)) { error("busy", "show event ingress full"); continue; }
             const auto metrics = show_loop.dispatch_metrics();
             ok(std::string("queued=") + std::to_string(metrics.pending));
-        } else if (command == "LIGHT_DRAIN" && parts.size() == 2) {
+            continue;
+        }
+        if (command == "LIGHT_DRAIN" && parts.size() == 2) {
             std::uint64_t now_ns = 0;
             if (!parse_number(parts[1], now_ns)) { error("argument", "invalid lighting drain time"); continue; }
             (void)show_loop.drain_until(now_ns);
@@ -2002,7 +2363,9 @@ int main(int argc, char** argv) {
                 }
             }
             ok(std::string("drained=") + std::to_string(count) + " queued=" + std::to_string(lighting.size()) + " sent=" + std::to_string(sent));
-        } else if (command == "LIGHT_NET_CONFIG" && parts.size() >= 3 && parts.size() <= 5) {
+            continue;
+        }
+        if (command == "LIGHT_NET_CONFIG" && parts.size() >= 3 && parts.size() <= 5) {
             unsigned int port = 0;
             if (!parse_number(parts[2], port) || port == 0 || port > 65535) { error("argument", "invalid lighting network port"); continue; }
             const auto protocol = parts.size() >= 4 ? parts[3] : std::string("ARTNET");
@@ -2188,3 +2551,4 @@ int main(int argc, char** argv) {
     audio.close();
     return 0;
 }
+

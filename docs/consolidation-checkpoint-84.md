@@ -36,3 +36,16 @@ separate. No recovered historical workbook replaces the Checkpoint 83 master.
 - Root builds compile both engine and device components on supported OSes.
   Compilation in one checkout is not a runtime bridge: engine audio and the
   newer native endpoint stream still need a shared control/callback integration.
+
+Fresh verification found and fixed Windows min/max macro collisions, mixed-type
+C++ auto declarations rejected by Clang, a Linux-only LE socket fixture enabled
+on macOS, a stale hard-coded engine path that skipped spawn-token coverage, and
+missing isolated-rootfs ownership privileges in CI. The Windows dispatcher also
+exceeded MSVC's nesting limit; handled commands now continue the input loop
+instead of nesting an unbounded else-if chain. Authentication stays before dispatch.
+
+The restored runtime imports fcntl and uses Linux process identity for staging.
+Windows/macOS CI therefore runs portable endpoint/IPC contracts and native builds;
+the complete Python runtime suite runs on Linux. This is an explicit portability
+gap, not proof that the full application runs on Windows/macOS. MIDI sysfs and
+Linux external-host tests remain in the complete Linux suite.
