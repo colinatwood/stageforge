@@ -77,10 +77,14 @@ jobs:
             tests.test_windows_named_pipe_acl_attestation
       - name: Run target-OS smoke and capture evidence
         run: python scripts/platform-ci-smoke.py --output platform-ci-smoke.json
+      - name: Exercise actual engine authentication and command dispatch
+        run: python ci/native_engine_stdio_smoke.py
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: platform-ci-smoke.json
+          path: |
+            platform-ci-smoke.json
+            native-engine-smoke.json
           if-no-files-found: error
           retention-days: 30
 
