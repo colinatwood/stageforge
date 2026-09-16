@@ -15,7 +15,8 @@ add_library(stageforge_devices
   engine_native_audio_request.cpp
   engine_native_audio_callbacks.cpp
   engine_native_audio_runtime.cpp
-  engine_control_loop.cpp)
+  engine_control_loop.cpp
+  engine_control_stdin.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
