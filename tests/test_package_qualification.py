@@ -22,8 +22,13 @@ class PackageQualificationTests(unittest.TestCase):
             engine = build / "native/stageforge_engine"
             engine.write_text("#!/bin/sh\nexit 0\n")
             engine.chmod(0o755)
+            command = [sys.executable, str(ROOT / "scripts/stageforge-package-qualify.py"), "--build-dir", str(build)]
+            # Only the isolated rootfs ownership exercise needs root. The full
+            # suite and engine stay under the normal runner identity.
+            if os.environ.get("STAGEFORGE_PACKAGE_QUALIFY_SUDO") == "1":
+                command = ["sudo", "-n", "--", *command]
             result = subprocess.run(
-                [sys.executable, str(ROOT / "scripts/stageforge-package-qualify.py"), "--build-dir", str(build)],
+                command,
                 cwd=ROOT,
                 capture_output=True,
                 text=True,

@@ -21,3 +21,18 @@ Source access is resolved. The four software backlog rows remain In Progress:
 AUD-035/036 and DEV-033/034 require actual engine/device integration. Physical
 hardware, licensed plugins, deployment, package and owner decisions remain
 separate. No recovered historical workbook replaces the Checkpoint 83 master.
+
+## Integration audit findings
+
+- Archive executable bits are restored in Git for 20 scripts. Windows extraction
+  alone does not preserve the Unix execution contract used by installed launchers.
+- Recovered `docs/current-backlog.md` is labeled historical to avoid conflicting
+  with the newer master. License notes now acknowledge the existing LICENSE,
+  without inventing owner approval for the recovered distribution.
+- The recovered `IsolatedPluginHost` still refuses non-Linux external launch.
+  Checkpoint 73's tested `platform_launch_binding` module is present, but its
+  process streams and cleanup lifetime are not wired into that host. PLUG-034
+  remains the hosted binder result; end-to-end host compatibility is not proven.
+- Root builds compile both engine and device components on supported OSes.
+  Compilation in one checkout is not a runtime bridge: engine audio and the
+  newer native endpoint stream still need a shared control/callback integration.

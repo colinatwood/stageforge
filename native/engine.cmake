@@ -22,6 +22,7 @@ add_library(stageforge_core STATIC
 target_compile_features(stageforge_core PUBLIC cxx_std_20)
 target_link_libraries(stageforge_core PUBLIC ${CMAKE_DL_LIBS} Threads::Threads)
 if(WIN32)
+    target_compile_definitions(stageforge_core PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
     target_link_libraries(stageforge_core PUBLIC ws2_32)
 endif()
 target_include_directories(stageforge_core

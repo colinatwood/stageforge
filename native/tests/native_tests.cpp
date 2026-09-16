@@ -1157,7 +1157,7 @@ void test_le_uwb_hardware_frames_and_nonblocking_loopback() {
     auto bad_le=le_frame;bad_le[32]^=1;
     SF_CHECK(!stageforge::decode_le_iso_timing_frame(bad_le.data(),bad_le.size(),decoded_le));
 
-#if defined(__unix__) || defined(__APPLE__)
+#if defined(__linux__)
     int uwb_pair[2]{-1,-1};int le_pair[2]{-1,-1};
     SF_CHECK(::socketpair(AF_UNIX,SOCK_STREAM|SOCK_NONBLOCK,0,uwb_pair)==0);
     SF_CHECK(::socketpair(AF_UNIX,SOCK_SEQPACKET|SOCK_NONBLOCK,0,le_pair)==0);
@@ -1734,3 +1734,4 @@ int main() {
     test_notation_quantizer();
     return 0;
 }
+

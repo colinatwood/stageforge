@@ -1,4 +1,10 @@
-# Current software backlog
+# Recovered software backlog history (through Checkpoint 69)
+
+This recovered document is historical. Current acceptance statuses are in
+`backlog/StageForge-Master-Backlog-Checkpoint-83.xlsx`; consolidation findings
+are in `consolidation-checkpoint-84.md`. In particular, later hosted IPC and
+native binder evidence supersedes historical statements below, but does not
+prove full-engine integration or licensed plugin compatibility.
 
 Updated 2026-09-14. Prioritized from explicit remaining work in the current source
 documentation; this is not a fresh audit of every historical task. Physical
