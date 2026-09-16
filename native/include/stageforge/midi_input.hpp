@@ -39,7 +39,9 @@ private:
 struct MidiDeviceDescriptor {
     std::array<char, 64> id{};
     std::array<char, 128> name{};
-    std::array<char, 192> path{};
+    // Linux stores the /dev/snd path. Windows/macOS store a bounded hash-only
+    // identity token until the native event-input backend is wired here.
+    std::array<char, 256> path{};
     bool input{true};
     bool connected{true};
 };
@@ -57,8 +59,9 @@ struct MidiIngressAuditStatus {
 
 // Small platform-facing input registry. Registry/open/close operations belong
 // on the control thread. poll() is non-blocking. Linux uses raw /dev/snd MIDI
-// character devices without linking libasound. Unsupported platforms simply
-// report zero devices until a native backend is supplied.
+// character devices. Windows/macOS enumerate hash-only native input identities;
+// attach/poll on those targets remains fail-closed until their event backend is
+// integrated, so enumeration can never masquerade as working MIDI I/O.
 class MidiInputManager {
 public:
     MidiInputManager() noexcept;
