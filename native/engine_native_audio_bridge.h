@@ -5,6 +5,7 @@
 #include "native_capture.h"
 #include "native_playback.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
