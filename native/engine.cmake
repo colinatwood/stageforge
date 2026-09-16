@@ -53,6 +53,13 @@ target_link_libraries(stageforge_engine PRIVATE stageforge_core)
 target_compile_features(stageforge_engine PRIVATE cxx_std_20)
 if(MSVC)
     target_compile_options(stageforge_engine PRIVATE /W4 /permissive-)
+    # The recovered engine owns several megabytes of fixed-capacity render scratch
+    # in main() automatic storage. Windows' 1 MiB default process stack overflows
+    # before authentication starts, while Linux/macOS already run the same bounded
+    # storage successfully. Reserve a fixed 16 MiB stack for this consolidation
+    # build; moving long-lived scratch into explicit engine-owned storage remains
+    # a separate post-consolidation cleanup and must not touch RT callback stacks.
+    target_link_options(stageforge_engine PRIVATE /STACK:16777216)
 else()
     target_compile_options(stageforge_engine PRIVATE -Wall -Wextra -Wpedantic)
 endif()
