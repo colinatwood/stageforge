@@ -1,0 +1,17 @@
+{
+  "suite": "org.upp.conformance.core-4.0",
+  "schemaVersion": 1,
+  "cases": [
+    {"id": "authenticated-direct", "mutation": "none", "expected": "compatible"},
+    {"id": "signature-tamper", "mutation": "signature", "expected": "transcript authentication failed"},
+    {"id": "transcript-tamper", "mutation": "capability", "expected": "transcript authentication failed"},
+    {"id": "expired", "mutation": "expired", "expected": "offer expired or not yet valid"},
+    {"id": "wrong-target", "mutation": "target", "expected": "offer target mismatch"},
+    {"id": "replay", "mutation": "replay", "expected": "replayed interoperability offer"},
+    {"id": "downgrade", "mutation": "downgrade", "expected": "protocol downgrade detected"},
+    {"id": "unknown-preserved", "mutation": "unknown", "expected": "compatible"},
+    {"id": "missing-required", "mutation": "required", "expected": "incompatible"},
+    {"id": "profile-consent", "mutation": "venue-override", "expected": "consent-required"},
+    {"id": "accessibility-priority", "mutation": "accessibility", "expected": "user-wins"}
+  ]
+}

@@ -1,0 +1,81 @@
+find_package(Threads REQUIRED)
+
+add_library(stageforge_core STATIC
+    src/core_state.cpp
+    src/audio_device.cpp
+    src/audio_device_manager.cpp
+    src/audio_graph.cpp
+    src/alsa_audio_output.cpp
+    src/alsa_audio_input.cpp
+    src/artnet_udp_output.cpp
+    src/sacn_udp_output.cpp
+    src/monitor_bus.cpp
+    src/monitor_mixer.cpp
+    src/monitor_graph_router.cpp
+    src/midi_input.cpp
+    src/transport_clock.cpp
+    src/uwb_hardware_bridge.cpp
+    src/le_iso_hardware.cpp
+    src/realtime_qualification.cpp
+)
+
+target_compile_features(stageforge_core PUBLIC cxx_std_20)
+target_link_libraries(stageforge_core PUBLIC ${CMAKE_DL_LIBS} Threads::Threads)
+if(WIN32)
+    target_compile_definitions(stageforge_core PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+    target_link_libraries(stageforge_core PUBLIC ws2_32)
+endif()
+target_include_directories(stageforge_core
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/include
+)
+
+if(STAGEFORGE_RT_QUALIFICATION)
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        message(FATAL_ERROR "STAGEFORGE_RT_QUALIFICATION currently supports Linux only; disable it for ordinary builds")
+    endif()
+    target_compile_definitions(stageforge_core PUBLIC STAGEFORGE_RT_QUALIFICATION=1)
+    if(UNIX AND NOT APPLE)
+        target_link_options(stageforge_core INTERFACE -Wl,--wrap=pthread_mutex_lock)
+    endif()
+endif()
+
+if(MSVC)
+    target_compile_options(stageforge_core PRIVATE /W4 /permissive-)
+else()
+    target_compile_options(stageforge_core PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+
+add_executable(stageforge_engine src/engine_main.cpp)
+target_link_libraries(stageforge_engine PRIVATE stageforge_core)
+target_compile_features(stageforge_engine PRIVATE cxx_std_20)
+if(MSVC)
+    target_compile_options(stageforge_engine PRIVATE /W4 /permissive-)
+    # The recovered engine owns several megabytes of fixed-capacity render scratch
+    # in main() automatic storage. Windows' 1 MiB default process stack overflows
+    # before authentication starts, while Linux/macOS already run the same bounded
+    # storage successfully. Reserve a fixed 16 MiB stack for this consolidation
+    # build; moving long-lived scratch into explicit engine-owned storage remains
+    # a separate post-consolidation cleanup and must not touch RT callback stacks.
+    target_link_options(stageforge_engine PRIVATE /STACK:16777216)
+else()
+    target_compile_options(stageforge_engine PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+if(STAGEFORGE_BUILD_TESTS)
+    enable_testing()
+    add_executable(stageforge_native_tests tests/native_tests.cpp)
+    target_link_libraries(stageforge_native_tests PRIVATE stageforge_core)
+    target_compile_features(stageforge_native_tests PRIVATE cxx_std_20)
+    if(MSVC)
+        target_compile_options(stageforge_native_tests PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(stageforge_native_tests PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME stageforge_native_tests COMMAND stageforge_native_tests)
+    add_executable(stageforge_current_abi_smoke ../tests/core_api_510_smoke.c)
+    target_include_directories(stageforge_current_abi_smoke PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    add_test(NAME stageforge_current_abi_smoke COMMAND stageforge_current_abi_smoke)
+endif()

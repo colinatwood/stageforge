@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/realtime-audit-status.schema.json",
+  "type": "object",
+  "required": ["outputs", "ingress", "policy", "physicalOutputsArmed"],
+  "properties": {
+    "outputs": {"type": "array", "maxItems": 4, "items": {"type": "object", "required": ["callbacks", "deadlineMisses", "allocationAttempts", "allocatedBytes", "lockAttempts", "qualificationEnabled", "physicalOutputsArmed"], "properties": {"qualificationEnabled": {"oneOf": [{"type": "boolean"}, {"enum": ["0", "1"]}]}, "physicalOutputsArmed": {"oneOf": [{"const": false}, {"const": "0"}]}}, "additionalProperties": true}},
+    "ingress": {
+      "type": "object", "required": ["midi", "capture", "lighting", "pluginHosts"],
+      "properties": {
+        "midi": {"type": "object", "required": ["domain", "polls", "bytes", "messages", "queueDrops", "injectedMessages", "maxDurationNs", "physicalOutputsArmed"], "properties": {"domain": {"const": "midi"}, "physicalOutputsArmed": {"oneOf": [{"const": false}, {"const": "0"}]}}, "additionalProperties": true},
+        "capture": {"type": "array", "maxItems": 4, "items": {"type": "object", "required": ["domain", "slot", "callbacks", "frames", "recordBlocks", "queueRejections", "nonfiniteSamples", "maxDurationNs", "physicalOutputsArmed"], "properties": {"domain": {"const": "capture"}, "physicalOutputsArmed": {"oneOf": [{"const": false}, {"const": "0"}]}}, "additionalProperties": true}},
+        "lighting": {"type": "object", "required": ["domain", "accepted", "queueRejections", "drained", "drainCalls", "maxDurationNs", "physicalOutputsArmed"], "properties": {"domain": {"const": "lighting"}, "physicalOutputsArmed": {"oneOf": [{"const": false}, {"const": "0"}]}}, "additionalProperties": true},
+        "pluginHosts": {"type": "array", "maxItems": 1024, "items": {"$ref": "plugin-host-status.schema.json"}}
+      }
+    },
+    "policy": {"type": "object", "required": ["shedOptionalEffectsAfterMisses", "criticalAfterMisses", "recoverAfterOnTimeCallbacks"]},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

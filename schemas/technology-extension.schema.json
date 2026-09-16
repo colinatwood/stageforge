@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/technology-extension-v1.json",
+  "title": "UPP Technology Extension v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "maturity"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*\\.[A-Za-z0-9._/-]+$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "maturity": {
+      "enum": [
+        "experimental",
+        "community",
+        "candidate",
+        "standard"
+      ]
+    },
+    "requestedCore": {
+      "type": "boolean"
+    },
+    "publicSpec": {
+      "type": "boolean"
+    },
+    "conformanceTests": {
+      "type": "boolean"
+    },
+    "interoperabilityEvidence": {
+      "type": "boolean"
+    },
+    "fallbackDefined": {
+      "type": "boolean"
+    },
+    "backwardCompatible": {
+      "type": "boolean"
+    },
+    "unknownPreservationTested": {
+      "type": "boolean"
+    },
+    "productionDeployments": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "mandatoryVendor": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "cloudRequired": {
+          "type": "boolean"
+        },
+        "aiRequired": {
+          "type": "boolean"
+        }
+      }
+    },
+    "implementations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "organization": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "independentGroup": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "conformancePass": {
+            "type": "boolean"
+          },
+          "openSource": {
+            "type": "boolean"
+          },
+          "interopPeers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "mandatoryCore": {
+      "type": "boolean"
+    },
+    "deprecated": {
+      "type": "boolean"
+    },
+    "replacementId": {
+      "type": "string",
+      "maxLength": 160
+    },
+    "migrationBridge": {
+      "type": "boolean"
+    },
+    "adoptionRecordRef": {
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^upp-public-record:record-[0-9a-f]{20}:[0-9a-f]{64}$"
+    }
+  }
+}

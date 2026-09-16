@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/handoff-readiness-v1.json",
+  "title": "UPP Handoff Readiness v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["mode", "deterministicPrebufferEligible", "prebufferReady", "physicalOutputsAutoArm", "readyForAuthorityTransfer", "reasons"],
+  "properties": {
+    "mode": {"enum": ["state-warm", "deterministic-prebuffer-eligible", "live-input-state-warm"]},
+    "replicaAgeMs": {"type": ["integer", "null"], "minimum": 0},
+    "sourceNodeId": {"type": ["string", "null"]},
+    "sourceProgramCursorNs": {"type": ["integer", "null"], "minimum": 0},
+    "handoffTargetShowNs": {"type": ["integer", "null"], "minimum": 0},
+    "localShowNs": {"type": ["integer", "null"], "minimum": 0},
+    "localLagMs": {"type": ["number", "null"]},
+    "activeLiveInputSlots": {"type": "array", "maxItems": 4, "items": {"type": "integer", "minimum": 0, "maximum": 3}},
+    "deterministicPrebufferEligible": {"type": "boolean"},
+    "prebufferReady": {"const": false},
+    "physicalOutputsAutoArm": {"const": false},
+    "readyForAuthorityTransfer": {"type": "boolean"},
+    "reasons": {"type": "array", "items": {"type": "string"}}
+  }
+}

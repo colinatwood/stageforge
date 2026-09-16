@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/sampler-preload-status.schema.json",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "available", "capacity", "maximumFramesPerAsset", "registered", "publishedGenerations", "assets", "failures", "diskIoInAudioCallback", "physicalOutputsArmed"],
+  "properties": {
+    "documentType": {"const": "org.upp.sampler-preload-status"},
+    "schemaVersion": {"const": 1},
+    "available": {"type": "boolean"},
+    "capacity": {"const": 32},
+    "maximumFramesPerAsset": {"const": 65536},
+    "registered": {"type": "integer", "minimum": 0, "maximum": 32},
+    "publishedGenerations": {"type": "integer", "minimum": 0, "maximum": 32},
+    "assets": {
+      "type": "array", "maxItems": 32,
+      "items": {
+        "type": "object",
+        "required": ["resourceId", "nativeResourceId", "mode", "sessionRevision", "sourceContentHash", "frames", "registered", "physicalOutputsArmed"],
+        "properties": {
+          "resourceId": {"type": "string", "minLength": 1, "maxLength": 128},
+          "nativeResourceId": {"type": "string", "minLength": 1},
+          "mode": {"enum": ["oneshot", "loop"]},
+          "sessionRevision": {"type": "integer", "minimum": 0},
+          "sourceContentHash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "frames": {"type": "integer", "minimum": 1, "maximum": 65536},
+          "registered": {"const": true},
+          "physicalOutputsArmed": {"const": false}
+        },
+        "additionalProperties": true
+      }
+    },
+    "failures": {"type": "integer", "minimum": 0},
+    "lastError": {"type": ["string", "null"]},
+    "diskIoInAudioCallback": {"const": false},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

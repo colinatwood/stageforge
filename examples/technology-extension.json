@@ -1,0 +1,21 @@
+{
+  "id": "artist.example.motion-expression.v1",
+  "description": "Experimental performer motion-expression capability.",
+  "maturity": "experimental",
+  "requestedCore": false,
+  "publicSpec": false,
+  "conformanceTests": false,
+  "interoperabilityEvidence": false,
+  "fallbackDefined": true,
+  "backwardCompatible": true,
+  "unknownPreservationTested": false,
+  "dependencies": {
+    "mandatoryVendor": "",
+    "cloudRequired": false,
+    "aiRequired": false
+  },
+  "implementations": [],
+  "futureArtistSemantics": {
+    "preserveEvenIfUnknown": true
+  }
+}

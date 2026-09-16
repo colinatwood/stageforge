@@ -1,0 +1,351 @@
+#include "stageforge/midi_input.hpp"
+
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdio>
+#include <cstring>
+
+#if defined(__linux__)
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
+namespace stageforge {
+namespace {
+
+template <std::size_t N>
+void copy_text(std::array<char, N>& target, std::string_view source) noexcept {
+    const auto count = std::min(source.size(), N - 1);
+    if (count > 0) {
+        std::memcpy(target.data(), source.data(), count);
+    }
+    target[count] = '\0';
+}
+
+bool same_text(const auto& buffer, std::string_view value) noexcept {
+    return std::string_view(buffer.data()) == value;
+}
+
+#if defined(__linux__)
+bool parse_linux_raw_midi_name(const char* name, unsigned int& card, unsigned int& device) noexcept {
+    if (std::strncmp(name, "midiC", 5) != 0) {
+        return false;
+    }
+    char tail = '\0';
+    return std::sscanf(name, "midiC%uD%u%c", &card, &device, &tail) == 2;
+}
+#endif
+
+} // namespace
+
+std::uint8_t MidiByteParser::data_length(std::uint8_t status) noexcept {
+    const auto high = static_cast<std::uint8_t>(status & 0xF0U);
+    if (high >= 0x80U && high <= 0xE0U) {
+        return (high == 0xC0U || high == 0xD0U) ? 1U : 2U;
+    }
+    switch (status) {
+        case 0xF1U: return 1U;
+        case 0xF2U: return 2U;
+        case 0xF3U: return 1U;
+        default: return 0U;
+    }
+}
+
+void MidiByteParser::reset() noexcept {
+    running_status_ = 0;
+    message_status_ = 0;
+    expected_ = 0;
+    received_ = 0;
+    in_sysex_ = false;
+}
+
+bool MidiByteParser::feed(std::uint8_t byte, std::uint64_t show_time_ns, MidiInputMessage& out) noexcept {
+    // MIDI realtime messages may appear anywhere and do not disturb running
+    // status. They are not emitted through this channel-voice parser.
+    if (byte >= 0xF8U) {
+        return false;
+    }
+
+    if (in_sysex_) {
+        if (byte == 0xF7U) {
+            in_sysex_ = false;
+        }
+        return false;
+    }
+
+    if ((byte & 0x80U) != 0U) {
+        received_ = 0;
+        message_status_ = byte;
+        expected_ = data_length(byte);
+        if (byte == 0xF0U) {
+            in_sysex_ = true;
+            running_status_ = 0;
+            expected_ = 0;
+            return false;
+        }
+        if (byte < 0xF0U) {
+            running_status_ = byte;
+        } else {
+            running_status_ = 0;
+        }
+        return false;
+    }
+
+    if (expected_ == 0) {
+        if (running_status_ == 0) {
+            return false;
+        }
+        message_status_ = running_status_;
+        expected_ = data_length(message_status_);
+        received_ = 0;
+    }
+
+    if (received_ < data_.size()) {
+        data_[received_] = static_cast<std::uint8_t>(byte & 0x7FU);
+    }
+    ++received_;
+    if (received_ < expected_) {
+        return false;
+    }
+
+    const auto status = message_status_;
+    const auto channel_voice = status < 0xF0U;
+    out = MidiInputMessage{
+        show_time_ns,
+        status,
+        data_[0],
+        expected_ > 1 ? data_[1] : static_cast<std::uint8_t>(0),
+    };
+
+    received_ = 0;
+    if (channel_voice && running_status_ != 0) {
+        message_status_ = running_status_;
+        expected_ = data_length(running_status_);
+    } else {
+        message_status_ = 0;
+        expected_ = 0;
+    }
+    return channel_voice;
+}
+
+MidiInputManager::MidiInputManager() noexcept = default;
+
+MidiInputManager::~MidiInputManager() {
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        close_slot(devices_[i]);
+    }
+}
+
+const MidiDeviceDescriptor* MidiInputManager::device(std::size_t index) const noexcept {
+    return index < device_count_ ? &devices_[index].descriptor : nullptr;
+}
+
+MidiInputManager::DeviceSlot* MidiInputManager::find_slot(std::string_view device_id) noexcept {
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        if (same_text(devices_[i].descriptor.id, device_id)) {
+            return &devices_[i];
+        }
+    }
+    return nullptr;
+}
+
+const MidiInputManager::DeviceSlot* MidiInputManager::find_slot(std::string_view device_id) const noexcept {
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        if (same_text(devices_[i].descriptor.id, device_id)) {
+            return &devices_[i];
+        }
+    }
+    return nullptr;
+}
+
+bool MidiInputManager::attached(std::string_view device_id) const noexcept {
+    const auto* slot = find_slot(device_id);
+    return slot != nullptr && slot->attached;
+}
+
+void MidiInputManager::close_slot(DeviceSlot& slot) noexcept {
+#if defined(__linux__)
+    if (slot.handle >= 0) {
+        ::close(slot.handle);
+    }
+#endif
+    slot.handle = -1;
+    slot.attached = false;
+    slot.player_id[0] = '\0';
+    slot.parser.reset();
+}
+
+std::size_t MidiInputManager::scan() noexcept {
+    // Preserve active attachments across scans by copying matching slots into a
+    // fresh fixed registry. This lets hot-plug rescans avoid invalidating an
+    // unchanged open endpoint.
+    std::array<DeviceSlot, max_devices> found{};
+    std::size_t found_count = 0;
+
+#if defined(__linux__)
+    DIR* directory = ::opendir("/dev/snd");
+    if (directory != nullptr) {
+        while (auto* entry = ::readdir(directory)) {
+            if (found_count >= max_devices) {
+                break;
+            }
+            unsigned int card = 0;
+            unsigned int device_number = 0;
+            if (!parse_linux_raw_midi_name(entry->d_name, card, device_number)) {
+                continue;
+            }
+            char id[64]{};
+            char path[192]{};
+            char name[128]{};
+            std::snprintf(id, sizeof(id), "linux-raw-%u-%u", card, device_number);
+            std::snprintf(path, sizeof(path), "/dev/snd/midiC%uD%u", card, device_number);
+            std::snprintf(name, sizeof(name), "Linux Raw MIDI C%u D%u", card, device_number);
+
+            auto& slot = found[found_count++];
+            copy_text(slot.descriptor.id, id);
+            copy_text(slot.descriptor.path, path);
+            copy_text(slot.descriptor.name, name);
+            slot.descriptor.connected = true;
+            slot.descriptor.input = true;
+
+            if (auto* existing = find_slot(id); existing && existing->attached) {
+                slot.handle = existing->handle;
+                existing->handle = -1; // transfer ownership
+                slot.attached = true;
+                slot.player_id = existing->player_id;
+                slot.parser = existing->parser;
+            }
+        }
+        ::closedir(directory);
+    }
+#endif
+
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        close_slot(devices_[i]);
+    }
+    devices_ = std::move(found);
+    device_count_ = found_count;
+    return device_count_;
+}
+
+bool MidiInputManager::attach(std::string_view device_id, std::string_view player_id) noexcept {
+    auto* slot = find_slot(device_id);
+    if (!slot || player_id.empty() || player_id.size() >= slot->player_id.size()) {
+        return false;
+    }
+    if (slot->attached) {
+        copy_text(slot->player_id, player_id);
+        return true;
+    }
+#if defined(__linux__)
+    const auto handle = ::open(slot->descriptor.path.data(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+    if (handle < 0) {
+        return false;
+    }
+    slot->handle = handle;
+    slot->attached = true;
+    copy_text(slot->player_id, player_id);
+    slot->parser.reset();
+    return true;
+#else
+    (void)player_id;
+    return false;
+#endif
+}
+
+bool MidiInputManager::detach(std::string_view device_id) noexcept {
+    auto* slot = find_slot(device_id);
+    if (!slot) {
+        return false;
+    }
+    close_slot(*slot);
+    return true;
+}
+
+std::size_t MidiInputManager::attached_count() const noexcept {
+    std::size_t count = 0;
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        if (devices_[i].attached) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+bool MidiInputManager::queue(const CapturedMidiInput& event) noexcept {
+    if (queue_size_ >= queue_capacity) {
+        audit_queue_drops_.fetch_add(1,std::memory_order_relaxed);
+        return false;
+    }
+    queue_[queue_head_] = event;
+    queue_head_ = (queue_head_ + 1) % queue_capacity;
+    ++queue_size_;
+    return true;
+}
+
+bool MidiInputManager::pop(CapturedMidiInput& out) noexcept {
+    if (queue_size_ == 0) {
+        return false;
+    }
+    out = queue_[queue_tail_];
+    queue_tail_ = (queue_tail_ + 1) % queue_capacity;
+    --queue_size_;
+    return true;
+}
+
+bool MidiInputManager::inject(std::string_view device_id, std::string_view player_id, const MidiInputMessage& message) noexcept {
+    if (device_id.empty() || player_id.empty() || device_id.size() >= 64 || player_id.size() >= 64) {
+        return false;
+    }
+    CapturedMidiInput event{};
+    copy_text(event.device_id, device_id);
+    copy_text(event.player_id, player_id);
+    event.message = message;
+    const auto accepted=queue(event);if(accepted){audit_injected_.fetch_add(1,std::memory_order_relaxed);audit_messages_.fetch_add(1,std::memory_order_relaxed);}return accepted;
+}
+
+std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
+    const auto started=std::chrono::steady_clock::now();audit_polls_.fetch_add(1,std::memory_order_relaxed);
+    std::size_t captured = 0;
+#if defined(__linux__)
+    std::array<std::uint8_t, 256> bytes{};
+    for (std::size_t i = 0; i < device_count_; ++i) {
+        auto& slot = devices_[i];
+        if (!slot.attached || slot.handle < 0) {
+            continue;
+        }
+        for (;;) {
+            const auto read_count = ::read(slot.handle, bytes.data(), bytes.size());
+            if (read_count <= 0) {
+                break;
+            }
+            audit_bytes_.fetch_add(static_cast<std::uint64_t>(read_count),std::memory_order_relaxed);
+            for (ssize_t index = 0; index < read_count; ++index) {
+                MidiInputMessage parsed{};
+                if (!slot.parser.feed(bytes[static_cast<std::size_t>(index)], show_time_ns, parsed)) {
+                    continue;
+                }
+                CapturedMidiInput event{};
+                event.device_id = slot.descriptor.id;
+                event.player_id = slot.player_id;
+                event.message = parsed;
+                if (queue(event)) {
+                    ++captured;audit_messages_.fetch_add(1,std::memory_order_relaxed);
+                }
+            }
+        }
+    }
+#else
+    (void)show_time_ns;
+#endif
+    const auto duration=static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-started).count());auto maximum=audit_max_poll_ns_.load(std::memory_order_relaxed);while(duration>maximum&&!audit_max_poll_ns_.compare_exchange_weak(maximum,duration,std::memory_order_relaxed)){}
+    return captured;
+}
+
+MidiIngressAuditStatus MidiInputManager::audit_status() const noexcept {
+    return {audit_polls_.load(std::memory_order_relaxed),audit_bytes_.load(std::memory_order_relaxed),audit_messages_.load(std::memory_order_relaxed),audit_queue_drops_.load(std::memory_order_relaxed),audit_injected_.load(std::memory_order_relaxed),audit_max_poll_ns_.load(std::memory_order_relaxed),false};
+}
+
+} // namespace stageforge

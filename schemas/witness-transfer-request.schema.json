@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/witness-transfer-request.schema.json",
+  "title": "UPP Witness Lease Transfer Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "clusterId",
+    "sourceNodeId",
+    "targetNodeId",
+    "sourceEpoch",
+    "targetEpoch",
+    "transactionId",
+    "ttlMs",
+    "nonce",
+    "hmacSha256"
+  ],
+  "properties": {
+    "protocolVersion": {
+      "const": 1
+    },
+    "clusterId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "sourceNodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "targetNodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "sourceEpoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "targetEpoch": {
+      "type": "integer",
+      "minimum": 2
+    },
+    "transactionId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ttlMs": {
+      "type": "integer",
+      "minimum": 500,
+      "maximum": 60000
+    },
+    "nonce": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "hmacSha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "keyId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9._-]+$"
+    }
+  }
+}

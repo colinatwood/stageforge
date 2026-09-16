@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/community-governance-policy.schema.json",
+  "title": "UPP Community Governance Policy",
+  "type": "object",
+  "properties": {
+    "hypeStartValue": {"const": 1.0},
+    "hypeDayOne": {"const": 1},
+    "hypeZeroDay": {"type": "integer", "minimum": 2, "maximum": 3650},
+    "defaultVoteWindowHours": {"type": "integer", "minimum": 1, "maximum": 8760},
+    "minRawVotes": {"type": "integer", "minimum": 1},
+    "minApprovalRatio": {"type": "number", "minimum": 0.5, "maximum": 1.0},
+    "minDurableVoteUnits": {"type": "number", "minimum": 0},
+    "requireAllIssuedWindowsClosedForBinding": {"type": "boolean"},
+    "requireAuthenticatedAccount": {"type": "boolean"},
+    "urgentProvisionalMaxDays": {"type": "integer", "minimum": 1, "maximum": 365}
+  },
+  "additionalProperties": true
+}

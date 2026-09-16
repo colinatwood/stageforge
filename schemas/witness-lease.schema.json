@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/witness-lease-v1.json",
+  "title": "UPP Witness Lease Status",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "configured",
+    "clusterId",
+    "nodeId",
+    "witnesses",
+    "quorum",
+    "leaseValid",
+    "leaseEpoch"
+  ],
+  "properties": {
+    "acquisitionSuspended": {
+      "type": "boolean"
+    },
+    "configured": {
+      "type": "boolean"
+    },
+    "clusterId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "nodeId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "witnesses": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "quorum": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "leaseValid": {
+      "type": "boolean"
+    },
+    "leaseEpoch": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "leaseExpiresInMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "independentMode": {
+      "type": "boolean"
+    },
+    "independentWitnessIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      },
+      "uniqueItems": true
+    },
+    "declaredFailureDomains": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 64
+      },
+      "uniqueItems": true
+    },
+    "maxClockSkewMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 50,
+      "maximum": 10000
+    },
+    "physicalIndependenceQualified": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.dev/schemas/le-uwb-hub.schema.json",
+  "title": "StageForge LE-UWB Live Stage Hub",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["authorityEpoch", "policy", "nodes", "plan"],
+  "properties": {
+    "authorityEpoch": {"type": "integer", "minimum": 1},
+    "policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "targetPresentationLeadNs", "maxEndToEndNs", "freshObservationNs", "holdoverNs",
+        "maxClockUncertaintyNs", "maxJitterNs", "maxRangeUncertaintyMm",
+        "maxDriftPpm", "requireAuthenticatedObservations"
+      ],
+      "properties": {
+        "targetPresentationLeadNs": {"type": "integer", "minimum": 1},
+        "maxEndToEndNs": {"type": "integer", "minimum": 1},
+        "freshObservationNs": {"type": "integer", "minimum": 1},
+        "holdoverNs": {"type": "integer", "minimum": 1},
+        "maxClockUncertaintyNs": {"type": "integer", "minimum": 1},
+        "maxJitterNs": {"type": "integer", "minimum": 1},
+        "maxRangeUncertaintyMm": {"type": "number", "minimum": 0},
+        "maxDriftPpm": {"type": "number", "minimum": 0},
+        "requireAuthenticatedObservations": {"type": "boolean"}
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["nodeId", "leStreamId", "role", "required", "presentationDelayNs", "state"],
+        "properties": {
+          "nodeId": {"type": "integer", "minimum": 1},
+          "leStreamId": {"type": "integer", "minimum": 1},
+          "role": {"enum": ["performer-input", "monitor-output", "stage-output", "lighting", "control"]},
+          "required": {"type": "boolean"},
+          "presentationDelayNs": {"type": "integer", "minimum": 0},
+          "state": {"enum": ["unconfigured", "awaiting-uwb", "awaiting-le", "locked", "holdover", "blocked"]},
+          "uwbSequence": {"type": "integer", "minimum": 0},
+          "leSequence": {"type": "integer", "minimum": 0},
+          "leEventCounter": {"type": "integer", "minimum": 0},
+          "distanceMm": {"type": "number", "minimum": 0},
+          "rangeUncertaintyMm": {"type": "number", "minimum": 0},
+          "clockUncertaintyNs": {"type": "integer", "minimum": 0},
+          "clockOffsetNs": {"type": "integer"},
+          "driftPpm": {"type": "number"},
+          "transportLatencyNs": {"type": "integer", "minimum": 0},
+          "jitterNs": {"type": "integer", "minimum": 0},
+          "authenticated": {"type": "boolean"},
+          "rejectedObservations": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "generation", "targetHubNs", "targetShowNs", "presentationLeadNs", "ready",
+        "configuredNodes", "requiredNodes", "readyNodes", "holdoverNodes", "blockedNodes",
+        "physicalOutputsArmed"
+      ],
+      "properties": {
+        "generation": {"type": "integer", "minimum": 0},
+        "targetHubNs": {"type": "integer", "minimum": 0},
+        "targetShowNs": {"type": "integer", "minimum": 0},
+        "presentationLeadNs": {"type": "integer", "minimum": 0},
+        "configuredNodes": {"type": "integer", "minimum": 0, "maximum": 64},
+        "requiredNodes": {"type": "integer", "minimum": 0, "maximum": 64},
+        "readyNodes": {"type": "integer", "minimum": 0, "maximum": 64},
+        "holdoverNodes": {"type": "integer", "minimum": 0, "maximum": 64},
+        "blockedNodes": {"type": "integer", "minimum": 0, "maximum": 64},
+        "ready": {"type": "boolean"},
+        "physicalOutputsArmed": {"const": false}
+      }
+    }
+  }
+}

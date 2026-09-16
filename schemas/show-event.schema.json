@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/show-event-v1.json",
+  "title": "UPP Typed Show Event v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "eventId",
+    "showTimeNs",
+    "type",
+    "priority",
+    "payload"
+  ],
+  "properties": {
+    "eventId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "showTimeNs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ownerId": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "type": {
+      "enum": [
+        "transport",
+        "midi",
+        "lighting",
+        "cue",
+        "automation",
+        "sampler"
+      ]
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 5
+    },
+    "flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "authoritative",
+          "replay-safe",
+          "drop-if-late",
+          "automation-release-owner"
+        ]
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "automation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "targetId",
+              "parameterId",
+              "value"
+            ],
+            "properties": {
+              "targetId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "parameterId": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "value": {
+                "type": "number"
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4294967295
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "sampler"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "sampleId",
+              "action"
+            ],
+            "properties": {
+              "sampleId": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "action": {
+                "enum": ["trigger", "stop-sample", "stop-all"]
+              },
+              "velocity": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "note": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 127
+              }
+            },
+            "allOf": [
+              {
+                "if": {"properties": {"action": {"enum": ["trigger", "stop-sample"]}}},
+                "then": {"properties": {"sampleId": {"minimum": 1}}}
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

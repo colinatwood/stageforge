@@ -1,0 +1,2 @@
+# Build tooling only; not an application runtime dependency.
+cmake==4.4.3

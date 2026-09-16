@@ -1,0 +1,18 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"org.upp.driver-catalog-audit-report/1",
+  "type":"object",
+  "required":["documentType","schemaVersion","asOf","warnDays","catalogReadable","catalogUsable","reviewAttentionRequired","counts","entries"],
+  "properties":{
+    "documentType":{"const":"org.upp.driver-catalog-audit-report"},
+    "schemaVersion":{"const":1},
+    "asOf":{"type":"string","format":"date"},
+    "warnDays":{"type":"integer","minimum":0,"maximum":3650},
+    "catalogReadable":{"type":"boolean"},
+    "catalogUsable":{"type":"boolean"},
+    "reviewAttentionRequired":{"type":"boolean"},
+    "counts":{"type":"object","required":["total","current","reviewDue","stale","unreviewed","invalid"],"properties":{"total":{"type":"integer","minimum":0},"current":{"type":"integer","minimum":0},"reviewDue":{"type":"integer","minimum":0},"stale":{"type":"integer","minimum":0},"unreviewed":{"type":"integer","minimum":0},"invalid":{"type":"integer","minimum":0}}},
+    "entries":{"type":"array","items":{"type":"object","required":["index","reviewState","reviewDue","daysUntilExpiry"],"properties":{"index":{"type":"integer","minimum":0},"hardwareId":{"type":"string"},"product":{"type":"string"},"os":{"type":"string"},"architecture":{"type":"string"},"publisher":{"type":"string"},"version":{"type":"string"},"reviewedAt":{"type":"string"},"reviewExpiresAt":{"type":"string"},"reviewState":{"enum":["current","stale","unreviewed","review-date-in-future","invalid"]},"reviewDue":{"type":"boolean"},"daysUntilExpiry":{"type":["integer","null"]}}}},
+    "error":{"type":"string"}
+  }
+}

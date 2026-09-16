@@ -1,0 +1,1176 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StageForge DAW Production API",
+    "version": "0.1.0",
+    "description": "Developer-alpha control contract. Physical outputs remain disarmed by these operations."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "paths": {
+    "/api/v1/witness/recover": {
+      "post": {
+        "operationId": "recoverPersistentlyFencedNode",
+        "summary": "Request quorum-authorized recovery into standby state",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "recoveryId",
+                  "acknowledgeStandbyRecovery"
+                ],
+                "properties": {
+                  "recoveryId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "acknowledgeStandbyRecovery": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recovery result; successful nodes remain standby with physical authority fenced"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "description": "Fence is absent, malformed, changed or not authorized by quorum"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/audio/overload/plan": {
+      "post": {
+        "operationId": "planAudioOverloadShedding",
+        "summary": "Plan deterministic shedding for explicitly optional latency-preserving effects",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "effects"
+                ],
+                "properties": {
+                  "outputs": {
+                    "type": "array",
+                    "maxItems": 4
+                  },
+                  "effects": {
+                    "type": "array",
+                    "maxItems": 64
+                  },
+                  "policyBypassedEffectIds": {
+                    "type": "array",
+                    "maxItems": 64
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Advisory deterministic plan; never automatically applied"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/audio/overload/prepare": {
+      "post": {
+        "operationId": "prepareReviewedAudioOverloadTransaction",
+        "summary": "Recompute and prepare an operator-reviewed overload transaction without activating it",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "effects",
+                  "paths",
+                  "reviewedAction",
+                  "reviewedEffectIds",
+                  "acknowledgeReviewedPlan"
+                ],
+                "properties": {
+                  "outputs": {
+                    "type": "array",
+                    "maxItems": 4
+                  },
+                  "effects": {
+                    "type": "array",
+                    "maxItems": 64
+                  },
+                  "policyBypassedEffectIds": {
+                    "type": "array",
+                    "maxItems": 64
+                  },
+                  "paths": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 4
+                  },
+                  "reviewedAction": {
+                    "enum": [
+                      "shed",
+                      "restore"
+                    ]
+                  },
+                  "reviewedEffectIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "integer",
+                      "minimum": 1
+                    }
+                  },
+                  "acknowledgeReviewedPlan": {
+                    "const": true
+                  },
+                  "activationShowNs": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared generation requiring separate activation; physical output remains disarmed"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "description": "Reviewed plan is stale or no transaction is currently recommended"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/plugin-delay-graph": {
+      "get": {
+        "operationId": "getPluginDelayTransactionStatus",
+        "summary": "Read live effect/delay transaction evidence",
+        "responses": {
+          "200": {
+            "description": "Generation, connection, processing and rollback status"
+          }
+        }
+      },
+      "post": {
+        "operationId": "controlPluginDelayTransaction",
+        "summary": "Prepare, activate or roll back an atomic effect/delay generation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "action"
+                ],
+                "properties": {
+                  "action": {
+                    "enum": [
+                      "prepare",
+                      "prepareTransaction",
+                      "activate",
+                      "rollback"
+                    ]
+                  },
+                  "activationShowNs": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "paths": {
+                    "type": "array",
+                    "maxItems": 4
+                  },
+                  "changes": {
+                    "type": "array",
+                    "maxItems": 64,
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "effectId",
+                        "outputSlot",
+                        "bypassed",
+                        "safetyClass",
+                        "bypassMode"
+                      ],
+                      "properties": {
+                        "effectId": {
+                          "type": "integer",
+                          "minimum": 1
+                        },
+                        "outputSlot": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 3
+                        },
+                        "bypassed": {
+                          "type": "boolean"
+                        },
+                        "safetyClass": {
+                          "const": "optional"
+                        },
+                        "bypassMode": {
+                          "const": "latency-preserving"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared or activated transaction; never arms physical output"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/audio/identity/rebind": {
+      "post": {
+        "operationId": "replaceAudioEndpointIdentity",
+        "summary": "Explicitly trust a connected endpoint as the replacement for a pinned audio identity",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "desiredDeviceId",
+                  "currentDeviceId",
+                  "direction",
+                  "acknowledgeIdentityReplacement"
+                ],
+                "properties": {
+                  "desiredDeviceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "currentDeviceId": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "direction": {
+                    "enum": [
+                      "output",
+                      "input"
+                    ]
+                  },
+                  "acknowledgeIdentityReplacement": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Replacement receipt; selection may change but streams remain stopped and physical output remains disarmed"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/hardware/audio-conversion-plan": {
+      "post": {
+        "operationId": "planAudioConversion",
+        "summary": "Validate explicit conversion from device PCM to the canonical audio graph",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "direction",
+                  "device"
+                ],
+                "properties": {
+                  "direction": {
+                    "enum": [
+                      "playback",
+                      "capture"
+                    ]
+                  },
+                  "device": {
+                    "type": "object"
+                  },
+                  "conversionPolicy": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Explicit conversion plan; physical outputs remain disarmed"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/production": {
+      "get": {
+        "operationId": "getDawProduction",
+        "summary": "Read a coherent DAW production projection",
+        "responses": {
+          "200": {
+            "description": "Current playback, capture and recovery state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/daw/plugin-hosts/lifecycle": {
+      "get": {
+        "operationId": "getPluginHostLifecycle",
+        "summary": "Inspect isolated plugin processes and private scratch resources",
+        "responses": {
+          "200": {
+            "description": "Bounded host and scratch lifecycle status; automatic restart and physical output remain disabled"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/temp-resources": {
+      "get": {
+        "operationId": "getDawTemporaryResources",
+        "summary": "Inspect bounded DAW snapshot and publication-staging lifecycle state",
+        "responses": {
+          "200": {
+            "description": "Path-free temporary-resource status"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/temp-resources/cleanup": {
+      "post": {
+        "operationId": "cleanupDawTemporaryResources",
+        "summary": "Reclaim only snapshots and staging files whose exact owner is proven dead",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acknowledgeCleanup"
+                ],
+                "properties": {
+                  "acknowledgeCleanup": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post-cleanup status"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/playback": {
+      "get": {
+        "operationId": "getDawPlayback",
+        "summary": "Read playback state",
+        "responses": {
+          "200": {
+            "description": "Playback state"
+          }
+        }
+      },
+      "post": {
+        "operationId": "controlDawPlayback",
+        "summary": "Start, loop, seek, or stop arrangement playback",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted state; physical outputs remain disarmed"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/capture": {
+      "get": {
+        "operationId": "getDawCapture",
+        "summary": "Read capture state",
+        "responses": {
+          "200": {
+            "description": "Capture state"
+          }
+        }
+      },
+      "post": {
+        "operationId": "controlDawCapture",
+        "summary": "Start, finish, abort, or recover a recording",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptureCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Capture result"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "description": "Physical-input acknowledgement required"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/capture/recovery": {
+      "get": {
+        "operationId": "getInterruptedRecordings",
+        "summary": "List bounded interrupted-recording candidates",
+        "responses": {
+          "200": {
+            "description": "Recovery candidates; listing does not establish recoverability"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/edit": {
+      "post": {
+        "operationId": "editDawClip",
+        "summary": "Apply an undoable revision-checked clip edit",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClipEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated DAW session"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/markers": {
+      "post": {
+        "operationId": "editDawMarker",
+        "summary": "Add, move, or delete an undoable timeline marker",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkerCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated DAW session"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/daw/automation": {
+      "post": {
+        "operationId": "editDawAutomation",
+        "summary": "Upsert or delete an undoable volume automation point",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutomationCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated DAW session"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/api/v1/handoff/planned/peer-ready": {
+      "post": {
+        "operationId": "deliverPlannedHandoffReadiness",
+        "summary": "Deliver an authenticated standby readiness receipt to the offering primary",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlannedHandoffReadyReceipt"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Receipt accepted or idempotently replayed; physical outputs remain disarmed"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "description": "Receipt authentication or offer binding failed"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/handoff/planned/release-authority": {
+      "post": {
+        "operationId": "releasePlannedHandoffAuthority",
+        "summary": "Self-fence the old primary and atomically transfer its witness lease to the named standby",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "acknowledgeAuthorityRelease"
+                ],
+                "properties": {
+                  "acknowledgeAuthorityRelease": {
+                    "const": true
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer attempted; inspect transaction state for authority-released or release-indeterminate"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "description": "Current node is not the old primary"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/technology/conformance-receipt": {
+      "post": {
+        "operationId": "publishTechnologyConformanceReceipt",
+        "summary": "Publish a signed Public Record receipt for the current technology evidence snapshot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "extensionId"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "extensionId": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 160
+                  },
+                  "requestedBy": {
+                    "type": "string",
+                    "maxLength": 128
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Signed conformance receipt and stable Public Record reference"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "description": "Admin authorization required"
+          },
+          "503": {
+            "$ref": "#/components/responses/Unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Frame": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9007199254740991
+      },
+      "PlaybackCommand": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "startFrame",
+              "endFrame"
+            ],
+            "properties": {
+              "action": {
+                "const": "start"
+              },
+              "startFrame": {
+                "$ref": "#/components/schemas/Frame"
+              },
+              "endFrame": {
+                "$ref": "#/components/schemas/Frame"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "beginFrame",
+              "endFrame"
+            ],
+            "properties": {
+              "action": {
+                "const": "loop"
+              },
+              "beginFrame": {
+                "$ref": "#/components/schemas/Frame"
+              },
+              "endFrame": {
+                "$ref": "#/components/schemas/Frame"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action",
+              "frame"
+            ],
+            "properties": {
+              "action": {
+                "const": "seek"
+              },
+              "frame": {
+                "$ref": "#/components/schemas/Frame"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "action"
+            ],
+            "properties": {
+              "action": {
+                "const": "stop"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CaptureCommand": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "start",
+              "finish",
+              "abort",
+              "recover"
+            ]
+          },
+          "track": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "takeId": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "fileName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "acknowledgePhysicalInput": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MarkerCommand": {
+        "type": "object",
+        "required": [
+          "action",
+          "markerId",
+          "expectedRevision"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "add",
+              "move",
+              "delete"
+            ]
+          },
+          "markerId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "frame": {
+            "$ref": "#/components/schemas/Frame"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "kind": {
+            "enum": [
+              "note",
+              "section",
+              "cue"
+            ]
+          },
+          "snapFrames": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 11520000
+          }
+        },
+        "additionalProperties": false
+      },
+      "AutomationCommand": {
+        "type": "object",
+        "required": [
+          "action",
+          "trackId",
+          "pointId",
+          "expectedRevision"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "upsert",
+              "delete"
+            ]
+          },
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "pointId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "expectedRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "parameter": {
+            "const": "volume"
+          },
+          "frame": {
+            "$ref": "#/components/schemas/Frame"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          }
+        },
+        "additionalProperties": false
+      },
+      "PlannedHandoffReadyReceipt": {
+        "type": "object",
+        "required": [
+          "protocolVersion",
+          "receiptType",
+          "transactionId",
+          "sourceNodeId",
+          "targetNodeId",
+          "sourceEpoch",
+          "targetEpoch",
+          "targetShowNs",
+          "programReady",
+          "issuedAtUnixNs",
+          "digestSha256",
+          "hmacSha256"
+        ],
+        "properties": {
+          "protocolVersion": {
+            "const": 1
+          },
+          "receiptType": {
+            "const": "target-ready"
+          },
+          "transactionId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sourceNodeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "targetNodeId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceEpoch": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "targetEpoch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "targetShowNs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "programReady": {
+            "type": "boolean"
+          },
+          "issuedAtUnixNs": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "digestSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "hmacSha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ClipEdit": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "clipIds",
+              "expectedRevision",
+              "deltaFrames"
+            ],
+            "properties": {
+              "op": {
+                "const": "moveMany"
+              },
+              "clipIds": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 256,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "deltaFrames": {
+                "type": "integer",
+                "minimum": -691200000,
+                "maximum": 691200000
+              },
+              "snapFrames": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 11520000
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "clipId",
+              "expectedRevision",
+              "startFrame"
+            ],
+            "properties": {
+              "op": {
+                "const": "move"
+              },
+              "clipId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "startFrame": {
+                "$ref": "#/components/schemas/Frame"
+              },
+              "targetTrackId": {
+                "type": "string",
+                "maxLength": 128
+              },
+              "snapFrames": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 11520000
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "clipId",
+              "expectedRevision",
+              "startFrame",
+              "endFrame"
+            ],
+            "properties": {
+              "op": {
+                "const": "resize"
+              },
+              "clipId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "startFrame": {
+                "$ref": "#/components/schemas/Frame"
+              },
+              "endFrame": {
+                "$ref": "#/components/schemas/Frame"
+              },
+              "snapFrames": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 11520000
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "op",
+              "clipId",
+              "expectedRevision"
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "trim",
+                  "split",
+                  "fade"
+                ]
+              },
+              "clipId": {
+                "type": "string"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": true
+          }
+        ]
+      },
+      "ProductionStatus": {
+        "type": "object",
+        "required": [
+          "canonicalSampleRate",
+          "playback",
+          "capture",
+          "recovery",
+          "temporaryResources",
+          "physicalOutputsArmed"
+        ],
+        "properties": {
+          "canonicalSampleRate": {
+            "const": 192000
+          },
+          "playback": {
+            "type": "object"
+          },
+          "capture": {
+            "type": "object"
+          },
+          "recovery": {
+            "type": "object"
+          },
+          "temporaryResources": {
+            "type": "object"
+          },
+          "physicalOutputsArmed": {
+            "const": false
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "Invalid command",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unavailable": {
+        "description": "Native engine or runtime capability unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  }
+}

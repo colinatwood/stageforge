@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/community-tally.schema.json",
+  "title": "UPP Hype-Matured Community Tally",
+  "type": "object",
+  "required": ["proposal", "evaluatedAt", "hype", "durableFraction", "hypeVoteUnits", "rawVotes", "durableVoteUnits", "bindingChangeReady"],
+  "properties": {
+    "evaluatedAt": {"type": "string", "format": "date-time"},
+    "hype": {"type": "number", "minimum": 0, "maximum": 1},
+    "durableFraction": {"type": "number", "minimum": 0, "maximum": 1},
+    "hypeVoteUnits": {"const": 0.0},
+    "rawVotes": {"type": "object", "required": ["yes", "no", "abstain"]},
+    "durableVoteUnits": {"type": "object", "required": ["yes", "no", "abstain"]},
+    "approvalRatio": {"type": "number", "minimum": 0, "maximum": 1},
+    "bindingChangeReady": {"type": "boolean"},
+    "bindingBlockers": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

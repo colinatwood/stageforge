@@ -1,0 +1,12 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://upp.dev/schemas/stage-launcher.schema.json",
+  "type":"object",
+  "required":["documentType","schemaVersion","revision","transport","capture","controls","pads","feedback","authority","physicalOutputsArmed"],
+  "properties":{
+    "documentType":{"const":"org.upp.stage-launcher"},"schemaVersion":{"const":1},"revision":{"type":"integer","minimum":0},
+    "authority":{"const":"core"},"physicalOutputsArmed":{"const":false},
+    "controls":{"type":"array","maxItems":16},
+    "pads":{"type":"array","maxItems":8,"items":{"type":"object","required":["padId","label","action","shortcut","ready"],"properties":{"action":{"const":"sample.trigger"},"shortcut":{"pattern":"^[1-8]$"},"ready":{"type":"boolean"}},"additionalProperties":true}}
+  },"additionalProperties":true
+}

@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/failover-continuity-v1.json",
+  "title": "UPP Failover Continuity Report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "measured",
+    "grade",
+    "physicalOutputsAutoArmed"
+  ],
+  "properties": {
+    "measured": {
+      "type": "boolean"
+    },
+    "replicaAgeMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "transportRunning": {
+      "type": "boolean"
+    },
+    "bridgeShowSeconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "nativeShowSeconds": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "timelineErrorMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "grade": {
+      "enum": [
+        "unmeasured",
+        "sample-window",
+        "tight",
+        "degraded",
+        "discontinuous"
+      ]
+    },
+    "firstAudioArmAfterMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "firstLightingArmAfterMs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "physicalOutputsAutoArmed": {
+      "const": false
+    },
+    "firstAudioWriteAfterMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "maxObservedOutputGapMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "audioResumptionGrade": {
+      "enum": [
+        "not-rearmed",
+        "tight",
+        "short-gap",
+        "degraded",
+        "long-gap"
+      ]
+    },
+    "activeAudioOutputSlots": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 3
+      },
+      "maxItems": 4
+    },
+    "sourceLastProgramShowNs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "newFirstProgramShowNs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "crossNodeProgramGapMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "crossNodeProgramOverlapMs": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "crossNodeProgramGrade": {
+      "enum": [
+        "unmeasured",
+        "sample-window",
+        "tight",
+        "degraded",
+        "discontinuous"
+      ]
+    },
+    "handoffMode": {
+      "enum": [
+        "state-warm",
+        "deterministic-prebuffer-eligible",
+        "live-input-state-warm"
+      ]
+    },
+    "deterministicPrebufferEligible": {
+      "type": "boolean"
+    },
+    "prebufferReady": {
+      "type": "boolean"
+    },
+    "handoffAdjustmentMs": {
+      "type": "number",
+      "minimum": 0
+    },
+    "handoffTargetShowNs": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    }
+  }
+}

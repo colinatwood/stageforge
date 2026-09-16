@@ -1,0 +1,104 @@
+{
+  "allTasksApproved": false,
+  "build": {
+    "nativeEngineSha256": "sha256:685b07bde539bbefeafeec012a858b257abe9bd4da1bc2fc289188e167d82575",
+    "sourceFingerprint": "sha256:94b4f4dd52602cf815a9973c84c5c52e011b4b914c0da871825ea8166d5fb3f3"
+  },
+  "counts": {
+    "approved": 0,
+    "awaiting-review": 0,
+    "invalid": 0,
+    "needs-evidence": 0,
+    "pending": 8,
+    "rejected": 0
+  },
+  "documentType": "org.upp.external-qualification-status",
+  "physicalOutputsArmed": false,
+  "planId": "sha256:6a210ef4f6418d7a267b96cc913a89e113173ddcf5d11c64c889c553d706bc71",
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "backlogIds": [
+        "REC-033",
+        "REC-034",
+        "SEC-039"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "independent-witness"
+    },
+    {
+      "backlogIds": [
+        "SEC-040"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "lan-security"
+    },
+    {
+      "backlogIds": [
+        "PKG-033",
+        "PKG-034"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "linux-packaging-host"
+    },
+    {
+      "backlogIds": [
+        "AUD-035",
+        "DEV-033",
+        "IPC-033",
+        "PLUG-034",
+        "PLUG-035"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "windows-platform"
+    },
+    {
+      "backlogIds": [
+        "AUD-036",
+        "DEV-034",
+        "PLUG-034",
+        "PLUG-036"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "macos-platform"
+    },
+    {
+      "backlogIds": [
+        "UX-035"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "assistive-technology"
+    },
+    {
+      "backlogIds": [
+        "PLUG-033",
+        "PLUG-037",
+        "PLUG-038"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "licensed-plugin-matrix"
+    },
+    {
+      "backlogIds": [
+        "AUD-034",
+        "DEV-035",
+        "LIVE-033",
+        "HW-033",
+        "HW-034",
+        "HW-035",
+        "HW-036",
+        "HW-037"
+      ],
+      "eligibleForBacklogReview": false,
+      "status": "pending",
+      "taskId": "stage-hardware"
+    }
+  ]
+}

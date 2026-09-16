@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/compatibility-report-v1.json",
+  "title": "UPP Compatibility Report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["compatible", "grade", "commonApiVersions", "directCapabilities", "translations", "blockers"],
+  "properties": {
+    "compatible": {"type": "boolean"},
+    "grade": {"enum": ["direct", "equivalent", "acceptable", "degraded", "partial-preserved", "blocked"]},
+    "selectedApiVersion": {"type": ["integer", "null"], "minimum": 0},
+    "commonApiVersions": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+    "directCapabilities": {"type": "array", "items": {"type": "string"}},
+    "translations": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "localOnlyPreserved": {"type": "array", "items": {"type": "string"}},
+    "remoteOnlyPreserved": {"type": "array", "items": {"type": "string"}},
+    "capabilityQuality": {"type": "number", "minimum": 0, "maximum": 100},
+    "unknownPreservation": {"type": "boolean"},
+    "offlineCompatible": {"type": "boolean"},
+    "blockers": {"type": "array", "items": {"type": "string"}}
+  }
+}

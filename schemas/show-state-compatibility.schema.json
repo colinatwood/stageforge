@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/show-state-compatibility-v1.json",
+  "title": "UPP Show-State Compatibility Status v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["readable", "mode", "readerApiVersion"],
+  "properties": {
+    "readable": {"type": "boolean"},
+    "mode": {"enum": ["new", "exact", "legacy-migration", "forward-compatible", "reader-too-old", "wrong-document-type", "invalid"]},
+    "incomingApiVersion": {"type": "integer", "minimum": 0},
+    "minimumReaderApiVersion": {"type": "integer", "minimum": 0},
+    "readerApiVersion": {"type": "integer", "minimum": 1},
+    "currentApiVersion": {"type": "integer", "minimum": 1},
+    "unknownFieldsPreserved": {"type": "boolean"},
+    "migrations": {"type": "array", "items": {"type": "string"}},
+    "reason": {"type": "string"}
+  }
+}

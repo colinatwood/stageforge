@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.local/schemas/platform-ci-smoke.schema.json",
+  "title": "StageForge platform CI smoke evidence",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "host", "python", "nativeEngine", "physicalOutputsArmed", "physicalHardwareQualified", "platformExecutionQualified", "checks"],
+  "properties": {
+    "documentType": {"const": "org.upp.platform-ci-smoke"},
+    "schemaVersion": {"const": 1},
+    "host": {
+      "type": "object",
+      "required": ["os", "release", "architecture"],
+      "properties": {
+        "os": {"type": "string", "minLength": 1, "maxLength": 64},
+        "release": {"type": "string", "minLength": 1, "maxLength": 128},
+        "architecture": {"type": "string", "minLength": 1, "maxLength": 64}
+      },
+      "additionalProperties": false
+    },
+    "python": {"type": "string", "minLength": 1, "maxLength": 64},
+    "nativeEngine": {
+      "type": "object",
+      "required": ["pathBasename", "sha256"],
+      "properties": {
+        "pathBasename": {"type": "string", "minLength": 1, "maxLength": 128},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": false
+    },
+    "physicalOutputsArmed": {"const": false},
+    "physicalHardwareQualified": {"const": false},
+    "platformExecutionQualified": {"type": "boolean"},
+    "checks": {"type": "object", "minProperties": 1, "maxProperties": 8}
+  },
+  "additionalProperties": false
+}

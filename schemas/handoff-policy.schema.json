@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/handoff-policy-v1.json",
+  "title": "UPP Handoff Policy v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "policy",
+    "liveInputs",
+    "deterministicSources"
+  ],
+  "properties": {
+    "policy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "maxReplicaAgeMs",
+        "maxLocalLagMs",
+        "requireProgramCursor",
+        "requireDuplicatedLiveInputs",
+        "requireDeclaredDeterministicSources",
+        "allowAuthorityTransferWhenProgramNotReady",
+        "requiredPrebufferMs",
+        "executionStatusFreshMs"
+      ],
+      "properties": {
+        "maxReplicaAgeMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        },
+        "maxLocalLagMs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5000
+        },
+        "requireProgramCursor": {
+          "type": "boolean"
+        },
+        "requireDuplicatedLiveInputs": {
+          "type": "boolean"
+        },
+        "requireDeclaredDeterministicSources": {
+          "type": "boolean"
+        },
+        "allowAuthorityTransferWhenProgramNotReady": {
+          "type": "boolean"
+        },
+        "requiredPrebufferMs": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "executionStatusFreshMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 60000
+        }
+      }
+    },
+    "liveInputs": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "slot",
+          "mode",
+          "ready",
+          "sourceId",
+          "latencyMs"
+        ],
+        "properties": {
+          "slot": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "mode": {
+            "enum": [
+              "none",
+              "split",
+              "network"
+            ]
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "sourceId": {
+            "type": "string",
+            "maxLength": 96
+          },
+          "latencyMs": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5000
+          }
+        }
+      }
+    },
+    "deterministicSources": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "kind",
+          "required",
+          "shadowCapable",
+          "localAssetReady",
+          "contentHash"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96
+          },
+          "kind": {
+            "enum": [
+              "track",
+              "plugin",
+              "sequence",
+              "generator",
+              "other"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "shadowCapable": {
+            "type": "boolean"
+          },
+          "localAssetReady": {
+            "type": "boolean"
+          },
+          "contentHash": {
+            "type": "string",
+            "maxLength": 128
+          }
+        }
+      }
+    }
+  }
+}

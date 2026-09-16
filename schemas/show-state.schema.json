@@ -1,0 +1,441 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/show-state-v1.json",
+  "title": "StageForge / UPP Show State v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "apiVersion",
+    "revision",
+    "resourceRevisions",
+    "transport",
+    "system",
+    "players",
+    "events"
+  ],
+  "properties": {
+    "apiVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "running",
+        "seconds",
+        "bpm",
+        "key"
+      ],
+      "properties": {
+        "running": {
+          "type": "boolean"
+        },
+        "seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "bpm": {
+          "type": "number",
+          "minimum": 30,
+          "maximum": 300
+        },
+        "key": {
+          "type": "string",
+          "maxLength": 12
+        }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "capacity",
+        "mode",
+        "quality",
+        "venue",
+        "productionManager"
+      ],
+      "properties": {
+        "capacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "mode": {
+          "enum": [
+            "full",
+            "reduced",
+            "safe",
+            "audio"
+          ]
+        },
+        "quality": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "venue": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "productionManager": {
+          "type": "string",
+          "maxLength": 80
+        }
+      }
+    },
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "id",
+          "name",
+          "role",
+          "monitor",
+          "mode",
+          "available"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "monitor": {
+            "$ref": "#/$defs/monitorMix"
+          }
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "event.schema.json"
+      }
+    },
+    "resourceRevisions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "notation": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "notation-profile.schema.json"
+      }
+    },
+    "audio": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "deviceId",
+        "inputDeviceId",
+        "inputPlayerId",
+        "inputRoute",
+        "sampleRate",
+        "bufferFrames",
+        "limiterCeilingDb"
+      ],
+      "properties": {
+        "deviceId": {
+          "type": "string",
+          "maxLength": 96
+        },
+        "sampleRate": {
+          "type": "number",
+          "minimum": 8000,
+          "maximum": 768000
+        },
+        "engineSampleRate": {
+          "const": 192000
+        },
+        "engineSampleFormat": {
+          "const": "float32"
+        },
+        "bufferFrames": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 8192
+        },
+        "limiterCeilingDb": {
+          "type": "number",
+          "minimum": -24,
+          "maximum": 0
+        },
+        "inputDeviceId": {
+          "type": "string",
+          "maxLength": 96
+        },
+        "inputRoute": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "output",
+            "gain"
+          ],
+          "properties": {
+            "output": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 15
+            },
+            "gain": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 4
+            }
+          }
+        },
+        "inputPlayerId": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "inputs": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": true,
+            "required": [
+              "slot",
+              "deviceId",
+              "playerId",
+              "route"
+            ],
+            "properties": {
+              "slot": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "deviceId": {
+                "type": "string",
+                "maxLength": 96
+              },
+              "playerId": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "sampleRate": {
+                "type": "number",
+                "minimum": 8000,
+                "maximum": 768000
+              },
+              "route": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": [
+                  "output",
+                  "gain"
+                ],
+                "properties": {
+                  "output": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 15
+                  },
+                  "gain": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 4
+                  }
+                }
+              }
+            }
+          }
+        },
+        "outputs": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "audio-output-profile.schema.json"
+          }
+        }
+      }
+    },
+    "lighting": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "network": {
+          "type": "object",
+          "additionalProperties": true,
+          "required": [
+            "protocol",
+            "target",
+            "port",
+            "armed"
+          ],
+          "properties": {
+            "protocol": {
+              "enum": [
+                "artnet",
+                "sacn"
+              ]
+            },
+            "target": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "universeBase": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 63984
+            },
+            "armed": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "handoff": {
+      "$ref": "handoff-policy.schema.json"
+    },
+    "technology": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "policy",
+        "ecosystemParticipants",
+        "extensionCount"
+      ],
+      "properties": {
+        "policy": {
+          "$ref": "technology-openness-policy.schema.json"
+        },
+        "ecosystemParticipants": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "$ref": "technology-extension.schema.json"
+          }
+        },
+        "extensionCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "documentType": {
+          "const": "org.upp.show-state"
+        },
+        "schemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minimumReaderApiVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unknownFieldsPreserved": {
+          "type": "boolean"
+        },
+        "sourceApiVersion": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "monitorMix": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "master",
+        "self",
+        "vocals",
+        "band",
+        "click",
+        "talkback",
+        "ambient",
+        "muted",
+        "output"
+      ],
+      "properties": {
+        "master": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "self": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "vocals": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "band": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "click": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "talkback": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "ambient": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "muted": {
+          "type": "boolean"
+        },
+        "output": {
+          "type": "string",
+          "maxLength": 64
+        }
+      }
+    }
+  }
+}

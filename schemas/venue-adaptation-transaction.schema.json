@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/venue-adaptation-transaction-v1.json",
+  "title": "UPP Venue Adaptation Transaction v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "unknownFieldsPreserved",
+    "minimumReaderSchemaVersion",
+    "schemaVersion",
+    "documentType",
+    "transactionId",
+    "status",
+    "venueId",
+    "requirementsHash",
+    "planHash",
+    "changes",
+    "mappings",
+    "validation",
+    "reversible"
+  ],
+  "properties": {
+    "transactionId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "validated",
+        "pending-commit",
+        "committed",
+        "rolled-back"
+      ]
+    },
+    "venueId": {
+      "type": "string"
+    },
+    "venueName": {
+      "type": "string"
+    },
+    "discoveryMode": {
+      "enum": [
+        "profile",
+        "live"
+      ]
+    },
+    "requirementsHash": {
+      "type": "string"
+    },
+    "planHash": {
+      "type": "string"
+    },
+    "grade": {
+      "type": "string"
+    },
+    "readiness": {
+      "type": "string"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reversible": {
+      "type": "boolean"
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "valid",
+        "blockers"
+      ],
+      "properties": {
+        "valid": {
+          "type": "boolean"
+        },
+        "checkedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "commit": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "mode": {
+          "enum": [
+            "immediate",
+            "next-bar",
+            "cue"
+          ]
+        },
+        "targetShowSeconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cueId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "receipt": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "documentType": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "minimumReaderSchemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unknownFieldsPreserved": {
+      "type": "boolean"
+    }
+  }
+}

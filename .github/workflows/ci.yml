@@ -1,0 +1,90 @@
+name: StageForge CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-release:
+    name: Linux RT release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install build tooling
+        run: python -m pip install -r requirements-release.txt
+      - name: Run software release gate
+        env:
+          STAGEFORGE_PACKAGE_QUALIFY_SUDO: '1'
+        run: python scripts/release-check.py
+      - name: Run native memory and undefined-behavior checks
+        run: python scripts/sanitizer-check.py
+
+  platform-build:
+    name: ${{ matrix.name }} build + platform smoke
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows x64
+            artifact: stageforge-platform-windows
+          - os: macos-14
+            name: macOS Apple Silicon
+            artifact: stageforge-platform-macos
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install CMake
+        run: python -m pip install -r requirements-release.txt
+      - name: Configure native build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DSTAGEFORGE_BUILD_TESTS=ON -DSTAGEFORGE_RT_QUALIFICATION=OFF
+      - name: Build native engine
+        run: cmake --build build --config Release --parallel 2
+      - name: Record pre-existing capture authorization
+        run: python ci/qualification_availability.py
+      - name: Run native tests
+        run: ctest --test-dir build -C Release --output-on-failure
+        env:
+          STAGEFORGE_ALLOW_SILENT_ENDPOINT_TEST: '1'
+          STAGEFORGE_ALLOW_ENDPOINT_CAPTURE_TEST: '1'
+      - name: Run platform contract tests
+        shell: bash
+        run: |
+          python -m unittest \
+            tests.test_audio_endpoint_evidence \
+            tests.test_hardware_diagnostics \
+            tests.test_windows_named_pipe_security \
+            tests.test_windows_named_pipe_ipc \
+            tests.test_windows_named_pipe_acl_attestation
+      - name: Run target-OS smoke and capture evidence
+        run: python scripts/platform-ci-smoke.py --output platform-ci-smoke.json
+      - name: Exercise actual engine authentication and command dispatch
+        run: python ci/native_engine_stdio_smoke.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            platform-ci-smoke.json
+            native-engine-smoke.json
+          if-no-files-found: error
+          retention-days: 30
+

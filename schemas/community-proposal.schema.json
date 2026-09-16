@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/community-proposal.schema.json",
+  "title": "UPP Community Change Proposal",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "title",
+    "createdAt",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 80
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "status": {
+      "enum": [
+        "open",
+        "closed",
+        "adopted",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "provisional": {
+      "type": "boolean"
+    },
+    "provisionalExpiresAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "change": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "payload": {
+          "type": "object"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "kind",
+        "payload",
+        "hash"
+      ],
+      "additionalProperties": true
+    },
+    "appliedAt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "appliedChangeHash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "publicRecordRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^upp-public-record:record-[A-Za-z0-9]+:[0-9a-f]{64}$"
+    },
+    "publicRecordPending": {
+      "type": "boolean"
+    },
+    "ratificationRecordRef": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^upp-public-record:record-[A-Za-z0-9]+:[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

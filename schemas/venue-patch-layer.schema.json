@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/venue-patch-layer-v1.json",
+  "title": "UPP Active Venue Patch Layer v1",
+  "type": [
+    "object",
+    "null"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "patchRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "transactionId": {
+      "type": "string"
+    },
+    "venueId": {
+      "type": "string"
+    },
+    "venueName": {
+      "type": "string"
+    },
+    "activatedAt": {
+      "type": "string"
+    },
+    "activatedShowSeconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "grade": {
+      "type": "string"
+    },
+    "discoveryMode": {
+      "enum": [
+        "profile",
+        "live"
+      ]
+    },
+    "mappings": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "departments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "documentType": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "minimumReaderSchemaVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unknownFieldsPreserved": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "unknownFieldsPreserved",
+    "minimumReaderSchemaVersion",
+    "schemaVersion",
+    "documentType"
+  ]
+}

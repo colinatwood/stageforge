@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/handoff-execution-status-v1.json",
+  "title": "UPP Handoff Execution Status v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "shadowSources",
+    "liveInputs"
+  ],
+  "properties": {
+    "shadowSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "sourceId",
+          "bufferedUntilShowNs",
+          "healthy",
+          "ageMs"
+        ],
+        "properties": {
+          "sourceId": {
+            "type": "string"
+          },
+          "bufferedUntilShowNs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "healthy": {
+            "type": "boolean"
+          },
+          "ageMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "contiguousFromShowNs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "renderedFrames": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "discontinuities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "executionVerified": {
+            "type": "boolean"
+          },
+          "evidenceType": {
+            "enum": [
+              "rendered-block",
+              "reported-horizon"
+            ]
+          }
+        }
+      }
+    },
+    "liveInputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": [
+          "slot",
+          "sourceId",
+          "healthy",
+          "latencyMs",
+          "ageMs"
+        ],
+        "properties": {
+          "slot": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "healthy": {
+            "type": "boolean"
+          },
+          "latencyMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "ageMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "firstShowNs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "lastShowNs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "observedFrames": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sequence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "discontinuities": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "executionVerified": {
+            "type": "boolean"
+          },
+          "evidenceType": {
+            "enum": [
+              "duplicated-feed-block",
+              "feed-health-report"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

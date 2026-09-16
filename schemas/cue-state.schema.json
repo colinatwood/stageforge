@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.dev/schemas/cue-state.schema.json",
+  "title": "UPP Core Cue State",
+  "type": "object",
+  "required": ["currentCueId", "previousCueId", "lastEventId", "lastShowTimeNs", "transitions"],
+  "properties": {
+    "currentCueId": {"type": "integer", "minimum": 0},
+    "previousCueId": {"type": "integer", "minimum": 0},
+    "lastEventId": {"type": "integer", "minimum": 0},
+    "lastShowTimeNs": {"type": "integer", "minimum": 0},
+    "transitions": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": true
+}

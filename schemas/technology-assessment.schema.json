@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/technology-assessment-v1.json",
+  "title": "UPP Technology Openness Assessment v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "openness",
+    "scaleTier",
+    "ecosystemParticipants",
+    "extensionCount",
+    "extensions"
+  ],
+  "properties": {
+    "openness": {
+      "enum": [
+        "open",
+        "guarded",
+        "at-risk"
+      ]
+    },
+    "scaleTier": {
+      "enum": [
+        "emerging",
+        "growing",
+        "large",
+        "infrastructure"
+      ]
+    },
+    "ecosystemParticipants": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "extensionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "preserveUnknownCapabilities": {
+      "type": "boolean"
+    },
+    "experimentalWithoutPermission": {
+      "type": "boolean"
+    },
+    "noAiParticipantValid": {
+      "type": "boolean"
+    },
+    "standardIndependentGroupsRequired": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "coreIndependentGroupsRequired": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "invalidDeclaredMaturityIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unsafeCoreRequestIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policyFailures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "extensions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "mandatoryCoreCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "maxMandatoryCoreExtensions": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "coreBudgetExceeded": {
+      "type": "boolean"
+    },
+    "scaleRevalidationIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unsafeDeprecationIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verifiedConformanceReceiptIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "staleOrInvalidConformanceReceiptIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

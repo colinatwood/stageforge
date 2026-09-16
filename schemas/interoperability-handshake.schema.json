@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/interoperability-handshake-v1.json",
+  "title": "UPP interoperability handshake plan",
+  "type": "object",
+  "required": ["compatible", "protocolVersion", "profileSchemaVersion", "directCapabilities", "translatedCapabilities", "preservedUnknownCapabilities", "missingRequired", "unknownPreservation", "offlineCompatible", "physicalOutputsArmed"],
+  "properties": {
+    "compatible": {"type": "boolean"},
+    "protocolVersion": {"type": ["integer", "null"], "minimum": 1},
+    "profileSchemaVersion": {"type": ["integer", "null"], "minimum": 1},
+    "directCapabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "translatedCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "quality", "explicit"],
+        "properties": {
+          "from": {"type": "string"}, "to": {"type": "string"},
+          "quality": {"type": "integer", "minimum": 1, "maximum": 100},
+          "explicit": {"const": true}
+        },
+        "additionalProperties": true
+      }
+    },
+    "preservedUnknownCapabilities": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "missingRequired": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "unknownPreservation": {"type": "boolean"},
+    "offlineCompatible": {"type": "boolean"},
+    "physicalOutputsArmed": {"const": false},
+    "extensions": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/automation-parameter-v1.json",
+  "title": "UPP Core Automation Parameter v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "targetId",
+    "parameterId",
+    "ownerId",
+    "revision",
+    "currentValue",
+    "ramping"
+  ],
+  "properties": {
+    "targetId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "parameterId": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "ownerId": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lastEventId": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "startShowNs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "endShowNs": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "startValue": {
+      "type": "number"
+    },
+    "targetValue": {
+      "type": "number"
+    },
+    "currentValue": {
+      "type": "number"
+    },
+    "ramping": {
+      "type": "boolean"
+    },
+    "updates": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

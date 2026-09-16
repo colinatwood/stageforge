@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/public-record-witness-attestation-v1.json",
+  "title": "UPP Public Record witness attestation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "witnessId", "recordHash", "issuedAtNs", "hmacSha256"],
+  "properties": {
+    "version": {"const": 1},
+    "witnessId": {"type": "string", "minLength": 1, "maxLength": 64},
+    "recordHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "issuedAtNs": {"type": "integer", "minimum": 1},
+    "hmacSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

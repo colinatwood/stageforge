@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/transport-discipline-status.schema.json",
+  "type": "object",
+  "required": ["available", "configured", "state", "sourceId", "authorityEpoch", "lastSequence", "phaseErrorNs", "driftPpm", "correctionPpm", "appliedRate", "sourceAgeNs", "observations", "rejected", "holdoverEntries", "physicalOutputsArmed"],
+  "properties": {
+    "available": {"type": "boolean"},
+    "configured": {"type": "boolean"},
+    "state": {"enum": ["free", "locked", "holdover"]},
+    "sourceId": {"type": "integer", "minimum": 0},
+    "authorityEpoch": {"type": "integer", "minimum": 0},
+    "lastSequence": {"type": "integer", "minimum": 0},
+    "phaseErrorNs": {"type": "integer"},
+    "driftPpm": {"type": "number"},
+    "correctionPpm": {"type": "number", "minimum": -500, "maximum": 500},
+    "appliedRate": {"type": "number", "minimum": 0.9995, "maximum": 1.0005},
+    "sourceAgeNs": {"type": "integer", "minimum": 0},
+    "observations": {"type": "integer", "minimum": 0},
+    "rejected": {"type": "integer", "minimum": 0},
+    "holdoverEntries": {"type": "integer", "minimum": 0},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": true
+}

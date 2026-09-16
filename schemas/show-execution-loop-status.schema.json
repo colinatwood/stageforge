@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stageforge.dev/schemas/show-execution-loop-status.schema.json",
+  "title": "UPP Show Execution Loop Status",
+  "type": "object",
+  "required": ["running", "cycles", "dispatched", "pending", "lastShowTimeNs"],
+  "properties": {
+    "running": {"type": "boolean"},
+    "cycles": {"type": "integer", "minimum": 0},
+    "wakeups": {"type": "integer", "minimum": 0},
+    "timedWaits": {"type": "integer", "minimum": 0},
+    "dispatched": {"type": "integer", "minimum": 0},
+    "manualDrains": {"type": "integer", "minimum": 0},
+    "cancelRequests": {"type": "integer", "minimum": 0},
+    "lastShowTimeNs": {"type": "integer", "minimum": 0},
+    "pending": {"type": "integer", "minimum": 0},
+    "nextShowTimeNs": {"type": "integer", "minimum": 0}
+  },
+  "additionalProperties": true
+}

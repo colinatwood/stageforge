@@ -1,0 +1,167 @@
+{
+  "documentType": "org.upp.driver-catalog",
+  "schemaVersion": 2,
+  "reviewPolicy": {
+    "catalogClaim": "package-metadata-only",
+    "automaticInstallAllowed": false,
+    "qualification": "hardware-tests-required"
+  },
+  "packages": [
+    {
+      "hardwareId": "USB:2A39:3FC0",
+      "product": "RME Babyface Pro FS (proprietary USB mode)",
+      "os": "Windows",
+      "osReleases": [
+        "10",
+        "11"
+      ],
+      "architecture": "AMD64",
+      "publisher": "RME",
+      "package": "driver_usb_win_1276.zip",
+      "version": "1.276",
+      "url": "https://rme-audio.de/downloads.html",
+      "releaseDate": "2025-07-09",
+      "reviewedAt": "2026-09-13",
+      "reviewExpiresAt": "2027-03-13",
+      "reviewConfidence": "moderate",
+      "catalogClaim": "package-metadata-only",
+      "evidence": [
+        {
+          "kind": "vendor-download",
+          "url": "https://rme-audio.de/downloads.html"
+        },
+        {
+          "kind": "hardware-id-source",
+          "url": "https://lists.openwall.net/linux-kernel/2026/08/31/2205"
+        }
+      ]
+    },
+    {
+      "hardwareId": "USB:2A39:3FC0",
+      "product": "RME Babyface Pro FS (proprietary USB mode)",
+      "os": "Windows",
+      "osReleases": [
+        "11"
+      ],
+      "architecture": "ARM64",
+      "publisher": "RME",
+      "package": "driver_usb_win_1276.zip",
+      "version": "1.276",
+      "url": "https://rme-audio.de/downloads.html",
+      "releaseDate": "2025-07-09",
+      "reviewedAt": "2026-09-13",
+      "reviewExpiresAt": "2027-03-13",
+      "reviewConfidence": "moderate",
+      "catalogClaim": "package-metadata-only",
+      "evidence": [
+        {
+          "kind": "vendor-download",
+          "url": "https://rme-audio.de/downloads.html"
+        },
+        {
+          "kind": "hardware-id-source",
+          "url": "https://lists.openwall.net/linux-kernel/2026/08/31/2205"
+        }
+      ]
+    },
+    {
+      "hardwareId": "USB:1235:8218",
+      "product": "Focusrite Scarlett Solo 4th Gen",
+      "os": "Windows",
+      "osReleases": [
+        "10",
+        "11"
+      ],
+      "architecture": "AMD64",
+      "publisher": "Focusrite",
+      "package": "Focusrite Control 2 (Includes Driver)",
+      "version": "1.1108.0 / driver 4.150.0.432",
+      "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-solo-4th-gen",
+      "releaseDate": "2026-08-13",
+      "reviewedAt": "2026-09-14",
+      "reviewExpiresAt": "2027-03-14",
+      "reviewConfidence": "moderate",
+      "catalogClaim": "package-metadata-only",
+      "evidence": [
+        {
+          "kind": "vendor-download",
+          "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-solo-4th-gen"
+        },
+        {
+          "kind": "vendor-support",
+          "url": "https://support.focusrite.com/hc/en-gb/articles/13289679039378-Focusrite-Control-2-Release-Notes"
+        },
+        {
+          "kind": "hardware-id-source",
+          "url": "https://github.com/geoffreybennett/alsa-scarlett-gui/issues/208"
+        }
+      ]
+    },
+    {
+      "hardwareId": "USB:1235:8219",
+      "product": "Focusrite Scarlett 2i2 4th Gen",
+      "os": "Windows",
+      "osReleases": [
+        "10",
+        "11"
+      ],
+      "architecture": "AMD64",
+      "publisher": "Focusrite",
+      "package": "Focusrite Control 2 (Includes Driver)",
+      "version": "1.1108.0 / driver 4.150.0.432",
+      "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-2i2-4th-gen",
+      "releaseDate": "2026-08-13",
+      "reviewedAt": "2026-09-14",
+      "reviewExpiresAt": "2027-03-14",
+      "reviewConfidence": "moderate",
+      "catalogClaim": "package-metadata-only",
+      "evidence": [
+        {
+          "kind": "vendor-download",
+          "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-2i2-4th-gen"
+        },
+        {
+          "kind": "vendor-support",
+          "url": "https://support.focusrite.com/hc/en-gb/articles/13289679039378-Focusrite-Control-2-Release-Notes"
+        },
+        {
+          "kind": "hardware-id-source",
+          "url": "https://github.com/geoffreybennett/alsa-scarlett-gui/discussions/110"
+        }
+      ]
+    },
+    {
+      "hardwareId": "USB:1235:821A",
+      "product": "Focusrite Scarlett 4i4 4th Gen",
+      "os": "Windows",
+      "osReleases": [
+        "10",
+        "11"
+      ],
+      "architecture": "AMD64",
+      "publisher": "Focusrite",
+      "package": "Focusrite Control 2 (Includes Driver)",
+      "version": "1.1108.0 / driver 4.150.0.432",
+      "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-4i4-4th-gen",
+      "releaseDate": "2026-08-13",
+      "reviewedAt": "2026-09-14",
+      "reviewExpiresAt": "2027-03-14",
+      "reviewConfidence": "moderate",
+      "catalogClaim": "package-metadata-only",
+      "evidence": [
+        {
+          "kind": "vendor-download",
+          "url": "https://downloads.focusrite.com/focusrite/scarlett-4th-gen/scarlett-4i4-4th-gen"
+        },
+        {
+          "kind": "vendor-support",
+          "url": "https://support.focusrite.com/hc/en-gb/articles/13289679039378-Focusrite-Control-2-Release-Notes"
+        },
+        {
+          "kind": "hardware-id-source",
+          "url": "https://github.com/geoffreybennett/scarlett2"
+        }
+      ]
+    }
+  ]
+}

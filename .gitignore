@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.runtime/
+build/
+.DS_Store
+
+.stageforge-witness/

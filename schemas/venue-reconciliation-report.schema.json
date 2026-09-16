@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/venue-reconciliation-report-v1.json",
+  "title": "UPP Venue Reconciliation Report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["active", "status", "safeToContinue", "checkedAt", "mappings", "blockers", "warnings"],
+  "properties": {
+    "active": {"type": "boolean"},
+    "transactionId": {"type": ["string", "null"]},
+    "patchRevision": {"type": ["integer", "null"], "minimum": 1},
+    "venueId": {"type": ["string", "null"]},
+    "venueName": {"type": ["string", "null"]},
+    "status": {"enum": ["no-active-patch", "unverified", "realized", "drift", "blocked"]},
+    "safeToContinue": {"type": "boolean"},
+    "realized": {"type": "boolean"},
+    "checkedAt": {"type": "string"},
+    "suggestedAction": {"type": "string"},
+    "mappings": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "blockers": {"type": "array", "items": {"type": "string"}},
+    "warnings": {"type": "array", "items": {"type": "string"}}
+  }
+}

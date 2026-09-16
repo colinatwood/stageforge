@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/public-record-reference-v1.json",
+  "title": "UPP Public Record reference v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["recordId", "sequence", "recordHash", "signerId", "signatureAlgorithm", "signatureHmacSha256"],
+  "properties": {
+    "recordId": {"type": "string", "minLength": 1},
+    "sequence": {"type": "integer", "minimum": 1},
+    "recordHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signerId": {"type": "string", "minLength": 1, "maxLength": 64},
+    "signatureAlgorithm": {"const": "hmac-sha256"},
+    "signatureHmacSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

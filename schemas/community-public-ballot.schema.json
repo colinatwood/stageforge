@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/community-public-ballot.schema.json",
+  "title": "UPP Privacy-Preserving Community Ballot Evidence",
+  "type": "object",
+  "required": [
+    "version",
+    "publicBallotId",
+    "proposalId",
+    "proposalVersion",
+    "invitationId",
+    "castAt",
+    "choiceCommitmentSha256",
+    "rawVoteUnits"
+  ],
+  "properties": {
+    "version": {"const": 1},
+    "publicBallotId": {"type": "string", "pattern": "^ballot-[0-9a-f]{32}$"},
+    "proposalId": {"type": "string", "minLength": 1, "maxLength": 160},
+    "proposalVersion": {"type": "integer", "minimum": 1},
+    "invitationId": {"type": "string", "minLength": 1},
+    "castAt": {"type": "string", "format": "date-time"},
+    "choiceCommitmentSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "rawVoteUnits": {"const": 1.0}
+  },
+  "additionalProperties": false
+}

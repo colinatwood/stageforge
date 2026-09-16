@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/notation-profile-v1.json",
+  "title": "StageForge / UPP Auto Notation Part v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "playerId",
+    "settings",
+    "activeNotes",
+    "rawNoteCount",
+    "notes"
+  ],
+  "properties": {
+    "playerId": {
+      "type": "string"
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "source",
+        "quantize",
+        "preservePerformance",
+        "spellByProjectKey"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "source": {
+          "enum": [
+            "midi",
+            "manual"
+          ]
+        },
+        "quantize": {
+          "enum": [
+            "1/4",
+            "1/8",
+            "1/16",
+            "1/32"
+          ]
+        },
+        "preservePerformance": {
+          "const": true
+        },
+        "spellByProjectKey": {
+          "type": "boolean"
+        }
+      }
+    },
+    "activeNotes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rawNotes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/rawNote"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/derivedNote"
+      }
+    },
+    "rawNoteCount": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "rawNote": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "pitch",
+        "velocity",
+        "rawStartSeconds",
+        "rawEndSeconds",
+        "rawStartBeats",
+        "rawDurationBeats"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pitch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "rawStartSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rawEndSeconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rawStartBeats": {
+          "type": "number",
+          "minimum": 0
+        },
+        "rawDurationBeats": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "derivedNote": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "pitch",
+        "velocity",
+        "startBeats",
+        "durationBeats",
+        "step",
+        "alter",
+        "octave",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "pitch": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 127
+        },
+        "velocity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 127
+        },
+        "startBeats": {
+          "type": "number",
+          "minimum": 0
+        },
+        "durationBeats": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "step": {
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G"
+          ]
+        },
+        "alter": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "octave": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

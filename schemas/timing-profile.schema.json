@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.example/schemas/timing-profile.schema.json",
+  "title": "UPP Endpoint Timing Profile",
+  "type": "object",
+  "required": ["targetNs"],
+  "properties": {
+    "nowNs": {"type": "integer", "minimum": 0},
+    "targetNs": {"type": "integer", "minimum": 0},
+    "fixedLatencyNs": {"type": "integer", "minimum": 0},
+    "jitterNs": {"type": "integer", "minimum": 0},
+    "minimumLookaheadNs": {"type": "integer", "minimum": 0},
+    "jitterMarginMultiplier": {"type": "integer", "minimum": 0, "maximum": 16},
+    "timestamped": {"type": "boolean"}
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/shadow-render-executor-status.schema.json",
+  "title": "UPP Core Shadow Render Executor Status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["sourceId", "generation", "showRevision", "contentHash", "nextShowNs", "requestedUntilShowNs", "renderedFrames", "renderedBlocks", "failures", "registered", "healthy"],
+  "properties": {
+    "sourceId": {"type": "integer", "minimum": 1},
+    "generation": {"type": "integer", "minimum": 0},
+    "showRevision": {"type": "integer", "minimum": 0},
+    "contentHash": {"type": "integer", "minimum": 0},
+    "nextShowNs": {"type": "integer", "minimum": 0},
+    "requestedUntilShowNs": {"type": "integer", "minimum": 0},
+    "renderedFrames": {"type": "integer", "minimum": 0},
+    "renderedBlocks": {"type": "integer", "minimum": 0},
+    "failures": {"type": "integer", "minimum": 0},
+    "registered": {"type": "boolean"},
+    "healthy": {"type": "boolean"}
+  }
+}

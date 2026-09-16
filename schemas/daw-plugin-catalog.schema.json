@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://upp.dev/schemas/daw-plugin-catalog.schema.json","type":"object","required":["plugins","scanIsolated","physicalOutputsArmed"],"properties":{"plugins":{"type":"array","maxItems":1024},"scanIsolated":{"const":true},"physicalOutputsArmed":{"const":false}},"additionalProperties":true}

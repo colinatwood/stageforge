@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/audio-output-profile-v1.json",
+  "title": "UPP Audio Output Profile v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "slot",
+    "deviceId",
+    "purpose",
+    "playerId",
+    "graphOutput",
+    "master",
+    "limiterCeilingDb",
+    "driftCompensation"
+  ],
+  "properties": {
+    "slot": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "deviceId": {
+      "type": "string",
+      "maxLength": 96
+    },
+    "purpose": {
+      "enum": [
+        "foh",
+        "monitor",
+        "broadcast",
+        "record",
+        "aux"
+      ]
+    },
+    "playerId": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "graphOutput": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 15
+    },
+    "master": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "limiterCeilingDb": {
+      "type": "number",
+      "minimum": -24,
+      "maximum": 0
+    },
+    "driftCompensation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "enabled",
+        "maxCorrectionPpm",
+        "queueGainPpm"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "maxCorrectionPpm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "queueGainPpm": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        }
+      }
+    }
+  }
+}

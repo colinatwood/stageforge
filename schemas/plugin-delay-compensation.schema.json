@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.dev/schemas/plugin-delay-compensation.schema.json",
+  "type": "object",
+  "required": ["documentType", "schemaVersion", "paths", "maximumLatencyFrames", "latencyAligned", "physicalOutputsArmed"],
+  "properties": {
+    "documentType": {"const": "org.upp.daw.plugin-delay-plan"},
+    "schemaVersion": {"const": 1},
+    "paths": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["pathId", "latencyFrames", "compensationFrames"],
+        "properties": {
+          "pathId": {"type": "string", "minLength": 1, "maxLength": 128},
+          "latencyFrames": {"type": "integer", "minimum": 0, "maximum": 65536},
+          "compensationFrames": {"type": "integer", "minimum": 0, "maximum": 65536}
+        },
+        "additionalProperties": false
+      }
+    },
+    "maximumLatencyFrames": {"type": "integer", "minimum": 0, "maximum": 65536},
+    "latencyAligned": {"const": true},
+    "physicalOutputsArmed": {"const": false}
+  },
+  "additionalProperties": false
+}

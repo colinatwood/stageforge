@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/adaptation-receipt-v1.json",
+  "title": "UPP Adaptation Receipt v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "receiptId",
+    "reason",
+    "intentPreserved",
+    "changes",
+    "reversible"
+  ],
+  "properties": {
+    "receiptId": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "intentPreserved": {
+      "type": "boolean"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "capability",
+          "from",
+          "to",
+          "reason"
+        ],
+        "properties": {
+          "capability": {
+            "type": "string"
+          },
+          "from": {},
+          "to": {},
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "approvedBy": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "aiAssisted": {
+      "type": "boolean"
+    },
+    "reversible": {
+      "type": "boolean"
+    },
+    "publicRecord": {
+      "$ref": "public-record-reference.schema.json"
+    }
+  }
+}

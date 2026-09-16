@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://upp.stageforge.dev/schema/show-compatibility-plan-v1.json",
+  "title": "UPP Show Compatibility Plan v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["compatible", "grade", "protocol", "showExecution", "blockers"],
+  "properties": {
+    "compatible": {"type": "boolean"},
+    "grade": {"enum": ["direct", "equivalent", "acceptable", "degraded", "partial-preserved", "blocked"]},
+    "protocol": {"type": "object"},
+    "showExecution": {
+      "type": "object",
+      "required": ["compatible", "grade", "requirements"],
+      "properties": {
+        "compatible": {"type": "boolean"},
+        "grade": {"enum": ["direct", "equivalent", "acceptable", "degraded", "blocked"]},
+        "minimumQualityScore": {"type": "number", "minimum": 0, "maximum": 100},
+        "blockedRequirements": {"type": "integer", "minimum": 0},
+        "requirements": {"type": "array", "items": {"type": "object", "additionalProperties": true}}
+      }
+    },
+    "blockers": {"type": "array", "items": {"type": "string"}}
+  }
+}

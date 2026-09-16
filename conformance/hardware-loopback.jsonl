@@ -1,0 +1,3 @@
+{"sequence":1,"transportLatencyNs":2000000,"jitterNs":10000,"clockOffsetNs":500}
+{"sequence":2,"transportLatencyNs":2100000,"jitterNs":15000,"clockOffsetNs":600}
+{"sequence":3,"transportLatencyNs":2050000,"jitterNs":12000,"clockOffsetNs":550}

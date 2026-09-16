@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>StageForge Community Vote</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    body{max-width:760px;margin:0 auto;padding:32px 18px}.vote-card{border:1px solid var(--border,#303642);border-radius:16px;padding:20px;background:var(--panel,#161a20)}
+    .vote-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.vote-actions button{min-width:110px}.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:18px 0}.meta>div{padding:10px;border:1px solid var(--border,#303642);border-radius:10px}.muted{opacity:.72}.error{color:#ff9b9b}.ok{color:#9fe5b0}
+  </style>
+</head>
+<body>
+  <main class="vote-card">
+    <p class="muted">UPP / StageForge community governance</p>
+    <h1 id="title">Loading vote…</h1>
+    <p id="description"></p>
+    <div class="meta">
+      <div><small>Window ends</small><br><strong id="expires">—</strong></div>
+      <div><small>Current hype</small><br><strong id="hype">—</strong></div>
+      <div><small>Durable fraction</small><br><strong id="durable">—</strong></div>
+    </div>
+    <p class="muted">Your raw vote is always one vote. Hype contributes zero choice-vote units. Binding maturity increases equally for all cast votes as proposal hype decays.</p>
+    <div class="vote-actions">
+      <button data-choice="yes">Yes</button>
+      <button data-choice="no">No</button>
+      <button data-choice="abstain">Abstain</button>
+    </div>
+    <p id="status" class="muted"></p>
+  </main>
+  <script src="/vote.js"></script>
+</body>
+</html>
