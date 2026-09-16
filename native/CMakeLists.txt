@@ -8,4 +8,10 @@ else()
 endif()
 if(WIN32 OR APPLE)
     include(${CMAKE_CURRENT_SOURCE_DIR}/devices.cmake)
+    # Full-tree builds reuse the same target-OS monitor/identity implementation
+    # that device-only CI qualifies. Do not duplicate platform enumeration in
+    # stageforge_core or silently fall back to default endpoints.
+    if(TARGET stageforge_core)
+        target_link_libraries(stageforge_core PUBLIC stageforge_devices)
+    endif()
 endif()
