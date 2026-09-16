@@ -5,6 +5,7 @@
 #include "native_capture.h"
 #include "native_playback.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -18,6 +19,9 @@ namespace stageforge {
 // one process-lifetime monitor and never substitutes a default endpoint.
 class EngineNativeAudioBridge {
 public:
+    static constexpr std::size_t kPlaybackSlots = 4;
+    static constexpr std::size_t kCaptureSlots = 4;
+
     EngineNativeAudioBridge();
     ~EngineNativeAudioBridge();
     EngineNativeAudioBridge(const EngineNativeAudioBridge&) = delete;
@@ -33,24 +37,24 @@ public:
     void stop_monitor();
     DeviceSnapshot snapshot() const;
 
-    bool activate_playback(const DeviceSelection& selection, const AudioRequest& request,
+    bool activate_playback(std::size_t slot, const DeviceSelection& selection, const AudioRequest& request,
                            PlaybackRender render, void* context);
-    bool activate_capture(const DeviceSelection& selection, const AudioRequest& request,
+    bool activate_capture(std::size_t slot, const DeviceSelection& selection, const AudioRequest& request,
                           CaptureReceive receive, void* context);
     void service(std::uint32_t wait_ms = 0);
-    void close_playback();
-    void close_capture();
+    void close_playback(std::size_t slot);
+    void close_capture(std::size_t slot);
     void close();
 
     // Recovery is deliberately two-stage: reconcile never restarts I/O. The
     // caller must issue explicit_rearm_* and then activate again.
-    FenceObservation reconcile_playback();
-    FenceObservation reconcile_capture();
-    bool explicit_rearm_playback();
-    bool explicit_rearm_capture();
+    FenceObservation reconcile_playback(std::size_t slot);
+    FenceObservation reconcile_capture(std::size_t slot);
+    bool explicit_rearm_playback(std::size_t slot);
+    bool explicit_rearm_capture(std::size_t slot);
 
-    EndpointStreamStats playback_stats() const;
-    EndpointStreamStats capture_stats() const;
+    EndpointStreamStats playback_stats(std::size_t slot) const;
+    EndpointStreamStats capture_stats(std::size_t slot) const;
     const std::string& last_error() const noexcept { return last_error_; }
 
 private:
@@ -59,10 +63,10 @@ private:
 
     DeviceMonitor monitor_;
     bool monitor_started_{false};
-    std::unique_ptr<DeviceExecutionFence> playback_fence_;
-    std::unique_ptr<DeviceExecutionFence> capture_fence_;
-    std::unique_ptr<NativePlaybackStream> playback_;
-    std::unique_ptr<NativeCaptureStream> capture_;
+    std::array<std::unique_ptr<DeviceExecutionFence>, kPlaybackSlots> playback_fences_{};
+    std::array<std::unique_ptr<DeviceExecutionFence>, kCaptureSlots> capture_fences_{};
+    std::array<std::unique_ptr<NativePlaybackStream>, kPlaybackSlots> playbacks_{};
+    std::array<std::unique_ptr<NativeCaptureStream>, kCaptureSlots> captures_{};
     std::string last_error_;
 };
 
