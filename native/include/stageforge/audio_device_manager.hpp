@@ -10,16 +10,19 @@ namespace stageforge {
 struct AudioEndpointDescriptor {
     std::array<char, 64> id{};
     std::array<char, 128> name{};
-    std::array<char, 128> backend_address{};
+    // Linux stores the native ALSA address. Windows/macOS store only a bounded
+    // privacy-preserving identity token emitted by the native device monitor.
+    std::array<char, 256> backend_address{};
     std::array<char, 32> backend{};
     bool input{false};
     bool output{false};
     bool connected{false};
 };
 
-// Dependency-light discovery layer. It always exposes the null endpoint and,
-// on Linux, dynamically loads libasound at runtime to enumerate ALSA PCM hints.
-// There is no compile-time ALSA dependency and discovery failure is non-fatal.
+// Dependency-light discovery layer. It always exposes the null endpoint.
+// Linux dynamically loads ALSA PCM hints. Windows/macOS consume the native
+// DeviceMonitor snapshot and export only hashed identity evidence, never raw OS
+// endpoint IDs. Discovery is control-thread observation and does not arm I/O.
 class AudioDeviceManager {
 public:
     AudioDeviceManager() noexcept = default;

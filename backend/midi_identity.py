@@ -18,22 +18,41 @@ def _hashed_token(value):
     return text if re.fullmatch(r"sha256:[0-9a-f]{64}",text) else None
 
 
+def _engine_identity_metadata(value):
+    result={}
+    for item in str(value or "").strip().split(";"):
+        if "=" not in item:continue
+        key,val=item.split("=",1)
+        if key in {"backend","native","persistent","strength","auto"}:result[key]=val.strip().lower()
+    if result.get("native") and not _hashed_token(result["native"]):result.pop("native",None)
+    if result.get("persistent") and not _hashed_token(result["persistent"]):result.pop("persistent",None)
+    return result
+
+
 def describe_midi_device(device, *, sys_root=Path("/sys")):
     result = {"persistentId": None, "identityStrength": "volatile",
               "automaticRebindEligible": False, "identityScope": "current native endpoint only"}
-    backend=str(device.get("backend") or "").lower()
+    metadata=_engine_identity_metadata(device.get("path"))
+    backend=str(device.get("backend") or metadata.get("backend") or "").lower()
     if backend=="coremidi":
         unique=_hashed_token(device.get("uniqueIdHash") or device.get("connectionUniqueIdHash"))
+        if not unique and metadata.get("strength")=="os-stable-endpoint" and metadata.get("auto")=="1":unique=_hashed_token(metadata.get("persistent"))
         if not unique:return {**result,"identityScope":"CoreMIDI endpoint lacks a hashed unique ID"}
         return {"persistentId":"midi-"+hashlib.sha256(("coremidi:"+unique).encode()).hexdigest()[:24],
                 "identityStrength":"os-stable-endpoint","automaticRebindEligible":True,
                 "identityScope":"hash of CoreMIDI unique/connection ID"}
     if backend=="windows-midi":
-        persistent=_hashed_token(device.get("persistentIdHash"))
-        if persistent and device.get("persistentIdentityVerified") is True:
+        persistent=_hashed_token(device.get("persistentIdHash") or metadata.get("persistent"))
+        verified=device.get("persistentIdentityVerified") is True or (
+            metadata.get("strength")=="os-stable-endpoint" and metadata.get("auto")=="1")
+        if persistent and verified:
             return {"persistentId":"midi-"+hashlib.sha256(("windows-midi:"+persistent).encode()).hexdigest()[:24],
                     "identityStrength":"os-stable-endpoint","automaticRebindEligible":True,
                     "identityScope":"platform-verified Windows MIDI persistent identity hash"}
+        if persistent and metadata.get("strength")=="installation-snapshot":
+            return {"persistentId":"midi-"+hashlib.sha256(("windows-midi-installation:"+persistent).encode()).hexdigest()[:24],
+                    "identityStrength":"installation-snapshot","automaticRebindEligible":False,
+                    "identityScope":"Windows MIDI installation/interface hash; explicit rebind required"}
         return {**result,"identityScope":"Windows MIDI endpoint identity is not verified persistence-grade; explicit rebind required"}
     path = str(device.get("path", ""))
     match = re.fullmatch(r"/dev/snd/(midiC([0-9]{1,3})D([0-9]{1,3}))", path)

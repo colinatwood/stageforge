@@ -1,4 +1,4 @@
-"""Privacy-preserving ALSA endpoint identity for conservative reconnect."""
+"""Privacy-preserving cross-platform audio endpoint identity for conservative reconnect."""
 from __future__ import annotations
 import hashlib,json,os,re
 from pathlib import Path
@@ -15,23 +15,40 @@ def _hashed_token(value:object)->str|None:
     return text if re.fullmatch(r"sha256:[0-9a-f]{64}",text) else None
 
 
+def _engine_identity_metadata(value:object)->dict[str,str]:
+    text=str(value or "").strip()
+    result={}
+    for item in text.split(";"):
+        if "=" not in item:continue
+        key,val=item.split("=",1)
+        if key in {"native","persistent","strength","auto"}:result[key]=val.strip().lower()
+    # The engine boundary accepts only hash tokens for identity-bearing fields.
+    if result.get("native") and not _hashed_token(result["native"]):result.pop("native",None)
+    if result.get("persistent") and not _hashed_token(result["persistent"]):result.pop("persistent",None)
+    return result
+
+
 def describe_audio_device(device:dict,*,sys_root=Path("/sys"),proc_root=Path("/proc"))->dict:
     if device.get("id")=="null-audio":return {"persistentId":"audio-null","identityStrength":"builtin","automaticReconnectEligible":True,"identityScope":"built-in null endpoint"}
     result={"persistentId":None,"identityStrength":"volatile","automaticReconnectEligible":False,"identityScope":"current native endpoint only"}
     backend=str(device.get("backend") or "").lower()
     direction=f"{int(bool(device.get('input')))}{int(bool(device.get('output')))}"
+    metadata=_engine_identity_metadata(device.get("address"))
     if backend=="wasapi":
         stable=_hashed_token(device.get("stableIdHash"))
         snapshot=_hashed_token(device.get("instanceIdHash"))
+        if not stable and metadata.get("strength")=="os-stable-endpoint" and metadata.get("auto")=="1":stable=_hashed_token(metadata.get("persistent"))
+        if not snapshot and metadata.get("strength")=="installation-snapshot":snapshot=_hashed_token(metadata.get("persistent"))
         if stable:
             material=f"wasapi-stable:{stable}:{direction}"
-            return {"persistentId":"audio-"+hashlib.sha256(material.encode()).hexdigest()[:24],"identityStrength":"os-stable-endpoint","automaticReconnectEligible":True,"identityScope":"Windows PKEY_AudioEndpoint_StableId hash; mutable endpoint properties must be re-queried"}
+            return {"persistentId":"audio-"+hashlib.sha256(material.encode()).hexdigest()[:24],"identityStrength":"os-stable-endpoint","automaticReconnectEligible":True,"identityScope":"Windows stable endpoint identity hash; mutable endpoint properties must be re-queried"}
         if snapshot:
             material=f"wasapi-installation:{snapshot}:{direction}"
-            return {"persistentId":"audio-"+hashlib.sha256(material.encode()).hexdigest()[:24],"identityStrength":"installation-snapshot","automaticReconnectEligible":False,"identityScope":"Windows endpoint-instance hash; explicit recovery required because driver/OS updates can replace it"}
+            return {"persistentId":"audio-"+hashlib.sha256(material.encode()).hexdigest()[:24],"identityStrength":"installation-snapshot","automaticReconnectEligible":False,"identityScope":"Windows installation-scoped endpoint hash; explicit recovery required because driver/OS updates can replace it"}
         return {**result,"identityScope":"WASAPI endpoint lacks a persistence-grade identity hash"}
     if backend=="coreaudio":
         uid=_hashed_token(device.get("uidHash"))
+        if not uid and metadata.get("strength")=="os-stable-endpoint" and metadata.get("auto")=="1":uid=_hashed_token(metadata.get("persistent"))
         if uid:
             material=f"coreaudio:{uid}:{direction}"
             return {"persistentId":"audio-"+hashlib.sha256(material.encode()).hexdigest()[:24],"identityStrength":"os-stable-endpoint","automaticReconnectEligible":True,"identityScope":"hash of CoreAudio device UID; mutable device properties must be re-queried"}
