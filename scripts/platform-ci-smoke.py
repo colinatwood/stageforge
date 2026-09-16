@@ -16,7 +16,6 @@ from pathlib import Path
 import platform
 import subprocess
 import sys
-import tempfile
 import threading
 import time
 import uuid
@@ -59,7 +58,6 @@ def _current_windows_sid() -> str:
         encoding="utf-8",
         errors="replace",
     ).strip()
-    # Typical output: "HOST\\runneradmin","S-1-5-21-..."
     import csv, io
     row = next(csv.reader(io.StringIO(text)))
     if len(row) < 2 or not row[1].upper().startswith("S-1-"):
@@ -69,7 +67,11 @@ def _current_windows_sid() -> str:
 
 def _windows_pipe_smoke() -> dict:
     from multiprocessing.connection import Client
-    from local_ipc import WindowsNamedPipeIpcServer
+    from local_ipc import (
+        WindowsNamedPipeIpcServer,
+        decode_transport_packet,
+        encode_transport_packet,
+    )
     from session_channel import AuthenticatedSessionChannel
 
     sid = _current_windows_sid()
@@ -100,7 +102,7 @@ def _windows_pipe_smoke() -> dict:
     def run_server():
         try:
             server.serve_once()
-        except BaseException as exc:  # propagate after thread join
+        except BaseException as exc:
             error.append(exc)
 
     thread = threading.Thread(target=run_server, daemon=True)
@@ -123,10 +125,11 @@ def _windows_pipe_smoke() -> dict:
     )
     try:
         request = client.encode(7, b"ping")
-        # multiprocessing AF_PIPE supplies the same big-endian length envelope that
-        # StageForge message transports use, so send/recv bytes are the UPPF frame.
-        connection.send_bytes(request)
-        response = connection.recv_bytes()
+        # AF_PIPE adds its own message envelope. StageForge additionally requires
+        # the explicit local-IPC big-endian length prefix inside that message,
+        # exactly as WindowsNamedPipeIpcServer.recv_message_frame expects.
+        connection.send_bytes(encode_transport_packet(request))
+        response = decode_transport_packet(connection.recv_bytes())
         decoded = client.decode(response)
         if decoded["payload"] != b"stageforge-ci:ping":
             raise RuntimeError("Windows named-pipe authenticated roundtrip returned unexpected payload")
