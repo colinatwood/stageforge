@@ -19,6 +19,7 @@ class HardwareDiagnosticsTests(unittest.TestCase):
         self.assertFalse(report["physicalOutputsArmed"])
         self.assertEqual(report["qualification"], "hardware-tests-required")
 
+    @unittest.skipIf(sys.platform == "win32", "Linux sysfs names contain colons and require Unix symlinks")
     def test_composite_usb_binding_and_rescan_removal(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
