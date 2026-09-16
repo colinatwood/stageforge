@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace stageforge {
@@ -21,6 +22,12 @@ public:
     ~EngineNativeAudioBridge();
     EngineNativeAudioBridge(const EngineNativeAudioBridge&) = delete;
     EngineNativeAudioBridge& operator=(const EngineNativeAudioBridge&) = delete;
+
+    // Decode the hash-only identity token exported by AudioDeviceManager. Raw OS
+    // identifiers are never accepted here. Direction requirements are pinned into
+    // the resulting selection so a playback/capture mismatch fails closed.
+    static bool decode_selection(std::string_view token, bool require_input,
+                                 bool require_output, DeviceSelection& selection);
 
     bool start_monitor();
     void stop_monitor();
