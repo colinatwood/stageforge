@@ -10,12 +10,14 @@
 - Latest completed milestone: **Checkpoint 85 — bridge native target-OS devices into full engine**
 - Active work: **Checkpoint 86 — full-engine target-OS audio streaming integration**
 - Active branch: `checkpoint-86-backlog-reconcile-and-audio-stream`
+- Active PR: **#21 — Checkpoint 86: integrate full-engine target-OS audio streaming**
+- Latest Checkpoint 86 branch commit: `6ef92fa390c56c7c03bad50ac9f04fdbf5bccebf`
 
 ## Latest completed work
 
 Checkpoint 85 was merged to `main`. The full engine bridges target-OS audio/MIDI device enumeration through the native device monitor and carries privacy-preserving hashed identity metadata across the engine boundary. The checkpoint includes full-engine target-OS enumeration qualification and tests that reject leaked/malformed identity metadata.
 
-Checkpoint 84 consolidated the recovered Checkpoint 69 engine/backend/frontend/schemas/packaging/tests with Checkpoint 70–83 platform work. Source access is no longer a blocker.
+Checkpoint 86 now has a target-OS engine/native ownership bridge in PR #21. It decodes only the hash-only identity tokens exported by the engine device manager, rejects malformed/raw identity input, preserves reconnect-strength semantics, owns the existing qualified native stream/fence objects, and supports four independent playback plus four independent capture slots so the recovered engine's slot contract is not silently collapsed to a single native stream.
 
 ## Next-wave selection rule
 
@@ -40,12 +42,7 @@ Using that rule, Checkpoint 86 targets the engine audio execution bridge before 
 
 ## Following wave
 
-After Checkpoint 86, select among:
-
-- full-engine target-OS MIDI attach/poll/event I/O;
-- non-Linux `IsolatedPluginHost` wiring to the existing verification-to-launch binder;
-- backlog/workbook reconciliation through the newly completed software checkpoints;
-- external qualification tasks when the required hardware, licensed fixtures, deployment environments or owner decisions are actually available.
+After Checkpoint 86, select among full-engine target-OS MIDI attach/poll/event I/O; non-Linux `IsolatedPluginHost` wiring to the existing verification-to-launch binder; backlog/workbook reconciliation through the newly completed software checkpoints; or external qualification tasks when the required hardware, licensed fixtures, deployment environments or owner decisions are actually available.
 
 The selection rule above decides between them based on dependency removal and available evidence rather than checkpoint numbering alone.
 
@@ -83,12 +80,13 @@ Hosted/software evidence does **not** by itself qualify physical audio/MIDI hard
 ## Next-session handoff
 
 - **Current checkpoint:** 86 — full-engine target-OS audio streaming integration
-- **Branch / PR:** `checkpoint-86-backlog-reconcile-and-audio-stream`; PR not opened yet
-- **Last known-good commit:** `84f6da331a363a4638a7d17052796cbc3f861cf0` on `main`
-- **Tests run / result:** no Checkpoint 86 implementation tests yet; branch started from known-good Checkpoint 85 + continuity commit
-- **What changed:** selected the next-wave task using dependency removal/reuse/CI-verifiability criteria and persisted its exact scope before implementation
-- **Open blockers / external evidence needed:** hosted Windows may expose no audio endpoint; physical audio quality/hardware qualification remains external; licensed plugin/deployment/owner decisions remain separate
-- **Exact next action:** map the existing target-OS native playback/capture ownership API into `native/src/engine_main.cpp` `AUDIO_ACTIVATE`/capture lifecycle, then add fail-closed full-engine tests before broadening scope
+- **Branch / PR:** `checkpoint-86-backlog-reconcile-and-audio-stream`; PR #21 open as draft
+- **Last known-good main commit:** `84f6da331a363a4638a7d17052796cbc3f861cf0`
+- **Latest branch commit:** `6ef92fa390c56c7c03bad50ac9f04fdbf5bccebf`
+- **Tests / CI:** identity bridge smoke was added to target-OS device tests; GitHub Actions was running against the PR. The new multi-slot bridge change needs the next CI result before it is treated as verified.
+- **What changed:** target-OS bridge now accepts only validated hash identity selections and owns independent playback/capture stream slots rather than one global playback/capture pair.
+- **Open blockers / external evidence needed:** hosted Windows may expose no audio endpoint; physical audio quality/hardware qualification remains external; licensed plugin/deployment/owner decisions remain separate.
+- **Exact next action:** include `engine_native_audio_bridge.h` in `native/src/engine_main.cpp`, add the native capture callback adapter, instantiate one bridge owner, and dispatch `AUDIO_ACTIVATE` / `AUDIO_INPUT_ACTIVATE` / deactivate/status paths to WASAPI/CoreAudio while preserving ALSA and fail-closed conversion semantics.
 
 ## Backup policy
 
