@@ -81,6 +81,10 @@ def qualify(*, build_dir: Path) -> dict[str, Any]:
         missing_installed = [str(path.relative_to(stage)) for path in required if not path.is_file()]
         if missing_installed:
             raise RuntimeError("staged install is missing files: " + ", ".join(missing_installed))
+        for notice in ("LICENSE", "THIRD_PARTY_NOTICES.md"):
+            installed = stage / "usr/share/stageforge" / notice
+            if not installed.is_file() or installed.read_bytes() != (ROOT / notice).read_bytes():
+                raise RuntimeError(f"installed notice missing or different: {notice}")
         if (stage / "etc/systemd/system/multi-user.target.wants").exists():
             raise RuntimeError("installer must not enable StageForge services automatically")
 
@@ -125,6 +129,7 @@ def qualify(*, build_dir: Path) -> dict[str, Any]:
             "systemdUnitsVerified": 2,
             "serviceAutoEnabled": False,
             "installedHelperRan": True,
+            "licenseNoticesInstalled": True,
             "uninstallPreservedState": True,
             "purgeRemovedState": True,
             "installOutput": first.stdout.strip()[-256:],

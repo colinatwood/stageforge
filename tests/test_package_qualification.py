@@ -45,6 +45,7 @@ class PackageQualificationTests(unittest.TestCase):
             self.assertEqual(report["stateDirectory"]["mode"], "0750")
             self.assertEqual(report["systemdUnitsVerified"], 2)
             self.assertFalse(report["serviceAutoEnabled"])
+            self.assertTrue(report["licenseNoticesInstalled"])
 
     def test_qualification_fails_without_built_engine(self):
         result = subprocess.run(

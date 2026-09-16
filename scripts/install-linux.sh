@@ -20,6 +20,7 @@ install -d "$DESTDIR$PREFIX/libexec/stageforge" "$DESTDIR$PREFIX/share/stageforg
 install -m 0755 "$BUILD_DIR/native/stageforge_engine" "$DESTDIR$PREFIX/libexec/stageforge/stageforge_engine"
 install -m 0755 "$ROOT/scripts/stageforge-plugin-host.py" "$ROOT/scripts/stageforge-qualify.py" "$ROOT/scripts/stageforge-hardware-doctor.py" "$ROOT/scripts/stageforge-http-qualify.py" "$ROOT/scripts/stageforge-witness-qualify.py" "$ROOT/scripts/stageforge-driver-catalog-audit.py" "$ROOT/scripts/stageforge-package-qualify.py" "$ROOT/scripts/stageforge-qualification-plan.py" "$ROOT/scripts/stageforge-qualification-review.py" "$ROOT/scripts/stageforge-qualification-status.py" "$ROOT/scripts/stageforge-device-permissions.py" "$DESTDIR$PREFIX/libexec/stageforge/"
 cp -R "$ROOT/backend" "$ROOT/frontend" "$ROOT/schemas" "$DESTDIR$PREFIX/share/stageforge/"
+install -m 0644 "$ROOT/LICENSE" "$ROOT/THIRD_PARTY_NOTICES.md" "$DESTDIR$PREFIX/share/stageforge/"
 install -m 0644 "$ROOT/packaging/driver-catalog.json" "$DESTDIR$PREFIX/share/stageforge/packaging/driver-catalog.json"
 install -m 0644 "$ROOT/packaging/stageforge-proxy.env.example" "$DESTDIR$PREFIX/share/stageforge/packaging/stageforge-proxy.env.example"
 install -m 0644 "$ROOT/packaging/stageforge-witness.env.example" "$DESTDIR$PREFIX/share/stageforge/packaging/stageforge-witness.env.example"
