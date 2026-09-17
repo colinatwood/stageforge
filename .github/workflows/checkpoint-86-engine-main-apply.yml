@@ -4,6 +4,7 @@ on:
     branches: [checkpoint-86-backlog-reconcile-and-audio-stream]
     paths:
       - scripts/apply-checkpoint-86-engine-main.py
+      - .github/workflows/checkpoint-86-engine-main-apply.yml
 permissions:
   contents: write
 jobs:
