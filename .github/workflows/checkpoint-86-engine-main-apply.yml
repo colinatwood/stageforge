@@ -1,7 +1,7 @@
 name: Checkpoint 86 Engine Main Apply
 on:
-  push:
-    branches: [checkpoint-86-backlog-reconcile-and-audio-stream]
+  pull_request:
+    branches: [main]
     paths:
       - scripts/apply-checkpoint-86-engine-main.py
       - .github/workflows/checkpoint-86-engine-main-apply.yml
@@ -9,6 +9,7 @@ permissions:
   contents: write
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'checkpoint-86-backlog-reconcile-and-audio-stream'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
