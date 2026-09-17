@@ -4,9 +4,12 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string_view>
 
 namespace stageforge {
+
+class NativeMidiInput;
 
 struct MidiInputMessage {
     std::uint64_t show_time_ns{0};
@@ -15,19 +18,12 @@ struct MidiInputMessage {
     std::uint8_t data2{0};
 };
 
-// Allocation-free MIDI 1 byte-stream parser. It supports channel voice
-// messages, running status, realtime bytes interleaved with messages, and
-// skips SysEx payloads. System-common messages are consumed but not emitted in
-// this first input slice because StageForge currently routes three-byte channel
-// events through its public control contract.
 class MidiByteParser {
 public:
     [[nodiscard]] bool feed(std::uint8_t byte, std::uint64_t show_time_ns, MidiInputMessage& out) noexcept;
     void reset() noexcept;
-
 private:
     [[nodiscard]] static std::uint8_t data_length(std::uint8_t status) noexcept;
-
     std::uint8_t running_status_{0};
     std::uint8_t message_status_{0};
     std::array<std::uint8_t, 2> data_{};
@@ -39,8 +35,8 @@ private:
 struct MidiDeviceDescriptor {
     std::array<char, 64> id{};
     std::array<char, 128> name{};
-    // Linux stores the /dev/snd path. Windows/macOS store a bounded hash-only
-    // identity token until the native event-input backend is wired here.
+    // Linux stores the /dev/snd path. Windows/macOS store only bounded,
+    // one-way identity evidence; raw native endpoint names never cross here.
     std::array<char, 256> path{};
     bool input{true};
     bool connected{true};
@@ -57,16 +53,14 @@ struct MidiIngressAuditStatus {
     bool physical_outputs_armed{false};
 };
 
-// Small platform-facing input registry. Registry/open/close operations belong
-// on the control thread. poll() is non-blocking. Linux uses raw /dev/snd MIDI
-// character devices. Windows/macOS enumerate hash-only native input identities;
-// attach/poll on those targets remains fail-closed until their event backend is
-// integrated, so enumeration can never masquerade as working MIDI I/O.
+// Registry/open/close operations belong on the control thread. poll() is
+// non-blocking. Linux owns raw /dev/snd handles. Windows/macOS own exact
+// hash-selected native endpoints through NativeMidiInput; no default endpoint
+// substitution is permitted.
 class MidiInputManager {
 public:
     MidiInputManager() noexcept;
     ~MidiInputManager();
-
     MidiInputManager(const MidiInputManager&) = delete;
     MidiInputManager& operator=(const MidiInputManager&) = delete;
 
@@ -74,13 +68,9 @@ public:
     [[nodiscard]] std::size_t device_count() const noexcept { return device_count_; }
     [[nodiscard]] const MidiDeviceDescriptor* device(std::size_t index) const noexcept;
     [[nodiscard]] bool attached(std::string_view device_id) const noexcept;
-
     [[nodiscard]] bool attach(std::string_view device_id, std::string_view player_id) noexcept;
     [[nodiscard]] bool detach(std::string_view device_id) noexcept;
     [[nodiscard]] std::size_t attached_count() const noexcept;
-
-    // Reads all currently available bytes from attached devices and appends
-    // parsed events to a bounded queue. Returns newly captured event count.
     std::size_t poll(std::uint64_t show_time_ns) noexcept;
     [[nodiscard]] bool pop(CapturedMidiInput& out) noexcept;
     [[nodiscard]] bool inject(std::string_view device_id, std::string_view player_id, const MidiInputMessage& message) noexcept;
@@ -93,6 +83,8 @@ private:
         std::array<char, 64> player_id{};
         MidiByteParser parser{};
         int handle{-1};
+        std::unique_ptr<NativeMidiInput> native{};
+        std::uint64_t native_drops_seen{0};
         bool attached{false};
     };
 
