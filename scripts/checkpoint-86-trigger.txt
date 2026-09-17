@@ -1,1 +1,1 @@
-Helper PR trigger for deterministic Checkpoint 86 engine integration.
+Trigger deterministic Checkpoint 86 engine integration from default-branch runner.
