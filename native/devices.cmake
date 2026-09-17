@@ -11,6 +11,7 @@ add_library(stageforge_devices
   audio_stream_lifecycle.cpp
   software_audio_render.cpp
   native_endpoint_stream.cpp
+  native_midi_input.cpp
   engine_native_audio_bridge.cpp
   engine_native_audio_request.cpp
   engine_native_audio_callbacks.cpp
@@ -49,6 +50,7 @@ set(STAGEFORGE_DEVICE_SMOKES
   native_playback
   native_capture
   native_selected_loss
+  native_midi_input
   engine_native_audio_bridge
   engine_native_audio_request
   engine_native_audio_callbacks
