@@ -12,7 +12,8 @@
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 ownership head: `7c27f84c85b37cfb807e68d8678acaf02f58593c`
-- Current manager-integration implementation head before this continuity commit: `85e0b5f252b4bc9a3d81bccf8ff56eb2baf4699e`
+- Manager-integration continuity head: `cfef6391ad5ffba44c6eef328399efe45f1559bc`
+- Current portability-fix implementation head: `924f43c7a6c4b7ae60338285f8fad009907dbddf`
 
 ## Checkpoint 86 verified state
 
@@ -24,18 +25,13 @@ The CP86 portability-fix continuity head was fully green in all three required P
 
 CP87 first added `NativeMidiInput`, with exact `sha256:` endpoint ownership, no name/index/default substitution, an 8192-byte callback SPSC ring, atomic drop accounting, explicit detach, and hosted-safe malformed/nonexistent-identity smoke coverage.
 
-The ownership continuity head `7c27f84c...` is now fully green: Platform Modules run `35274677549`, Native Device Lifecycle `35274677696`, and StageForge CI `35274677632` all completed successfully. This verifies hosted build/fail-closed behavior only, not physical MIDI hardware.
+The ownership continuity head `7c27f84c...` is fully green: Platform Modules run `35274677549`, Native Device Lifecycle `35274677696`, and StageForge CI `35274677632` all completed successfully. This verifies hosted build/fail-closed behavior only, not physical MIDI hardware.
 
-The next implementation slice is now committed through `85e0b5f2...`:
+Manager integration through `cfef6391...` adds exact-hash target-OS ownership behind `MidiInputManager::attach()`, independent per-device native ownership, bounded callback-byte draining through the existing parser/event queue, ingress-drop audit folding, and exact-identity topology-loss fencing on rescan. Linux raw-MIDI execution remains separate.
 
-- `MidiInputManager::attach()` extracts only the descriptor's exact `native=sha256:...` token and delegates target-OS ownership to `NativeMidiInput`;
-- each target-OS device slot owns its native input independently, preserving the manager's multi-device model;
-- `poll()` drains bounded callback bytes through the existing `MidiByteParser` and existing bounded `CapturedMidiInput` queue;
-- native callback byte drops are folded into ingress drop audit accounting;
-- rescans transfer ownership/parser/player state only when the exact hashed descriptor identity remains present; disappearance closes the old slot and therefore fails closed;
-- Linux raw-MIDI behavior remains separate and unchanged in execution model.
+PR workflows for `cfef6391...` completed with Platform Modules `35279980955` green and Native Device Lifecycle `35279980889` green. StageForge CI `35279980899` had Linux and Windows green but failed its macOS Apple Silicon build. The failure was compile-time only: libc++ instantiated `std::unique_ptr<NativeMidiInput>` destruction from `DeviceSlot` while `NativeMidiInput` was only forward-declared in `midi_input.hpp` (`invalid application of sizeof to an incomplete type`).
 
-The current manager-integration head has not yet produced PR workflow runs, so this slice is **implemented but not yet CI-verified**. Do not promote it to known-good until all required workflows complete successfully.
+Commit `924f43c7...` fixes that portability defect by including `stageforge/native_midi_input.hpp` in `midi_input.hpp` on Windows/macOS, making the owned type complete where `DeviceSlot` destruction is instantiated. This does not change runtime identity, attachment, queueing, or physical-output behavior. Fresh PR CI for this fix is pending; do not call the manager-integration slice green until all required workflows succeed.
 
 ## Verification entry points
 
@@ -61,4 +57,4 @@ Hosted/software evidence does not by itself qualify physical audio/MIDI hardware
 
 ## Exact next action
 
-Inspect all PR #23 workflows for the manager-integration continuity successor of `85e0b5f252b4bc9a3d81bccf8ff56eb2baf4699e` and fix every compile/test failure before calling the slice green. Once green, add hosted-safe `MidiInputManager` coverage that proves malformed/nonexistent target identities fail closed, parser/queue injection remains bounded, rescans revoke disappeared identities, and audit counters remain coherent without requiring physical MIDI hardware. Then continue to the next repository-visible software backlog dependency. Do not infer physical hardware qualification from hosted CI.
+Inspect all PR #23 workflows for portability-fix head `924f43c7a6c4b7ae60338285f8fad009907dbddf` and fix every compile/test failure before calling manager integration green. Once green, add hosted-safe `MidiInputManager` coverage proving malformed/nonexistent target identities fail closed, parser/queue injection remains bounded, rescans revoke disappeared identities, and audit counters remain coherent without requiring physical MIDI hardware. Then continue to the next repository-visible software backlog dependency. Do not infer physical hardware qualification from hosted CI.
