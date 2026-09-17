@@ -16,6 +16,7 @@ add_library(stageforge_devices
   engine_native_audio_callbacks.cpp
   engine_native_audio_runtime.cpp
   engine_native_audio_command.cpp
+  engine_native_audio_status.cpp
   engine_control_loop.cpp
   engine_control_stdin.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -53,6 +54,7 @@ set(STAGEFORGE_DEVICE_SMOKES
   engine_native_audio_callbacks
   engine_native_audio_runtime
   engine_native_audio_command
+  engine_native_audio_status
   engine_control_loop
   engine_control_stdin
   engine_native_audio_runtime_state)
