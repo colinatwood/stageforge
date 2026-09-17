@@ -1,1 +1,1 @@
-Trigger deterministic Checkpoint 86 engine integration from default-branch runner.
+Trigger registered deterministic Checkpoint 86 engine integration.
