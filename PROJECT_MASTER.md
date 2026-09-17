@@ -13,24 +13,29 @@
 - Active PR: **#21 — Checkpoint 86: integrate full-engine target-OS audio streaming**
 - Safety branch before this wave: `checkpoint-86-safety-848d28a`
 - Engine integration commit: `fc1bf23d6370391225675cd2ae715c242b9e8090`
-- Current branch cleanup head before this continuity update: `bb822fef5956455f0899c19b4a35842721cc7738`
+- Temporary patch machinery removed: `bb822fef5956455f0899c19b4a35842721cc7738`
+- Native status projection build head: `82b6e9fd7fd59ac6562d8fb0978b4b0370229312`
 
 ## Checkpoint 86 completed implementation
 
 The branch contains the target-OS native audio ownership bridge, strict hash-only identity decoding, four independent playback and capture slots, full-engine target linkage, callback/request/runtime adapters, bounded target-OS stdin readiness, and a same-owner-thread service-loop primitive. The lifecycle contract preserves exact selected identity, topology fencing, explicit rearm, no default endpoint substitution, and fail-closed unsupported conversion behavior.
 
-`native/src/engine_main.cpp` is now actually wired to the CP86 runtime on Windows/macOS. Commit `fc1bf23d6370391225675cd2ae715c242b9e8090` adds the native runtime/includes, bounded stdin service, target-OS playback/capture activation through exact selected identity tokens, native close paths for deactivate/shutdown, and native-running drift fencing while retaining Linux ALSA behavior.
+`native/src/engine_main.cpp` is wired to the CP86 runtime on Windows/macOS. Commit `fc1bf23d6370391225675cd2ae715c242b9e8090` adds the native runtime/includes, bounded stdin service, target-OS playback/capture activation through exact selected identity tokens, native close paths for deactivate/shutdown, and native-running drift fencing while retaining Linux ALSA behavior.
 
 The deterministic patch machinery used to land the large engine mutation was removed from the active branch in `bb822fef5956455f0899c19b4a35842721cc7738`. A temporary default-branch runner was also removed, restoring main's prior tree exactly. Do not reintroduce self-modifying CI as production infrastructure.
+
+The engine-wired branch was verified green at continuity commit `e5fa87747713ed29ad41197b1964a74d84a92e62`: StageForge CI run `35231552837`, Native Device Lifecycle run `35231552874`, and Platform Modules run `35231553171` all completed successfully.
+
+Status work then advanced through commits `81b3f7013a808dacca706a0348067b824d2195e1`, `bb83cf3df85b2d7be0ddd6743ef560f60707bbdc`, `6af2dd040d86afba1b39aed930fbb1985a10ef5c`, and `82b6e9fd7fd59ac6562d8fb0978b4b0370229312`. These add a typed `EndpointStreamStats` to engine-status projection plus smoke coverage and build integration. The projection deliberately exposes native `discontinuities` separately and contains no xrun field, preventing native endpoint discontinuities from being relabeled as ALSA xruns.
 
 These changes intentionally do not claim live endpoint qualification. `physicalOutputsArmed=false` remains the safe claim boundary.
 
 ## Remaining Checkpoint 86 scope
 
-- Report native playback/capture status from `EndpointStreamStats`, including verified configuration and discontinuities without mislabeling them as ALSA xruns.
-- Include native execution in global `STATUS` aggregation.
+- Consume `project_engine_native_audio_status()` in full-engine `AUDIO_INPUT_STATUS` and `AUDIO_STREAM_STATUS`, using native verified configuration/callback/discontinuity data and `xruns=0`.
+- Include native execution callbacks/running state and separate native discontinuity totals in global `STATUS` aggregation.
 - Add/extend full-engine command smoke coverage for target-OS rejection and hosted-safe lifecycle behavior.
-- Complete the CI matrix on the engine-wired branch and fix target-OS failures before treating the wave as verified. CI was queued on `bb822fef...` when this record was updated; do not call it green until conclusions are observed.
+- Observe the CI matrix for status-projection head `82b6e9fd...` and fix any target-OS failures before extending the engine status handlers.
 
 ## Following wave
 
@@ -65,4 +70,4 @@ Hosted/software evidence does not by itself qualify physical audio/MIDI hardware
 
 ## Exact next action
 
-Inspect StageForge CI run `35231482352` plus the matching Platform Modules and Native Device Lifecycle runs for `bb822fef5956455f0899c19b4a35842721cc7738`. Fix any compile/test failure from the engine integration. Once green, add native `AUDIO_INPUT_STATUS`, `AUDIO_STREAM_STATUS`, and global `STATUS` reporting using `EngineNativeAudioRuntime`/`EndpointStreamStats`, with native discontinuities reported separately and `xruns=0`; add hosted-safe full-engine command coverage; rerun all required CI. Then reconcile the four formal software rows and continue directly into the next unresolved software item, expected to be target-OS MIDI attach/poll/event I/O if its acceptance criteria remain open.
+Inspect the CI runs created for `82b6e9fd7fd59ac6562d8fb0978b4b0370229312` (or the continuity commit immediately following it). If green, wire the typed native status projection into `AUDIO_INPUT_STATUS`, `AUDIO_STREAM_STATUS`, and global `STATUS`; native discontinuities must remain separate and native xruns must remain zero. Add hosted-safe full-engine command smoke coverage, rerun all required CI, then reconcile AUD-035/AUD-036/DEV-033/DEV-034 and continue directly into the next unresolved software item, expected to be target-OS MIDI attach/poll/event I/O if its acceptance criteria remain open.
