@@ -18,6 +18,7 @@
 - Temporary status patcher removed: `aa57793e383b6c396d505e5f39f9ad5a089abcea`
 - Hosted-safe full-engine status smoke extended: `1b3bef985c1a5e1ef232d22411b9305eed7b80c2`
 - Linux status declaration portability fix: `b28152a5d7f1005c0c375e9d579e3cdee953102a`
+- Verified CP86 continuity head before reconciliation: `c3a956ccfa9b76f162a96f4c307d5e7c9c7285fc`
 
 ## Checkpoint 86 implementation
 
@@ -34,17 +35,16 @@ The cleaned head `9234a7d8...` exposed one Linux-only compile defect: the non-ta
 - Pre-status integration head `5e81eb92...` was fully green: StageForge CI `35237441286`, Native Device Lifecycle `35237441287`, Platform Modules `35237441283`.
 - Status-apply run `35243997245`: mutation job success; Windows x64 success; macOS Apple Silicon success; its Linux failure was the temporary `contents: write` CI-contract violation.
 - Cleaned head `9234a7d8...`: Platform Modules `35250234177` success; Native Device Lifecycle `35250234279` success; StageForge CI `35250234182` failed only in Linux compilation because `EngineNativeAudioStatus` was not declared there. Windows/macOS jobs succeeded.
-- Portability-fix head `b28152a5...` requires fresh three-workflow conclusions before CP86 is called complete.
+- Portability-fix continuity head `c3a956cc...` is fully green in all three required PR workflows. StageForge CI `35256713409` succeeded; Native Device Lifecycle `35256713592` succeeded; the same head has exactly three completed required workflow runs and all concluded success. This closes the CP86 hosted/software verification gate.
 
 ## Remaining Checkpoint 86 scope
 
-- Require StageForge CI, Platform Modules, and Native Device Lifecycle green on `b28152a5...` or its continuity successor.
-- Fix any remaining command-smoke or compile failure.
-- Reconcile AUD-035/AUD-036/DEV-033/DEV-034 against exact acceptance criteria before marking rows Done.
+- Reconcile AUD-035/AUD-036/DEV-033/DEV-034 against the authoritative backlog acceptance criteria before marking rows Done. Those row definitions are not stored in the repository text currently available through Git, so no row is closed merely from inference.
+- Preserve qualification boundaries: CP86 hosted evidence verifies software/build/command behavior only, not physical hardware, licensed plugins, deployment, packages, or live external-environment qualification.
 
 ## Following wave
 
-After CP86 verification/reconciliation, continue directly into the highest-leverage unresolved software dependency. Current evidence points to target-OS MIDI attach/poll/event I/O: target-OS MIDI enumeration/identity exists, while full-engine `MIDI_ATTACH`/`MIDI_INPUT_POLL` still depend on the recovered `MidiInputManager` execution path. Non-Linux `IsolatedPluginHost` verification-to-launch wiring remains another candidate and must be ordered by formal backlog acceptance criteria.
+After CP86 backlog reconciliation, continue directly into target-OS MIDI attach/poll/event I/O. Target-OS MIDI enumeration and hash-only identity already exist, but `MidiInputManager::attach()` and `poll()` remain Linux-only execution paths: Windows/macOS currently enumerate descriptors yet fail closed on attach and perform no native event polling. This is the highest-leverage concrete software gap visible from repository state. Non-Linux `IsolatedPluginHost` verification-to-launch wiring remains another candidate and must be ordered by formal backlog acceptance criteria when those criteria are available.
 
 ## Verification entry points
 
@@ -75,4 +75,4 @@ Hosted/software evidence does not by itself qualify physical audio/MIDI hardware
 
 ## Exact next action
 
-Observe all three required workflow runs for the Linux portability fix at `b28152a5d7f1005c0c375e9d579e3cdee953102a` (or this continuity successor). Fix any failure. Once green, reconcile AUD-035/AUD-036/DEV-033/DEV-034 against exact acceptance criteria and close only rows actually satisfied by CP85/CP86 evidence. Then continue directly into target-OS MIDI attach/poll/event I/O if it remains an open software row.
+Treat CP86 hosted/software verification as green. Obtain the authoritative acceptance definitions for AUD-035/AUD-036/DEV-033/DEV-034 from the backlog source before changing their status; do not infer Done from checkpoint labels alone. In parallel, begin the next unambiguous software implementation wave by adding target-OS MIDI input ownership and event ingestion behind `MidiInputManager`: exact selected hashed identity, explicit attach/detach, bounded queueing, Windows/macOS native callback/poll adaptation, fail-closed topology loss/revocation, hosted-safe smoke coverage, and no physical-hardware qualification claim.
