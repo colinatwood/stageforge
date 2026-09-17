@@ -61,6 +61,10 @@ with tempfile.TemporaryDirectory(prefix='stageforge-stdio-') as temporary:
     require_prefix(status_line, 'OK ')
     if 'lightingNetworkArmed=0' not in status_line:
         raise RuntimeError('native status did not confirm disarmed lighting')
+    if platform.system() in {'Windows', 'Darwin'}:
+        status = fields(status_line)
+        if 'audioDiscontinuities' not in status or 'audioInputDiscontinuities' not in status:
+            raise RuntimeError('target-OS global status omitted native discontinuity counters')
 
     audio_scan = transact('AUDIO_SCAN')
     require_prefix(audio_scan, 'OK count=')
@@ -94,6 +98,23 @@ with tempfile.TemporaryDirectory(prefix='stageforge-stdio-') as temporary:
     if system == 'Windows' and any(item.get('backend') not in {'null', 'wasapi'} for item in audio_devices):
         raise RuntimeError(f'Windows full engine exposed unexpected audio backend: {audio_devices!r}')
 
+    native_status_checked = False
+    native_rejection_checked = False
+    if system in {'Windows', 'Darwin'}:
+        input_status = transact('AUDIO_INPUT_STATUS 0')
+        output_status = transact('AUDIO_STREAM_STATUS 0')
+        require_prefix(input_status, 'OK ')
+        require_prefix(output_status, 'OK ')
+        for label, line in [('input', input_status), ('output', output_status)]:
+            values = fields(line)
+            if 'discontinuities' not in values or 'xruns' not in values:
+                raise RuntimeError(f'{label} native status omitted discontinuity/xrun separation: {line!r}')
+        native_status_checked = True
+        # Invalid target-OS activation must fail closed without requiring or arming hardware.
+        invalid = transact('AUDIO_ACTIVATE 0 48000 256 2 FLOAT_LE 0')
+        require_prefix(invalid, 'ERR ')
+        native_rejection_checked = True
+
     require_prefix(transact('NO_SUCH_COMMAND'), 'ERR code=unsupported')
     require_prefix(transact('QUIT'), 'OK bye=1')
     process.wait(timeout=20)
@@ -102,7 +123,7 @@ with tempfile.TemporaryDirectory(prefix='stageforge-stdio-') as temporary:
         raise RuntimeError(f'native stdio contract failed: exit={process.returncode}, stderr={stderr[:1000]!r}')
 
 report = {
-    'documentType':'org.upp.native-engine-stdio-smoke', 'schemaVersion':2,
+    'documentType':'org.upp.native-engine-stdio-smoke', 'schemaVersion':3,
     'sourceCommit':subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
     'githubRunId':os.environ.get('GITHUB_RUN_ID'), 'hostOs':platform.system(),
     'binarySha256':hashlib.sha256(engine.read_bytes()).hexdigest(),
@@ -112,6 +133,8 @@ report = {
     'midiInputDeviceCount':midi_count, 'targetOsMidiInputDeviceCount':len(target_midi),
     'targetOsIdentityTokensHashOnly':all(valid_identity_token(item.get('address','')) for item in target_audio)
         and all(valid_identity_token(item.get('path',''), midi=True) for item in target_midi),
+    'nativeAudioStatusChecked':native_status_checked,
+    'nativeAudioFailClosedActivationChecked':native_rejection_checked,
     'physicalOutputsArmed':False, 'physicalHardwareQualified':False,
     'audioStreamingQualified':False, 'midiInputQualified':False,
 }
