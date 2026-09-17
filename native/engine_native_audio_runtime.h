@@ -44,6 +44,13 @@ public:
     bool explicit_rearm_playback(std::size_t slot);
     bool explicit_rearm_capture(std::size_t slot);
 
+    bool playback_running(std::size_t slot) const noexcept {
+        return slot < kPlaybackSlots && playback_stats(slot).native_running;
+    }
+    bool capture_running(std::size_t slot) const noexcept {
+        return slot < kCaptureSlots && capture_stats(slot).native_running;
+    }
+
     const std::string& last_error() const noexcept { return last_error_; }
 
 private:
