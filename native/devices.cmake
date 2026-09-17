@@ -10,7 +10,15 @@ add_library(stageforge_devices
   audio_preflight.cpp
   audio_stream_lifecycle.cpp
   software_audio_render.cpp
-  native_endpoint_stream.cpp)
+  native_endpoint_stream.cpp
+  engine_native_audio_bridge.cpp
+  engine_native_audio_request.cpp
+  engine_native_audio_callbacks.cpp
+  engine_native_audio_runtime.cpp
+  engine_native_audio_command.cpp
+  engine_native_audio_status.cpp
+  engine_control_loop.cpp
+  engine_control_stdin.cpp)
 target_include_directories(stageforge_devices PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(WIN32)
@@ -33,42 +41,34 @@ else()
   message(FATAL_ERROR "Device monitor requires Windows or macOS")
 endif()
 
-add_executable(device_lifecycle_smoke device_lifecycle_smoke.cpp)
-target_link_libraries(device_lifecycle_smoke PRIVATE stageforge_devices)
-add_executable(device_execution_fence_smoke device_execution_fence_smoke.cpp)
-target_link_libraries(device_execution_fence_smoke PRIVATE stageforge_devices)
-add_executable(audio_preflight_smoke audio_preflight_smoke.cpp)
-target_link_libraries(audio_preflight_smoke PRIVATE stageforge_devices)
-add_executable(audio_stream_lifecycle_smoke audio_stream_lifecycle_smoke.cpp)
-target_link_libraries(audio_stream_lifecycle_smoke PRIVATE stageforge_devices)
-add_executable(native_playback_smoke native_playback_smoke.cpp)
-target_link_libraries(native_playback_smoke PRIVATE stageforge_devices)
-add_executable(native_capture_smoke native_capture_smoke.cpp)
-target_link_libraries(native_capture_smoke PRIVATE stageforge_devices)
-add_executable(native_selected_loss_smoke native_selected_loss_smoke.cpp)
-target_link_libraries(native_selected_loss_smoke PRIVATE stageforge_devices)
-if(APPLE AND STAGEFORGE_DEVICE_ASAN)
-  foreach(target device_lifecycle_smoke device_execution_fence_smoke audio_preflight_smoke audio_stream_lifecycle_smoke native_playback_smoke native_capture_smoke native_selected_loss_smoke)
-    target_compile_options(${target} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-    target_link_options(${target} PRIVATE -fsanitize=address)
-  endforeach()
-endif()
+set(STAGEFORGE_DEVICE_SMOKES
+  device_lifecycle
+  device_execution_fence
+  audio_preflight
+  audio_stream_lifecycle
+  native_playback
+  native_capture
+  native_selected_loss
+  engine_native_audio_bridge
+  engine_native_audio_request
+  engine_native_audio_callbacks
+  engine_native_audio_runtime
+  engine_native_audio_command
+  engine_native_audio_status
+  engine_control_loop
+  engine_control_stdin
+  engine_native_audio_runtime_state)
+foreach(smoke IN LISTS STAGEFORGE_DEVICE_SMOKES)
+  add_executable(${smoke}_smoke ${smoke}_smoke.cpp)
+  target_link_libraries(${smoke}_smoke PRIVATE stageforge_devices)
+  if(APPLE AND STAGEFORGE_DEVICE_ASAN)
+    target_compile_options(${smoke}_smoke PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(${smoke}_smoke PRIVATE -fsanitize=address)
+  endif()
+endforeach()
 
 enable_testing()
-add_test(NAME device_lifecycle COMMAND device_lifecycle_smoke)
-set_tests_properties(device_lifecycle PROPERTIES TIMEOUT 30)
-add_test(NAME device_execution_fence COMMAND device_execution_fence_smoke)
-set_tests_properties(device_execution_fence PROPERTIES TIMEOUT 30)
-add_test(NAME audio_preflight COMMAND audio_preflight_smoke)
-set_tests_properties(audio_preflight PROPERTIES TIMEOUT 30)
-add_test(NAME audio_stream_lifecycle COMMAND audio_stream_lifecycle_smoke)
-set_tests_properties(audio_stream_lifecycle PROPERTIES TIMEOUT 30)
-
-add_test(NAME native_playback COMMAND native_playback_smoke)
-set_tests_properties(native_playback PROPERTIES TIMEOUT 30)
-
-add_test(NAME native_capture COMMAND native_capture_smoke)
-set_tests_properties(native_capture PROPERTIES TIMEOUT 30)
-
-add_test(NAME native_selected_loss COMMAND native_selected_loss_smoke)
-set_tests_properties(native_selected_loss PROPERTIES TIMEOUT 30)
+foreach(smoke IN LISTS STAGEFORGE_DEVICE_SMOKES)
+  add_test(NAME ${smoke} COMMAND ${smoke}_smoke)
+  set_tests_properties(${smoke} PROPERTIES TIMEOUT 30)
+endforeach()

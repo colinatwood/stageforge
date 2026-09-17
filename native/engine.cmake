@@ -50,7 +50,20 @@ endif()
 
 add_executable(stageforge_engine src/engine_main.cpp)
 target_link_libraries(stageforge_engine PRIVATE stageforge_core)
+# Checkpoint 86: the full engine consumes the target-OS endpoint ownership bridge
+# on Windows/macOS. stageforge_devices is defined by devices.cmake before this file
+# is included; Linux keeps its existing ALSA execution path while still compiling
+# the portable identity/fence contract.
+if(TARGET stageforge_devices)
+    target_link_libraries(stageforge_engine PRIVATE stageforge_devices)
+endif()
 target_compile_features(stageforge_engine PRIVATE cxx_std_20)
+# EngineNativeAudioStatus is a platform-neutral value type used by the command
+# status fallback on Linux as well as by native projection on Windows/macOS. The
+# runtime implementation remains target-OS-only; Linux only needs the declaration.
+if(UNIX AND NOT APPLE)
+    target_compile_options(stageforge_engine PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/engine_native_audio_status.h)
+endif()
 if(MSVC)
     target_compile_options(stageforge_engine PRIVATE /W4 /permissive-)
     # The recovered engine owns several megabytes of fixed-capacity render scratch
