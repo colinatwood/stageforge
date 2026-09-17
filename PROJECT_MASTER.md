@@ -11,15 +11,15 @@
 - Active work: **Checkpoint 86 — full-engine target-OS audio streaming integration**
 - Active branch: `checkpoint-86-backlog-reconcile-and-audio-stream`
 - Active PR: **#21 — Checkpoint 86: integrate full-engine target-OS audio streaming**
-- Latest verified Checkpoint 86 branch commit: `8714e824790b35d8260436fe1eecd5688abea506`
+- Latest verified Checkpoint 86 branch commit: `07d7006c3f24e89164bb30e53a417db47d7d2ed7`
 
 ## Latest completed work
 
 Checkpoint 85 was merged to `main`. The full engine bridges target-OS audio/MIDI device enumeration through the native device monitor and carries privacy-preserving hashed identity metadata across the engine boundary.
 
-Checkpoint 86 now has the target-OS engine/native ownership bridge, hash-only identity decoding, four independent playback and four capture slots, target-OS device target ordering/linkage for the recovered full engine, and a runtime facade/control-loop integration boundary prepared on the active branch. The bridge preserves exact selected identity, reconnect-strength semantics, topology fencing, explicit rearm, and no-default-fallback behavior.
+Checkpoint 86 now has the target-OS engine/native ownership bridge, hash-only identity decoding, four independent playback and four capture slots, target-OS device target ordering/linkage for the recovered full engine, runtime facade, bounded stdin readiness support, same-thread lifecycle service-loop primitives, hosted-safe stdin smoke coverage, and native playback/capture running-state queries. The bridge preserves exact selected identity, reconnect-strength semantics, topology fencing, explicit rearm, and no-default-fallback behavior.
 
-Commit `8714e824790b35d8260436fe1eecd5688abea506` is the latest verified implementation checkpoint. All three GitHub Actions workflows completed successfully: StageForge CI, StageForge Native Device Lifecycle, and StageForge Platform Modules. StageForge CI passed Linux RT release gate, Windows x64 build/platform smoke, and macOS Apple Silicon build/platform smoke, including native-engine builds, native tests, target-OS smoke/capture evidence, and authenticated engine command dispatch.
+Commit `07d7006c3f24e89164bb30e53a417db47d7d2ed7` is the latest verified implementation checkpoint. The Checkpoint 86 GitHub Actions workflows completed successfully for this head, including the platform and native-device suites. The hosted-safe follow-up does not claim a physical endpoint or audio-quality qualification.
 
 ## Next-wave selection rule
 
@@ -33,10 +33,10 @@ Checkpoint 86 remains the highest-leverage task: finish recovered-engine command
 
 ## Checkpoint 86 remaining scope
 
+- Wire `engine_control_stdin` and `EngineNativeAudioRuntime::service()` into `native/src/engine_main.cpp` so target-OS topology fencing remains serviced during idle command periods on the same owner thread.
 - Finish full-engine `AUDIO_ACTIVATE` and `AUDIO_INPUT_ACTIVATE` target-OS dispatch while retaining ALSA behavior on Linux.
 - Bind native playback/capture callbacks to the recovered render/capture lifetime contracts.
-- Update deactivate/status/drift paths for native stream state.
-- Service/reconcile the native bridge regularly without violating native owner-thread requirements; the existing blocking stdin command loop must not leave topology fencing dormant during idle periods.
+- Update deactivate/status/drift paths for native stream state, using the runtime running-state queries rather than inferring execution from selection alone.
 - Preserve exact selected-device identity, no-default-fallback behavior, topology-loss fencing and explicit rearm.
 - Keep conversion/adaptation fail-closed unless an existing recovered conversion plan explicitly authorizes it.
 - Add/extend full-engine target-OS smoke/contract tests for activation, capture lifecycle, loss/recovery and rejection paths where hosted endpoints permit them.
@@ -82,12 +82,12 @@ Hosted/software evidence does **not** by itself qualify physical audio/MIDI hard
 - **Current checkpoint:** 86 — full-engine target-OS audio streaming integration
 - **Branch / PR:** `checkpoint-86-backlog-reconcile-and-audio-stream`; PR #21 open as draft
 - **Last known-good main commit:** `84f6da331a363a4638a7d17052796cbc3f861cf0`
-- **Latest verified branch commit:** `8714e824790b35d8260436fe1eecd5688abea506`
-- **Tests / CI:** all three workflows green for `8714e824...`; Linux, Windows x64, and macOS Apple Silicon StageForge CI jobs all passed.
-- **What changed:** native bridge ownership/identity/slot work plus full-engine target linkage and runtime integration scaffolding are verified in hosted CI.
-- **Open implementation issue:** the recovered command loop blocks on stdin. Native lifecycle `service()`/reconcile must continue while idle, and it must respect the native stream owner-thread contract rather than being casually moved to an unrelated service thread.
+- **Latest verified branch commit:** `07d7006c3f24e89164bb30e53a417db47d7d2ed7`
+- **Tests / CI:** Checkpoint 86 workflows green for `07d7006c...`, including hosted platform/native-device coverage.
+- **What changed:** native bridge ownership/identity/slot work, full-engine target linkage, runtime facade, same-thread service-loop primitives, bounded target-OS stdin readiness, hosted-safe stdin smoke, and runtime stream-running queries are verified.
+- **Open implementation issue:** `native/src/engine_main.cpp` still uses blocking `std::getline`. The prepared bounded stdin wait and native runtime service are not yet wired into that recovered command loop, and `AUDIO_ACTIVATE` / `AUDIO_INPUT_ACTIVATE` still dispatch only to ALSA after selection.
 - **External evidence still needed:** physical audio quality/hardware qualification; hosted Windows may expose no usable audio endpoint; licensed plugin/deployment/owner decisions remain separate.
-- **Exact next action:** modify `native/src/engine_main.cpp` to bind the native playback/capture callback adapters and target-OS activation/deactivation/status dispatch, together with a same-owner-thread periodic command/service loop so topology loss/revocation remains fail-closed during idle command periods. Then run the complete CI matrix and fix any target-OS failures before updating PR #21.
+- **Exact next action:** modify `native/src/engine_main.cpp` to include/instantiate the target-OS runtime, replace target-OS blocking stdin waiting with bounded readiness plus same-thread `native_audio.service(0)`, then bind playback/capture activation/deactivation/status/drift dispatch to WASAPI/CoreAudio while preserving Linux ALSA and fail-closed conversion/identity behavior. Run the complete CI matrix before promoting the checkpoint.
 
 ## Backup policy
 
