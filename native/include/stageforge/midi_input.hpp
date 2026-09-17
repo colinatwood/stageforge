@@ -6,11 +6,12 @@
 #include <cstdint>
 #include <memory>
 #include <string_view>
+#if defined(_WIN32) || defined(__APPLE__)
+#include "stageforge/native_midi_input.hpp"
+#endif
 
 namespace stageforge {
-#if defined(_WIN32) || defined(__APPLE__)
-class NativeMidiInput;
-#else
+#if !defined(_WIN32) && !defined(__APPLE__)
 struct NullNativeMidiInput { void reset() noexcept {} };
 #endif
 struct MidiInputMessage { std::uint64_t show_time_ns{0}; std::uint8_t status{0},data1{0},data2{0}; };
