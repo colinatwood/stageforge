@@ -21,6 +21,13 @@ int main() {
     SF_CHECK(!stageforge::midi_attachment_owner_matches("", "player-a"));
     SF_CHECK(!stageforge::midi_attachment_owner_matches("player-a", ""));
 
+    // Detach queue filtering is likewise an exact-identity decision. Events for
+    // the detached endpoint are stale; unrelated endpoints survive. This tests
+    // the production predicate without pretending CI opened physical hardware.
+    SF_CHECK(!stageforge::midi_event_survives_detach("device-a", "device-a"));
+    SF_CHECK(stageforge::midi_event_survives_detach("device-a", "device-b"));
+    SF_CHECK(!stageforge::midi_event_survives_detach("", "device-b"));
+
     const stageforge::MidiInputMessage injected{123456789ULL, 0x90, 60, 100};
     SF_CHECK(manager.inject("hosted:midi", "hosted-player", injected));
     SF_CHECK(manager.queued() == 1);
