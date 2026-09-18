@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation/test head: `df5b486c9672f965ed74cadc86e6ecb0c357dbdf`
-- Current implementation/test head: `454425a9dba2b57a296fbb1d55fb247fe88a6526`
+- Last fully green CP87 implementation/test head: `454425a9dba2b57a296fbb1d55fb247fe88a6526`
+- Current implementation/test head: `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08`
 
 ## Checkpoint 86 verified state
 
@@ -44,9 +44,11 @@ Commit `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d` adds an immediate WinMM callba
 
 Commit `df5b486c9672f965ed74cadc86e6ecb0c357dbdf` adds the corresponding CoreMIDI notification fence. The MIDI client now receives topology notifications; removal of the exact selected source atomically revokes the attachment, subsequent packet callbacks are ignored, `attached()` fails closed, and `poll_bytes()` cannot release stale queued bytes. The selected `MIDIEndpointRef` is mirrored into an atomic integer solely for notification-thread identity comparison, while control-thread detach clears it before disposing CoreMIDI ownership. Linux and WinMM behavior are unchanged. This implementation head is fully green: Platform Modules `35349322466`, Native Device Lifecycle `35349322471`, and StageForge CI `35349322591`.
 
-Commit `454425a9dba2b57a296fbb1d55fb247fe88a6526` strengthens the target-OS `NativeMidiInput` hosted smoke around the revocation/cleanup contract without adding a production identity-bypass seam: null/zero-capacity polling fails closed, malformed and nonexistent exact hashes cannot acquire or release bytes, and repeated detach remains safe/idempotent for manager cleanup after asynchronous topology loss. Fresh CI is pending.
+Commit `454425a9dba2b57a296fbb1d55fb247fe88a6526` strengthens the target-OS `NativeMidiInput` hosted smoke around the revocation/cleanup contract without adding a production identity-bypass seam: null/zero-capacity polling fails closed, malformed and nonexistent exact hashes cannot acquire or release bytes, and repeated detach remains safe/idempotent for manager cleanup after asynchronous topology loss. It is fully green: Platform Modules `35353632131`, Native Device Lifecycle `35353632062`, and StageForge CI `35353632053`.
 
-Next action: inspect/fix CI for `454425a9...`; if green, inspect remaining CP87 software-only gaps and close any deterministic hosted-safe lifecycle coverage still missing. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08` closes a mid-poll asynchronous revocation race in the target-OS manager path. After every native `poll_bytes()` drain attempt, `MidiInputManager::poll()` rechecks native attachment before parsing the returned chunk. If WinMM/CoreMIDI revokes ownership during that drain, the slot is closed and those bytes are discarded rather than becoming `CapturedMidiInput`; the post-loop drop sample is skipped after closure. Linux behavior is unchanged. Fresh CI is pending.
+
+Next action: inspect/fix CI for `d2c56d3f...`; if green, inspect remaining CP87 software-only gaps and close any deterministic hosted-safe lifecycle coverage still missing. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
