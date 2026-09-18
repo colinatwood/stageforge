@@ -14,19 +14,27 @@
 int main() {
     stageforge::MidiInputManager manager;
 
-    // Attachment reuse is an exact player-ownership decision independent of
-    // physical endpoint availability, so keep this boundary deterministic in CI.
     SF_CHECK(stageforge::midi_attachment_owner_matches("player-a", "player-a"));
     SF_CHECK(!stageforge::midi_attachment_owner_matches("player-a", "player-b"));
     SF_CHECK(!stageforge::midi_attachment_owner_matches("", "player-a"));
     SF_CHECK(!stageforge::midi_attachment_owner_matches("player-a", ""));
 
-    // Detach queue filtering is likewise an exact-identity decision. Events for
-    // the detached endpoint are stale; unrelated endpoints survive. This tests
-    // the production predicate without pretending CI opened physical hardware.
     SF_CHECK(!stageforge::midi_event_survives_detach("device-a", "device-a"));
     SF_CHECK(stageforge::midi_event_survives_detach("device-a", "device-b"));
     SF_CHECK(!stageforge::midi_event_survives_detach("", "device-b"));
+
+    constexpr std::string_view canonical_hash =
+        "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    constexpr std::string_view winmm_identity =
+        "winmm:hash:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    constexpr std::string_view coremidi_identity =
+        "coremidi:hash:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    SF_CHECK(stageforge::midi_native_hash_from_identity(winmm_identity, "winmm") == canonical_hash);
+    SF_CHECK(stageforge::midi_native_hash_from_identity(coremidi_identity, "coremidi") == canonical_hash);
+    SF_CHECK(stageforge::midi_native_hash_from_identity(winmm_identity, "coremidi").empty());
+    SF_CHECK(stageforge::midi_native_hash_from_identity("prefix:winmm:hash:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "winmm").empty());
+    SF_CHECK(stageforge::midi_native_hash_from_identity("winmm:name:hash:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "winmm").empty());
+    SF_CHECK(stageforge::midi_native_hash_from_identity("winmm:hash:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdeF", "winmm").empty());
 
     const stageforge::MidiInputMessage injected{123456789ULL, 0x90, 60, 100};
     SF_CHECK(manager.inject("hosted:midi", "hosted-player", injected));
