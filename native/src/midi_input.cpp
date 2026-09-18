@@ -126,9 +126,6 @@ bool MidiInputManager::attach(std::string_view device_id,std::string_view player
     auto* slot=find_slot(device_id); if (!slot || player_id.empty() || player_id.size()>=slot->player_id.size()) return false;
     if (slot->attached) {
         if (midi_attachment_owner_matches(slot->player_id.data(), player_id)) return true;
-        // Attachment owns an exact device/player pair. Reassigning the player is
-        // a new ownership epoch and must explicitly detach first so queued bytes,
-        // parser running status, and native callbacks cannot cross owners.
         return false;
     }
 #if defined(__linux__)
@@ -144,7 +141,21 @@ bool MidiInputManager::attach(std::string_view device_id,std::string_view player
     slot->attached=true; copy_text(slot->player_id,player_id); slot->parser.reset(); return true;
 }
 
-bool MidiInputManager::detach(std::string_view device_id) noexcept { auto* slot=find_slot(device_id); if (!slot) return false; close_slot(*slot); return true; }
+bool MidiInputManager::detach(std::string_view device_id) noexcept {
+    auto* slot=find_slot(device_id); if (!slot) return false;
+    close_slot(*slot);
+#if defined(_WIN32) || defined(__APPLE__)
+    // Detach ends this exact device ownership epoch. Events captured before the
+    // boundary must not survive to a later attach of the same hashed endpoint.
+    const auto queued_before_detach=queue_size_;
+    for(std::size_t i=0;i<queued_before_detach;++i){
+        CapturedMidiInput event{};
+        (void)pop(event);
+        if(std::string_view(event.device_id.data())!=device_id)(void)queue(event);
+    }
+#endif
+    return true;
+}
 std::size_t MidiInputManager::attached_count() const noexcept { std::size_t n=0; for(std::size_t i=0;i<device_count_;++i) if(devices_[i].attached) ++n; return n; }
 
 bool MidiInputManager::queue(const CapturedMidiInput& event) noexcept {
@@ -192,9 +203,6 @@ std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
                 slot.parser.reset();
                 overflowed=true;
             }
-            // Once any byte is lost, the remaining bytes in this bounded drain
-            // cannot be proven to share message boundaries with the parser state.
-            // Discard them for this poll rather than synthesizing a mapped event.
             if(overflowed) continue;
             for(std::size_t index=0;index<count;++index){ MidiInputMessage parsed{}; if(!slot.parser.feed(bytes[index],show_time_ns,parsed))continue;
                 CapturedMidiInput event{}; event.device_id=slot.descriptor.id; event.player_id=slot.player_id; event.message=parsed;
