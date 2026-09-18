@@ -61,6 +61,16 @@ int main() {
         SF_CHECK(id.find(":index:") == std::string_view::npos);
     }
 
+    // A target-OS rescan is also a revocation fence. Deterministically queue an
+    // event for an exact hashed identity that cannot be in the current snapshot,
+    // then prove the rescan purges it before learn/mapped-action consumers can pop it.
+    constexpr auto stale_id = "midi:hosted:hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    SF_CHECK(manager.inject(stale_id, "revoked-player", injected));
+    SF_CHECK(manager.queued() == 1);
+    (void)manager.scan();
+    SF_CHECK(manager.queued() == 0);
+    SF_CHECK(!manager.pop(captured));
+
     // Hosted-safe exact-identity fence: a syntactically valid but nonexistent
     // native hash must never fall back to a name, index, or default MIDI input.
     constexpr auto missing = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
