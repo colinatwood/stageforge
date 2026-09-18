@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 test head: `a926393236304c1f897ab7c1159e110ccd8b55fb`
-- Current exact-identity/topology implementation head: `5192e0aacf37a53afef3741be2656004a6dc1907`
+- Last fully green CP87 test head: `466686076402edd6a77c7f804d7dc3f949964b19`
+- Current implementation/test head: `15cecff1c919b8d0e2e3a3c7b409b63e490b9be8`
 
 ## Checkpoint 86 verified state
 
@@ -30,9 +30,11 @@ Commit `1f31808bf2f2ec988bb238c8c8beb071568bfbb2` expands descriptor/captured de
 
 CI for `713c1959...`: Platform Modules `35313308917` and Native Device Lifecycle `35313308915` are green. StageForge CI `35313308941` has a green Linux RT release gate and successful Windows/macOS native builds; macOS native tests and platform smoke are green, but Windows fails in native tests and macOS later fails the engine authentication/command-dispatch step. The widened `CapturedMidiInput` made the rescan's temporary `std::array<CapturedMidiInput, queue_capacity>` roughly 400+ KiB while the manager itself also owns a queue of that size. This is especially unsafe against the default Windows thread stack and is unnecessary for a bounded ring.
 
-Commit `5192e0aacf37a53afef3741be2656004a6dc1907` removes that second queue-capacity stack allocation. Target-OS topology revocation now filters the existing bounded ring in place over exactly the pre-scan queue count, preserving surviving events without heap allocation or queue reordering and leaving Linux behavior unchanged. Fresh CI for `5192e0a...` is pending; do not call this repair green until workflows complete. The macOS authentication/dispatch failure from `35313308941` may be independent of the MIDI native-test failure and must be inspected separately if it reproduces.
+Commit `5192e0aacf37a53afef3741be2656004a6dc1907` removes that second queue-capacity stack allocation. Target-OS topology revocation now filters the existing bounded ring in place over exactly the pre-scan queue count, preserving surviving events without heap allocation or queue reordering and leaving Linux behavior unchanged. Continuity head `466686076402edd6a77c7f804d7dc3f949964b19` is fully green: Platform Modules `35317755632`, Native Device Lifecycle `35317755604`, and StageForge CI `35317755653`. The earlier macOS authentication/dispatch failure did not reproduce.
 
-Next action: inspect/fix fresh CI for `5192e0a...`; once the exact-identity/topology slice is green, verify the complete software route `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end with hosted-safe injection and no hardware claim. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `15cecff1c919b8d0e2e3a3c7b409b63e490b9be8` adds a dedicated hosted-safe end-to-end software smoke wired into CTest. It injects a `CapturedMidiInput` through `MidiInputManager`, resolves the same stable device token used by the engine, matches it in `MidiLearnRouter`, converts the resulting action through `MidiMappedActionDispatcher`, submits it to `ShowExecutionLoop`, drains the due event, and verifies the authoritative automation payload plus fail-closed physical-output status. Fresh CI for this test head had not appeared at the first post-commit inspection; do not call the new smoke green until workflows complete.
+
+Next action: inspect/fix CI for `15cecff1...`. If green, inspect the remaining CP87 acceptance gap against repository behavior, especially whether target-OS native attach/poll and topology revocation need any additional deterministic seam beyond the now-green ownership/topology implementation and end-to-end hosted software route. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
