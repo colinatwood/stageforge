@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation head: `686171cb5d0f4f4cdc53a3ea199b5507c025d918`
-- Current implementation/test head: `81ec3033c5ce8abc6c44576ae09beeba355ab23d`
+- Last fully green CP87 implementation head: `81ec3033c5ce8abc6c44576ae09beeba355ab23d`
+- Current implementation/test head: `d64acca679e625e0f02965026e6f731b26577177`
 
 ## Checkpoint 86 verified state
 
@@ -36,9 +36,11 @@ Commit `b4a40fc8816b32aed7e1cf87ca6fe69697d88ff0` bounds Windows/macOS native in
 
 Commit `686171cb5d0f4f4cdc53a3ea199b5507c025d918` resets `NativeMidiInput` callback-ring drop accounting at every valid attach attempt, alongside ring cursors, so overflow telemetry cannot leak across exact-identity ownership epochs. It is fully green: Native Device Lifecycle `35332512557`, StageForge CI `35332512577`, and Platform Modules `35332512574`.
 
-Commit `81ec3033c5ce8abc6c44576ae09beeba355ab23d` adds fail-closed parser handling for target-OS native ring overflow. `MidiInputManager::poll()` now samples drop accounting after each bounded native drain chunk; if any byte was lost since the previous sample it accounts the loss, resets parser/running-status state, and discards the rest of that poll's native bytes for the affected device rather than allowing an overflow-corrupted byte stream to synthesize a MIDI message. A final drop sample resets parser state for loss racing the end of the bounded drain. Linux behavior is unchanged. Fresh CI for this implementation head is pending.
+Commit `81ec3033c5ce8abc6c44576ae09beeba355ab23d` adds fail-closed parser handling for target-OS native ring overflow. `MidiInputManager::poll()` samples drop accounting after each bounded native drain chunk; if any byte was lost since the previous sample it accounts the loss, resets parser/running-status state, and discards the rest of that poll's native bytes for the affected device rather than allowing an overflow-corrupted byte stream to synthesize a MIDI message. A final drop sample resets parser state for loss racing the end of the bounded drain. Linux behavior is unchanged. It is fully green: Native Device Lifecycle `35337693147`, Platform Modules `35337692951`, and StageForge CI `35337692906`.
 
-Next action: inspect/fix CI for `81ec3033...`. If green, add a deterministic target-OS-only hosted seam/test for overflow parser fencing if it can be introduced without weakening production identity ownership; otherwise continue the next unblocked CP87 software slice. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `d64acca679e625e0f02965026e6f731b26577177` adds deterministic hosted-safe parser-boundary coverage to `midi_manager_hosted_smoke`: a partial Note On is reset at the same parser seam used by overflow handling, trailing data bytes are proven unable to complete a synthetic message, and a subsequent complete status/data message still parses normally. This deliberately avoids adding a production identity-bypass hook merely for tests. Fresh CI for this test head is pending.
+
+Next action: inspect/fix CI for `d64acca...`. If green, continue the next unblocked CP87 target-OS software slice while preserving exact identity ownership and Linux behavior. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
