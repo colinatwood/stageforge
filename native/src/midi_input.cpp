@@ -174,7 +174,9 @@ std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
         while(native_bytes_polled<max_native_bytes_per_device_poll){
             const auto remaining=max_native_bytes_per_device_poll-native_bytes_polled;
             const auto request=std::min(bytes.size(),remaining);
-            const auto count=slot.native->poll_bytes(bytes.data(),request); if(!count) break;
+            const auto count=slot.native->poll_bytes(bytes.data(),request);
+            if(!slot.native->attached()) { close_slot(slot); break; }
+            if(!count) break;
             native_bytes_polled+=count;
             audit_bytes_.fetch_add(count,std::memory_order_relaxed);
             const auto drops=slot.native->dropped_bytes();
@@ -193,6 +195,7 @@ std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
                 if(queue(event)){++captured;audit_messages_.fetch_add(1,std::memory_order_relaxed);}
             }
         }
+        if(!slot.attached) continue;
         const auto drops=slot.native->dropped_bytes(); if(drops>slot.native_drops_seen){audit_queue_drops_.fetch_add(drops-slot.native_drops_seen,std::memory_order_relaxed);slot.native_drops_seen=drops;slot.parser.reset();}
 #endif
     }
