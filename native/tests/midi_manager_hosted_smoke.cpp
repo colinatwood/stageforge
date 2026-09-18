@@ -14,9 +14,6 @@
 int main() {
     stageforge::MidiInputManager manager;
 
-    // Hosted-safe ingress contract: software injection must traverse the same
-    // CapturedMidiInput queue consumed by learn/mapped-action routing without
-    // requiring or implying ownership of physical MIDI hardware.
     const stageforge::MidiInputMessage injected{123456789ULL, 0x90, 60, 100};
     SF_CHECK(manager.inject("hosted:midi", "hosted-player", injected));
     SF_CHECK(manager.queued() == 1);
@@ -47,9 +44,6 @@ int main() {
     constexpr std::string_view id_prefix = "midi:coremidi:hash:sha256:";
     constexpr std::string_view path_prefix = "coremidi:hash:sha256:";
 #endif
-    // Any target-OS endpoint that happens to exist on a hosted runner must be
-    // represented only by the stable native hash. This remains vacuously safe
-    // on runners with no MIDI endpoints and never opens a physical device.
     for (std::size_t i = 0; i < manager.device_count(); ++i) {
         const auto* descriptor = manager.device(i);
         SF_CHECK(descriptor != nullptr);
@@ -57,22 +51,25 @@ int main() {
         const std::string_view path(descriptor->path.data());
         SF_CHECK(id.starts_with(id_prefix));
         SF_CHECK(path.starts_with(path_prefix));
+        SF_CHECK(id.size() == id_prefix.size() + 64);
+        SF_CHECK(path.size() == path_prefix.size() + 64);
         SF_CHECK(id.find(":name:") == std::string_view::npos);
         SF_CHECK(id.find(":index:") == std::string_view::npos);
     }
 
-    // A target-OS rescan is also a revocation fence. Deterministically queue an
-    // event for an exact hashed identity that cannot be in the current snapshot,
-    // then prove the rescan purges it before learn/mapped-action consumers can pop it.
-    constexpr auto stale_id = "midi:hosted:hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    // Use a complete target-OS-shaped identity. This specifically guards against
+    // regressing to the former 64-byte storage limit that truncated SHA-256 IDs.
+#if defined(_WIN32)
+    constexpr auto stale_id = "midi:winmm:hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+#else
+    constexpr auto stale_id = "midi:coremidi:hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+#endif
     SF_CHECK(manager.inject(stale_id, "revoked-player", injected));
     SF_CHECK(manager.queued() == 1);
     (void)manager.scan();
     SF_CHECK(manager.queued() == 0);
     SF_CHECK(!manager.pop(captured));
 
-    // Hosted-safe exact-identity fence: a syntactically valid but nonexistent
-    // native hash must never fall back to a name, index, or default MIDI input.
     constexpr auto missing = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
     SF_CHECK(!manager.attach(missing, "hosted-safe-test"));
     SF_CHECK(!manager.attached(missing));
