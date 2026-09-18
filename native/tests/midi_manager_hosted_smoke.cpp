@@ -34,6 +34,24 @@ int main() {
     SF_CHECK(ingress_audit.messages == 1);
     SF_CHECK(!ingress_audit.physical_outputs_armed);
 
+    // Native overflow handling resets this parser before accepting any later byte.
+    // Exercise the critical boundary directly: a partial Note On followed by reset
+    // must not allow trailing data bytes to complete a synthetic MIDI message.
+    stageforge::MidiByteParser parser;
+    stageforge::MidiInputMessage parsed{};
+    SF_CHECK(!parser.feed(0x90, 10, parsed));
+    SF_CHECK(!parser.feed(60, 10, parsed));
+    parser.reset();
+    SF_CHECK(!parser.feed(100, 10, parsed));
+    SF_CHECK(!parser.feed(61, 10, parsed));
+    SF_CHECK(!parser.feed(101, 10, parsed));
+    SF_CHECK(!parser.feed(0x90, 11, parsed));
+    SF_CHECK(!parser.feed(62, 11, parsed));
+    SF_CHECK(parser.feed(102, 11, parsed));
+    SF_CHECK(parsed.status == 0x90);
+    SF_CHECK(parsed.data1 == 62);
+    SF_CHECK(parsed.data2 == 102);
+
 #if defined(_WIN32) || defined(__APPLE__)
     (void)manager.scan();
 
