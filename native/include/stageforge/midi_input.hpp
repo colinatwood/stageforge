@@ -31,6 +31,15 @@ struct MidiIngressAuditStatus { std::uint64_t polls{0},bytes{0},messages{0},queu
     return !current_player.empty() && current_player == requested_player;
 }
 
+// Pure queue-retention predicate for a target-OS detach ownership boundary.
+// Events from the detached exact identity are stale; unrelated devices survive
+// in their existing order. Keeping this decision pure makes the safety contract
+// host-testable without introducing a native endpoint-opening bypass.
+[[nodiscard]] constexpr bool midi_event_survives_detach(std::string_view detached_device,
+                                                         std::string_view event_device) noexcept {
+    return !detached_device.empty() && event_device != detached_device;
+}
+
 class MidiInputManager {
 public:
     MidiInputManager() noexcept; ~MidiInputManager(); MidiInputManager(const MidiInputManager&)=delete; MidiInputManager& operator=(const MidiInputManager&)=delete;
