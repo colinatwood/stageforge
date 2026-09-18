@@ -40,6 +40,27 @@ int main() {
 #if defined(_WIN32) || defined(__APPLE__)
     (void)manager.scan();
 
+#if defined(_WIN32)
+    constexpr std::string_view id_prefix = "midi:winmm:hash:sha256:";
+    constexpr std::string_view path_prefix = "winmm:hash:sha256:";
+#else
+    constexpr std::string_view id_prefix = "midi:coremidi:hash:sha256:";
+    constexpr std::string_view path_prefix = "coremidi:hash:sha256:";
+#endif
+    // Any target-OS endpoint that happens to exist on a hosted runner must be
+    // represented only by the stable native hash. This remains vacuously safe
+    // on runners with no MIDI endpoints and never opens a physical device.
+    for (std::size_t i = 0; i < manager.device_count(); ++i) {
+        const auto* descriptor = manager.device(i);
+        SF_CHECK(descriptor != nullptr);
+        const std::string_view id(descriptor->id.data());
+        const std::string_view path(descriptor->path.data());
+        SF_CHECK(id.starts_with(id_prefix));
+        SF_CHECK(path.starts_with(path_prefix));
+        SF_CHECK(id.find(":name:") == std::string_view::npos);
+        SF_CHECK(id.find(":index:") == std::string_view::npos);
+    }
+
     // Hosted-safe exact-identity fence: a syntactically valid but nonexistent
     // native hash must never fall back to a name, index, or default MIDI input.
     constexpr auto missing = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
