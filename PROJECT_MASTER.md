@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation/test head: `401aabb81d7398e55fe25f6f3323489b3dc3b6f5`
-- Current implementation head: `a48cf4572602197799dbee82a8f07bdde409d72d`
+- Last fully green CP87 implementation/test head: `a48cf4572602197799dbee82a8f07bdde409d72d`
+- Current implementation head: `96e0a46bd7f889b57689bacfce69a843a0127d68`
 
 ## Checkpoint 86 verified state
 
@@ -44,9 +44,11 @@ Commit `454425a9dba2b57a296fbb1d55fb247fe88a6526` strengthens hosted target-OS l
 
 Commit `79eb081ee9a67f282d84366282faac7fd1af6c1a` tightens ownership to the exact device/player pair and is fully green: Platform Modules `35364791145`, Native Device Lifecycle `35364791252`, and StageForge CI `35364791133`. Commits `1b805d507d58472ea707f22054757cfbfe041b23` and `c50390e6e0e5a3d4d9ad2e164a25e1fb42a13e57` factor the production reuse decision into `midi_attachment_owner_matches()`. Commit `401aabb81d7398e55fe25f6f3323489b3dc3b6f5` adds hosted-safe same-owner/cross-owner coverage and is fully green: Platform Modules `35365922617`, Native Device Lifecycle `35365922401`, and StageForge CI `35365922441`.
 
-Commit `a48cf4572602197799dbee82a8f07bdde409d72d` makes explicit Windows/macOS `MidiInputManager::detach()` an ownership-epoch boundary for the captured-event queue. After closing the exact slot, it filters the existing bounded ring in place and removes queued `CapturedMidiInput` records for that exact device identity, preserving other devices' order and avoiding heap allocation. This prevents stale events captured under an old player from surviving an explicit detach and being consumed after a later reattach. Linux detach/queue behavior is unchanged. Fresh CI was not yet available at continuity update.
+Commit `a48cf4572602197799dbee82a8f07bdde409d72d` makes explicit Windows/macOS `MidiInputManager::detach()` an ownership-epoch boundary for the captured-event queue. It is fully green: Platform Modules `35371820916`, Native Device Lifecycle `35371820935`, and StageForge CI `35371820943`.
 
-Next action: inspect/fix CI for `a48cf457...`; if green, add hosted-safe target-OS detach-queue coverage without adding a device-opening bypass seam, then inspect remaining CP87 software-only gaps. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commits `f18fbf291465cd8c000dd81e6e871c4cd5e8bea3` and `e3772a88595b7f2856bccbb066add792501012ac` factor the detach queue decision into the pure `midi_event_survives_detach()` predicate and wire production target-OS filtering through it. Commit `96e0a46bd7f889b57689bacfce69a843a0127d68` adds hosted-safe coverage proving the detached exact identity is rejected while unrelated device events survive, without adding a native device-opening bypass seam. Fresh workflows are queued: Native Device Lifecycle `35377736501`, StageForge CI `35377736513`, and Platform Modules `35377736529`.
+
+Next action: inspect/fix CI for `96e0a46b...`; if green, inspect CP87 for any remaining software-only identity/revocation/ingress gap and close the smallest safe slice. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
