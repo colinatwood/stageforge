@@ -34,7 +34,7 @@ private:
         NullNativeMidiInput native{};
 #endif
         std::uint64_t native_drops_seen{0}; bool attached{false}; };
-    [[nodiscard]] DeviceSlot* find_slot(std::string_view) noexcept; [[nodiscard]] const DeviceSlot* find_slot(std::string_view) const noexcept; void close_slot(DeviceSlot&) noexcept; [[nodiscard]] bool queue(const CapturedMidiInput&) noexcept; void purge_missing_native_events() noexcept;
+    [[nodiscard]] DeviceSlot* find_slot(std::string_view) noexcept; [[nodiscard]] const DeviceSlot* find_slot(std::string_view) const noexcept; void close_slot(DeviceSlot&) noexcept; [[nodiscard]] bool queue(const CapturedMidiInput&) noexcept;
     static constexpr std::size_t max_devices=32,queue_capacity=2048; std::array<DeviceSlot,max_devices> devices_{}; std::size_t device_count_{0}; std::array<CapturedMidiInput,queue_capacity> queue_{}; std::size_t queue_head_{0},queue_tail_{0},queue_size_{0};
     std::atomic<std::uint64_t> audit_polls_{0},audit_bytes_{0},audit_messages_{0},audit_queue_drops_{0},audit_injected_{0},audit_max_poll_ns_{0};
 };
