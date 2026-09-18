@@ -12,7 +12,7 @@
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 implementation/test head: `96e0a46bd7f889b57689bacfce69a843a0127d68`
-- Current implementation/test head: `94c3d1584301dad132cdf1a10e240650bab4f0cf`
+- Current implementation/test head: `3246d63eaeb5fcba50af6932eeed5277a290c81a`
 
 ## Checkpoint 86 verified state
 
@@ -38,9 +38,9 @@ Commit `a48cf4572602197799dbee82a8f07bdde409d72d` makes explicit target-OS detac
 
 Commits `8fd21bfc41669f130257ff1e3baf1f6b47e7cba0` and `0c93b79bc7df228fdacb754ec989508625e2fbf3` centralize target-OS queued-event purging and apply the same ownership-epoch boundary to asynchronous WinMM/CoreMIDI revocation observed by `MidiInputManager::poll()`. StageForge CI `35383431862` and Native Device Lifecycle `35383431875` succeeded. Platform Modules `35383431874` failed only in the unrelated Windows native-launch-binding fixture after its exact platform smoke and Windows SCM lifecycle smoke had succeeded: the runner exposed no valid signed Windows system executable to the fixture. This is not MIDI evidence and is not treated as a CP87 implementation failure.
 
-Commit `b8b880794b004370da59e364e45ae135816d6145` tightens `NativeMidiInput::attach()` to reject any token that is not exactly `sha256:` plus 64 lowercase hexadecimal characters before enumerating WinMM/CoreMIDI endpoints. Commit `94c3d1584301dad132cdf1a10e240650bab4f0cf` adds hosted-safe malformed-length, uppercase/non-hex, and canonical nonexistent-token coverage. Fresh CI for this test head had not appeared at immediate inspection.
+Commit `b8b880794b004370da59e364e45ae135816d6145` tightens `NativeMidiInput::attach()` to reject any token that is not exactly `sha256:` plus 64 lowercase hexadecimal characters before enumerating WinMM/CoreMIDI endpoints. Commit `94c3d1584301dad132cdf1a10e240650bab4f0cf` adds hosted-safe malformed-length, uppercase/non-hex, and canonical nonexistent-token coverage. Platform Modules `35389230420` succeeded, while Native Device Lifecycle `35389230458` and StageForge CI `35389230468` exposed a real target-OS compile regression: `valid_sha256_token()` used C++20 `std::string_view::starts_with` in `stageforge_devices`, whose native target is compiled below that language level. Commit `3246d63eaeb5fcba50af6932eeed5277a290c81a` fixes the portability defect by using the existing C++17-compatible size plus prefix-substring comparison; validation semantics are unchanged. Fresh CI for `3246d63e...` had not appeared at immediate inspection.
 
-Next action: inspect/fix CI for `94c3d158...`; if green, inspect remaining CP87 software-only surface for any identity/revocation/ingress gap. The Platform Modules failure on `0c93b79b...` may be rerun if useful, but its failure is an unrelated hosted Windows fixture prerequisite, not evidence against MIDI. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Next action: inspect/fix CI for `3246d63e...`; if green, inspect remaining CP87 software-only surface for any identity/revocation/ingress gap and add the smallest meaningful implementation/test checkpoint. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
