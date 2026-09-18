@@ -25,13 +25,16 @@ struct NativeMidiInput::Impl {
     std::atomic<std::size_t> write{0};
     std::atomic<std::size_t> read{0};
     std::atomic<std::uint64_t> drops{0};
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
     std::atomic<bool> revoked{false};
+#endif
+#ifdef _WIN32
     HMIDIIN input = nullptr;
 #elif defined(__APPLE__)
     MIDIClientRef client = 0;
     MIDIPortRef port = 0;
     MIDIEndpointRef source = 0;
+    std::atomic<std::uintptr_t> selected_source{0};
 #endif
 
     void push(std::uint8_t byte) noexcept {
@@ -63,9 +66,19 @@ struct NativeMidiInput::Impl {
         if (data > 1) self->push(static_cast<std::uint8_t>((packed >> 16U) & 0x7fU));
     }
 #elif defined(__APPLE__)
+    static void notify(const MIDINotification* notification, void* context) noexcept {
+        auto* self = static_cast<Impl*>(context);
+        if (!self || !notification || notification->messageID != kMIDIMsgObjectRemoved) return;
+        const auto* removed = reinterpret_cast<const MIDIObjectAddRemoveNotification*>(notification);
+        const auto selected = self->selected_source.load(std::memory_order_acquire);
+        if (selected != 0 && static_cast<std::uintptr_t>(removed->child) == selected) {
+            self->revoked.store(true, std::memory_order_release);
+        }
+    }
+
     static void callback(const MIDIPacketList* packets, void* context, void*) noexcept {
         auto* self = static_cast<Impl*>(context);
-        if (!self || !packets) return;
+        if (!self || !packets || self->revoked.load(std::memory_order_acquire)) return;
         const MIDIPacket* packet = &packets->packet[0];
         for (UInt32 p = 0; p < packets->numPackets; ++p) {
             for (UInt16 i = 0; i < packet->length; ++i) self->push(packet->data[i]);
@@ -116,7 +129,9 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
         return true;
     }
 #elif defined(__APPLE__)
-    if (MIDIClientCreate(CFSTR("StageForge MIDI Input"), nullptr, nullptr, &impl_->client) != noErr) return false;
+    impl_->revoked.store(false, std::memory_order_relaxed);
+    impl_->selected_source.store(0, std::memory_order_relaxed);
+    if (MIDIClientCreate(CFSTR("StageForge MIDI Input"), &Impl::notify, impl_.get(), &impl_->client) != noErr) return false;
     if (MIDIInputPortCreate(impl_->client, CFSTR("StageForge MIDI Input Port"), &Impl::callback, impl_.get(), &impl_->port) != noErr) { detach(); return false; }
     const auto count = MIDIGetNumberOfSources();
     for (ItemCount index = 0; index < count; ++index) {
@@ -126,6 +141,7 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
         if (candidate != native_hash) continue;
         if (MIDIPortConnectSource(impl_->port, source, nullptr) != noErr) { detach(); return false; }
         impl_->source = source;
+        impl_->selected_source.store(static_cast<std::uintptr_t>(source), std::memory_order_release);
         return true;
     }
     detach();
@@ -138,6 +154,8 @@ void NativeMidiInput::detach() noexcept {
     if (impl_->input) { midiInStop(impl_->input); midiInReset(impl_->input); midiInClose(impl_->input); impl_->input = nullptr; }
     impl_->revoked.store(false, std::memory_order_relaxed);
 #elif defined(__APPLE__)
+    impl_->revoked.store(true, std::memory_order_release);
+    impl_->selected_source.store(0, std::memory_order_release);
     if (impl_->port && impl_->source) MIDIPortDisconnectSource(impl_->port, impl_->source);
     impl_->source = 0;
     if (impl_->port) { MIDIPortDispose(impl_->port); impl_->port = 0; }
@@ -149,7 +167,7 @@ bool NativeMidiInput::attached() const noexcept {
 #ifdef _WIN32
     return impl_->input != nullptr && !impl_->revoked.load(std::memory_order_acquire);
 #elif defined(__APPLE__)
-    return impl_->source != 0;
+    return impl_->source != 0 && !impl_->revoked.load(std::memory_order_acquire);
 #else
     return false;
 #endif
