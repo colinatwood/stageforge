@@ -112,9 +112,6 @@ std::size_t MidiInputManager::scan() noexcept {
     for (std::size_t i=0;i<device_count_;++i) close_slot(devices_[i]);
     devices_=std::move(found); device_count_=found_count;
 #if defined(_WIN32) || defined(__APPLE__)
-    // Filter the bounded ring in place. A second queue-capacity array here would
-    // put roughly half a megabyte on the stack after full SHA-256 identities were
-    // widened, enough to exhaust the default Windows thread stack in scan().
     const auto queued_before_scan=queue_size_;
     for(std::size_t i=0;i<queued_before_scan;++i){
         CapturedMidiInput event{};
@@ -173,18 +170,30 @@ std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
 #elif defined(_WIN32) || defined(__APPLE__)
         if(!slot.native || !slot.native->attached()){ close_slot(slot); continue; }
         std::size_t native_bytes_polled=0;
+        bool overflowed=false;
         while(native_bytes_polled<max_native_bytes_per_device_poll){
             const auto remaining=max_native_bytes_per_device_poll-native_bytes_polled;
             const auto request=std::min(bytes.size(),remaining);
             const auto count=slot.native->poll_bytes(bytes.data(),request); if(!count) break;
             native_bytes_polled+=count;
             audit_bytes_.fetch_add(count,std::memory_order_relaxed);
+            const auto drops=slot.native->dropped_bytes();
+            if(drops>slot.native_drops_seen){
+                audit_queue_drops_.fetch_add(drops-slot.native_drops_seen,std::memory_order_relaxed);
+                slot.native_drops_seen=drops;
+                slot.parser.reset();
+                overflowed=true;
+            }
+            // Once any byte is lost, the remaining bytes in this bounded drain
+            // cannot be proven to share message boundaries with the parser state.
+            // Discard them for this poll rather than synthesizing a mapped event.
+            if(overflowed) continue;
             for(std::size_t index=0;index<count;++index){ MidiInputMessage parsed{}; if(!slot.parser.feed(bytes[index],show_time_ns,parsed))continue;
                 CapturedMidiInput event{}; event.device_id=slot.descriptor.id; event.player_id=slot.player_id; event.message=parsed;
                 if(queue(event)){++captured;audit_messages_.fetch_add(1,std::memory_order_relaxed);}
             }
         }
-        const auto drops=slot.native->dropped_bytes(); if(drops>slot.native_drops_seen){audit_queue_drops_.fetch_add(drops-slot.native_drops_seen,std::memory_order_relaxed);slot.native_drops_seen=drops;}
+        const auto drops=slot.native->dropped_bytes(); if(drops>slot.native_drops_seen){audit_queue_drops_.fetch_add(drops-slot.native_drops_seen,std::memory_order_relaxed);slot.native_drops_seen=drops;slot.parser.reset();}
 #endif
     }
     const auto duration=static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-started).count());
