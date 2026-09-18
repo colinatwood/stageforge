@@ -70,11 +70,13 @@ int main() {
     SF_CHECK(manager.queued() == 0);
     SF_CHECK(!manager.pop(captured));
 
-    constexpr auto missing = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    SF_CHECK(!manager.attach(missing, "hosted-safe-test"));
-    SF_CHECK(!manager.attached(missing));
+    // Exercise attach/detach with the same complete manager-level identity shape
+    // produced by enumeration. A digest-only token would fail before exact slot
+    // lookup and would not guard against accidental name/index/default fallback.
+    SF_CHECK(!manager.attach(stale_id, "hosted-safe-test"));
+    SF_CHECK(!manager.attached(stale_id));
     SF_CHECK(manager.attached_count() == 0);
-    SF_CHECK(!manager.detach(missing));
+    SF_CHECK(!manager.detach(stale_id));
 
     const auto audit = manager.audit_status();
     SF_CHECK(!audit.physical_outputs_armed);
