@@ -111,10 +111,15 @@ std::size_t MidiInputManager::scan() noexcept {
     for (std::size_t i=0;i<device_count_;++i) close_slot(devices_[i]);
     devices_=std::move(found); device_count_=found_count;
 #if defined(_WIN32) || defined(__APPLE__)
-    std::array<CapturedMidiInput,queue_capacity> retained{}; std::size_t retained_count=0;
-    while(queue_size_){CapturedMidiInput event{}; (void)pop(event); if(find_slot(event.device_id.data())!=nullptr) retained[retained_count++]=event;}
-    queue_head_=queue_tail_=queue_size_=0;
-    for(std::size_t i=0;i<retained_count;++i)(void)queue(retained[i]);
+    // Filter the bounded ring in place. A second queue-capacity array here would
+    // put roughly half a megabyte on the stack after full SHA-256 identities were
+    // widened, enough to exhaust the default Windows thread stack in scan().
+    const auto queued_before_scan=queue_size_;
+    for(std::size_t i=0;i<queued_before_scan;++i){
+        CapturedMidiInput event{};
+        (void)pop(event);
+        if(find_slot(event.device_id.data())!=nullptr)(void)queue(event);
+    }
 #endif
     return device_count_;
 }
