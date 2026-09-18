@@ -47,31 +47,17 @@ else()
     target_compile_options(stageforge_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-
 add_executable(stageforge_engine src/engine_main.cpp)
 target_link_libraries(stageforge_engine PRIVATE stageforge_core)
-# Checkpoint 86: the full engine consumes the target-OS endpoint ownership bridge
-# on Windows/macOS. stageforge_devices is defined by devices.cmake before this file
-# is included; Linux keeps its existing ALSA execution path while still compiling
-# the portable identity/fence contract.
 if(TARGET stageforge_devices)
     target_link_libraries(stageforge_engine PRIVATE stageforge_devices)
 endif()
 target_compile_features(stageforge_engine PRIVATE cxx_std_20)
-# EngineNativeAudioStatus is a platform-neutral value type used by the command
-# status fallback on Linux as well as by native projection on Windows/macOS. The
-# runtime implementation remains target-OS-only; Linux only needs the declaration.
 if(UNIX AND NOT APPLE)
     target_compile_options(stageforge_engine PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/engine_native_audio_status.h)
 endif()
 if(MSVC)
     target_compile_options(stageforge_engine PRIVATE /W4 /permissive-)
-    # The recovered engine owns several megabytes of fixed-capacity render scratch
-    # in main() automatic storage. Windows' 1 MiB default process stack overflows
-    # before authentication starts, while Linux/macOS already run the same bounded
-    # storage successfully. Reserve a fixed 16 MiB stack for this consolidation
-    # build; moving long-lived scratch into explicit engine-owned storage remains
-    # a separate post-consolidation cleanup and must not touch RT callback stacks.
     target_link_options(stageforge_engine PRIVATE /STACK:16777216)
 else()
     target_compile_options(stageforge_engine PRIVATE -Wall -Wextra -Wpedantic)
@@ -88,6 +74,17 @@ if(STAGEFORGE_BUILD_TESTS)
         target_compile_options(stageforge_native_tests PRIVATE -Wall -Wextra -Wpedantic)
     endif()
     add_test(NAME stageforge_native_tests COMMAND stageforge_native_tests)
+
+    add_executable(stageforge_midi_manager_hosted_smoke tests/midi_manager_hosted_smoke.cpp)
+    target_link_libraries(stageforge_midi_manager_hosted_smoke PRIVATE stageforge_core)
+    target_compile_features(stageforge_midi_manager_hosted_smoke PRIVATE cxx_std_20)
+    if(MSVC)
+        target_compile_options(stageforge_midi_manager_hosted_smoke PRIVATE /W4 /permissive-)
+    else()
+        target_compile_options(stageforge_midi_manager_hosted_smoke PRIVATE -Wall -Wextra -Wpedantic)
+    endif()
+    add_test(NAME stageforge_midi_manager_hosted_smoke COMMAND stageforge_midi_manager_hosted_smoke)
+
     add_executable(stageforge_current_abi_smoke ../tests/core_api_510_smoke.c)
     target_include_directories(stageforge_current_abi_smoke PRIVATE ${PROJECT_SOURCE_DIR}/include)
     add_test(NAME stageforge_current_abi_smoke COMMAND stageforge_current_abi_smoke)
