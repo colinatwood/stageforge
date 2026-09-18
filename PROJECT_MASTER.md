@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 test head: `464a99c8ff2d35b0d62dc844a46aed5f16717365`
-- Current implementation/test head: `9b5d0a969e9a261a2df2e4f4bad648a784307798`
+- Last fully green CP87 test head: `856459676c5f5d0a2a1419dfb06ac5cc7f1de4e5`
+- Current implementation/test head: `686171cb5d0f4f4cdc53a3ea199b5507c025d918`
 
 ## Checkpoint 86 verified state
 
@@ -36,9 +36,11 @@ Commit `15cecff1c919b8d0e2e3a3c7b409b63e490b9be8` adds a dedicated hosted-safe e
 
 Commit `b4a40fc8816b32aed7e1cf87ca6fe69697d88ff0` bounds Windows/macOS native ingestion to 8192 bytes per attached device per `MidiInputManager::poll()` call. Previously the manager drained until `NativeMidiInput::poll_bytes()` returned empty; because the callback can refill the SPSC ring concurrently, a sustained producer could keep a poll iteration running without a deterministic service bound. The new target-OS-only budget matches the native callback-ring capacity, limits each read request to the remaining budget, preserves parser state across polls, and leaves the Linux raw-MIDI loop unchanged.
 
-Commit `9b5d0a969e9a261a2df2e4f4bad648a784307798` tightens hosted-safe ownership coverage so failed target-OS attach/attached/detach checks use the same complete framed `midi:<backend>:hash:sha256:<64 hex>` identity shape produced by enumeration. The prior digest-only test token could fail before exact manager slot lookup and therefore did not directly fence accidental name/index/default substitution at the manager boundary. Fresh workflows for the bounded-poll and framed-identity slices were not yet available at the immediate post-commit inspections, so both remain pending CI verification.
+Commit `9b5d0a969e9a261a2df2e4f4bad648a784307798` tightens hosted-safe ownership coverage so failed target-OS attach/attached/detach checks use the same complete framed `midi:<backend>:hash:sha256:<64 hex>` identity shape produced by enumeration. The prior digest-only test token could fail before exact manager slot lookup and therefore did not directly fence accidental name/index/default substitution at the manager boundary. Continuity head `856459676c5f5d0a2a1419dfb06ac5cc7f1de4e5`, which contains both the bounded-poll and framed-identity slices, is fully green: Platform Modules `35327272599`, Native Device Lifecycle `35327272575`, and StageForge CI `35327272661`. The direct `9b5d0a9...` runs are also green: Platform Modules `35327235487`, Native Device Lifecycle `35327235477`, and StageForge CI `35327235509`.
 
-Next action: inspect/fix CI for `9b5d0a9...` (which contains `b4a40fc...`). If green, inspect the remaining CP87 software acceptance gap and reconcile backlog acceptance only from authoritative repository definitions. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `686171cb5d0f4f4cdc53a3ea199b5507c025d918` resets `NativeMidiInput` callback-ring drop accounting at the start of every valid attach attempt, alongside the ring read/write cursors. Without this, a detach/reattach cycle reused cumulative drop telemetry from the previous endpoint ownership epoch; manager accounting snapshots the counter on attach, so this was mostly masked, but the native object's public `dropped_bytes()` contract remained cross-attachment and could misattribute old overflow to a new exact identity. Fresh workflows are queued: Native Device Lifecycle `35332512557`, StageForge CI `35332512577`, and Platform Modules `35332512574`. This change is target-OS-only; Linux behavior is untouched.
+
+Next action: inspect/fix CI for `686171cb...`. If green, implement fail-closed parser handling around native ring overflow so bytes from an overflow-corrupted stream cannot synthesize a mapped MIDI message; then add hosted-safe coverage through the native/manager seam if a deterministic injection seam can be kept target-OS-only. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
