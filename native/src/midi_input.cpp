@@ -151,7 +151,7 @@ bool MidiInputManager::detach(std::string_view device_id) noexcept {
     for(std::size_t i=0;i<queued_before_detach;++i){
         CapturedMidiInput event{};
         (void)pop(event);
-        if(std::string_view(event.device_id.data())!=device_id)(void)queue(event);
+        if(midi_event_survives_detach(device_id, event.device_id.data()))(void)queue(event);
     }
 #endif
     return true;
