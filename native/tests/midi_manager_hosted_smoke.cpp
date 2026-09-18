@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <string_view>
 
 #define SF_CHECK(expr) do { \
     if (!(expr)) { \
@@ -11,8 +12,32 @@
 } while (false)
 
 int main() {
-#if defined(_WIN32) || defined(__APPLE__)
     stageforge::MidiInputManager manager;
+
+    // Hosted-safe ingress contract: software injection must traverse the same
+    // CapturedMidiInput queue consumed by learn/mapped-action routing without
+    // requiring or implying ownership of physical MIDI hardware.
+    const stageforge::MidiInputMessage injected{123456789ULL, 0x90, 60, 100};
+    SF_CHECK(manager.inject("hosted:midi", "hosted-player", injected));
+    SF_CHECK(manager.queued() == 1);
+
+    stageforge::CapturedMidiInput captured{};
+    SF_CHECK(manager.pop(captured));
+    SF_CHECK(std::string_view(captured.device_id.data()) == "hosted:midi");
+    SF_CHECK(std::string_view(captured.player_id.data()) == "hosted-player");
+    SF_CHECK(captured.message.show_time_ns == injected.show_time_ns);
+    SF_CHECK(captured.message.status == injected.status);
+    SF_CHECK(captured.message.data1 == injected.data1);
+    SF_CHECK(captured.message.data2 == injected.data2);
+    SF_CHECK(manager.queued() == 0);
+    SF_CHECK(!manager.pop(captured));
+
+    const auto ingress_audit = manager.audit_status();
+    SF_CHECK(ingress_audit.injected_messages == 1);
+    SF_CHECK(ingress_audit.messages == 1);
+    SF_CHECK(!ingress_audit.physical_outputs_armed);
+
+#if defined(_WIN32) || defined(__APPLE__)
     (void)manager.scan();
 
     // Hosted-safe exact-identity fence: a syntactically valid but nonexistent
