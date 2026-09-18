@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation/test head: `454425a9dba2b57a296fbb1d55fb247fe88a6526`
-- Current implementation/test head: `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08`
+- Last fully green CP87 implementation/test head: `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08`
+- Current implementation/test head: `79eb081ee9a67f282d84366282faac7fd1af6c1a`
 
 ## Checkpoint 86 verified state
 
@@ -46,9 +46,11 @@ Commit `df5b486c9672f965ed74cadc86e6ecb0c357dbdf` adds the corresponding CoreMID
 
 Commit `454425a9dba2b57a296fbb1d55fb247fe88a6526` strengthens the target-OS `NativeMidiInput` hosted smoke around the revocation/cleanup contract without adding a production identity-bypass seam: null/zero-capacity polling fails closed, malformed and nonexistent exact hashes cannot acquire or release bytes, and repeated detach remains safe/idempotent for manager cleanup after asynchronous topology loss. It is fully green: Platform Modules `35353632131`, Native Device Lifecycle `35353632062`, and StageForge CI `35353632053`.
 
-Commit `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08` closes a mid-poll asynchronous revocation race in the target-OS manager path. After every native `poll_bytes()` drain attempt, `MidiInputManager::poll()` rechecks native attachment before parsing the returned chunk. If WinMM/CoreMIDI revokes ownership during that drain, the slot is closed and those bytes are discarded rather than becoming `CapturedMidiInput`; the post-loop drop sample is skipped after closure. Linux behavior is unchanged. Fresh CI is pending.
+Commit `d2c56d3f89a953544e9ea53ac96c6a4d368ddf08` closes a mid-poll asynchronous revocation race in the target-OS manager path. After every native `poll_bytes()` drain attempt, `MidiInputManager::poll()` rechecks native attachment before parsing the returned chunk. If WinMM/CoreMIDI revokes ownership during that drain, the slot is closed and those bytes are discarded rather than becoming `CapturedMidiInput`; the post-loop drop sample is skipped after closure. Linux behavior is unchanged. It is fully green: Platform Modules `35359922660`, Native Device Lifecycle `35359922665`, and StageForge CI `35359922717`.
 
-Next action: inspect/fix CI for `d2c56d3f...`; if green, inspect remaining CP87 software-only gaps and close any deterministic hosted-safe lifecycle coverage still missing. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `79eb081ee9a67f282d84366282faac7fd1af6c1a` tightens `MidiInputManager::attach()` ownership from exact device identity alone to the exact device/player pair. Re-attaching an already owned endpoint for the same player remains idempotent; attempting to silently reassign an attached endpoint to another player now fails closed and requires explicit detach before a new ownership epoch. This prevents queued bytes, parser running status, or target-OS callbacks from crossing player ownership. The rule is platform-neutral and preserves Linux endpoint I/O behavior while strengthening ownership semantics. Fresh CI had not appeared at immediate post-commit inspection.
+
+Next action: inspect/fix CI for `79eb081e...`; if green, add deterministic hosted-safe coverage for same-owner idempotence versus cross-owner fail-closed attach where it can be exercised without opening physical hardware, then inspect remaining CP87 software-only gaps. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
