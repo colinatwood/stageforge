@@ -36,6 +36,7 @@ bool is_midi_path(const char* name) noexcept {
 }
 std::string midi_id_from_path(std::string_view path) { return "alsa:" + std::string(path); }
 #elif defined(_WIN32) || defined(__APPLE__)
+constexpr std::size_t max_native_bytes_per_device_poll = 8192;
 std::string target_midi_identity(const DeviceRecord& record, std::string_view backend) {
     return std::string(backend) + ":hash:" + record.native_hash;
 }
@@ -171,7 +172,12 @@ std::size_t MidiInputManager::poll(std::uint64_t show_time_ns) noexcept {
         }
 #elif defined(_WIN32) || defined(__APPLE__)
         if(!slot.native || !slot.native->attached()){ close_slot(slot); continue; }
-        for(;;){ const auto count=slot.native->poll_bytes(bytes.data(),bytes.size()); if(!count) break;
+        std::size_t native_bytes_polled=0;
+        while(native_bytes_polled<max_native_bytes_per_device_poll){
+            const auto remaining=max_native_bytes_per_device_poll-native_bytes_polled;
+            const auto request=std::min(bytes.size(),remaining);
+            const auto count=slot.native->poll_bytes(bytes.data(),request); if(!count) break;
+            native_bytes_polled+=count;
             audit_bytes_.fetch_add(count,std::memory_order_relaxed);
             for(std::size_t index=0;index<count;++index){ MidiInputMessage parsed{}; if(!slot.parser.feed(bytes[index],show_time_ns,parsed))continue;
                 CapturedMidiInput event{}; event.device_id=slot.descriptor.id; event.player_id=slot.player_id; event.message=parsed;
