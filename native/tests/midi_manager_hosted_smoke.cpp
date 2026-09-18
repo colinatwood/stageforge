@@ -14,6 +14,13 @@
 int main() {
     stageforge::MidiInputManager manager;
 
+    // Attachment reuse is an exact player-ownership decision independent of
+    // physical endpoint availability, so keep this boundary deterministic in CI.
+    SF_CHECK(stageforge::midi_attachment_owner_matches("player-a", "player-a"));
+    SF_CHECK(!stageforge::midi_attachment_owner_matches("player-a", "player-b"));
+    SF_CHECK(!stageforge::midi_attachment_owner_matches("", "player-a"));
+    SF_CHECK(!stageforge::midi_attachment_owner_matches("player-a", ""));
+
     const stageforge::MidiInputMessage injected{123456789ULL, 0x90, 60, 100};
     SF_CHECK(manager.inject("hosted:midi", "hosted-player", injected));
     SF_CHECK(manager.queued() == 1);
@@ -34,9 +41,6 @@ int main() {
     SF_CHECK(ingress_audit.messages == 1);
     SF_CHECK(!ingress_audit.physical_outputs_armed);
 
-    // Native overflow handling resets this parser before accepting any later byte.
-    // Exercise the critical boundary directly: a partial Note On followed by reset
-    // must not allow trailing data bytes to complete a synthetic MIDI message.
     stageforge::MidiByteParser parser;
     stageforge::MidiInputMessage parsed{};
     SF_CHECK(!parser.feed(0x90, 10, parsed));
@@ -54,7 +58,6 @@ int main() {
 
 #if defined(_WIN32) || defined(__APPLE__)
     (void)manager.scan();
-
 #if defined(_WIN32)
     constexpr std::string_view id_prefix = "midi:winmm:hash:sha256:";
     constexpr std::string_view path_prefix = "winmm:hash:sha256:";
@@ -74,9 +77,6 @@ int main() {
         SF_CHECK(id.find(":name:") == std::string_view::npos);
         SF_CHECK(id.find(":index:") == std::string_view::npos);
     }
-
-    // Use a complete target-OS-shaped identity. This specifically guards against
-    // regressing to the former 64-byte storage limit that truncated SHA-256 IDs.
 #if defined(_WIN32)
     constexpr auto stale_id = "midi:winmm:hash:sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 #else
@@ -87,15 +87,10 @@ int main() {
     (void)manager.scan();
     SF_CHECK(manager.queued() == 0);
     SF_CHECK(!manager.pop(captured));
-
-    // Exercise attach/detach with the same complete manager-level identity shape
-    // produced by enumeration. A digest-only token would fail before exact slot
-    // lookup and would not guard against accidental name/index/default fallback.
     SF_CHECK(!manager.attach(stale_id, "hosted-safe-test"));
     SF_CHECK(!manager.attached(stale_id));
     SF_CHECK(manager.attached_count() == 0);
     SF_CHECK(!manager.detach(stale_id));
-
     const auto audit = manager.audit_status();
     SF_CHECK(!audit.physical_outputs_armed);
 #endif
