@@ -13,7 +13,7 @@
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 ownership head: `7c27f84c85b37cfb807e68d8678acaf02f58593c`
 - Manager-integration continuity head: `cfef6391ad5ffba44c6eef328399efe45f1559bc`
-- Current manager-integration fix head: `37165450d8832382c69851833c31612adf930a37`
+- Current manager-integration test head: `b4487b00d55205bfa16410e969df8380f9b5c5cb`
 
 ## Checkpoint 86 verified state
 
@@ -37,9 +37,11 @@ Fresh CI for continuity head `318910586b4f220111009b7b497e1fa27b782d63` proved t
 
 Commit `d3f695fcd529fa7fe7713d411b350ab71f290215` fixed those API mismatches. Fresh PR CI on continuity head `fa4fa4c5decfb71e3340f55d98e52ba819012547` then built the native engine successfully on Windows and macOS, but StageForge CI run `35293794213` failed `stageforge_native_tests` on both targets at `test_midi_byte_parser`: realtime byte `0xF8` was emitted as a mapped MIDI event even though the existing parser contract requires realtime bytes to leave an in-progress channel message untouched and not enter the mapped-action path. Platform Modules `35293794250` and Native Device Lifecycle `35293794204` remained green. Linux's release gate failed in the same StageForge CI run and must be rechecked after the parser correction.
 
-Commit `37165450d8832382c69851833c31612adf930a37` restores that parser contract by filtering MIDI realtime bytes before message-state handling, preserving running status and the partially received channel message. This is a software-only correction; fresh PR CI is required before the manager-integration slice is called green.
+Commit `37165450d8832382c69851833c31612adf930a37` restores that parser contract by filtering MIDI realtime bytes before message-state handling, preserving running status and the partially received channel message. Continuity head `92d75d6b24bfa0e84cfff505e47887ee860dd449` is fully green: Platform Modules run `35294440263`, Native Device Lifecycle `35294440265`, and StageForge CI `35294440235` all completed successfully. This closes the hosted manager-integration regression gate only; it is not physical MIDI qualification.
 
-Next action: inspect fresh CI for `37165450...`; fix any remaining release/native-test failure. Once green, add hosted-safe manager-level tests for exact-hash attach rejection/topology revocation and verify the existing `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` path without claiming physical MIDI qualification.
+Commit `b4487b00d55205bfa16410e969df8380f9b5c5cb` adds a dedicated hosted-safe `MidiInputManager` smoke and build wiring. On Windows/macOS it scans the target-OS inventory, attempts a syntactically valid but nonexistent `sha256:` identity, and verifies attach remains fail-closed with zero attached owners, detach does not fabricate ownership, and `physical_outputs_armed` remains false. Linux compiles/runs the same smoke without changing or exercising its raw-MIDI ownership path. Fresh PR workflows had not appeared when this continuity entry was written.
+
+Next action: inspect/fix fresh CI for `b4487b00...`. Once green, add deterministic hosted coverage for topology-loss revocation (using a software seam rather than pretending hosted runners own physical MIDI devices), then verify the existing `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` path end-to-end without claiming physical MIDI qualification.
 
 ## Verification entry points
 
