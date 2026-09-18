@@ -30,7 +30,6 @@ std::string midi_id_from_path(std::string_view path){return "alsa:"+std::string(
 constexpr std::size_t max_native_bytes_per_device_poll=8192;
 std::string target_midi_identity(const DeviceRecord& record,std::string_view backend){return std::string(backend)+":hash:"+record.native_hash;}
 std::string target_midi_id(const DeviceRecord& record,std::string_view backend){return "midi:"+target_midi_identity(record,backend);}
-std::string_view native_hash_from_identity(std::string_view identity) noexcept{const auto marker=identity.find(":hash:");if(marker==std::string_view::npos)return {};return identity.substr(marker+6);}
 #endif
 }
 std::uint8_t MidiByteParser::data_length(std::uint8_t status) noexcept{if(status<0x80)return 0;if(status<0xF0){const auto type=status&0xF0;return(type==0xC0||type==0xD0)?1:2;}switch(status){case 0xF1:case 0xF3:return 1;case 0xF2:return 2;default:return 0;}}
@@ -79,7 +78,12 @@ bool MidiInputManager::attach(std::string_view device_id,std::string_view player
 #if defined(__linux__)
 const auto handle=::open(slot->descriptor.path.data(),O_RDONLY|O_NONBLOCK|O_CLOEXEC);if(handle<0)return false;slot->handle=handle;
 #elif defined(_WIN32) || defined(__APPLE__)
-const auto native_hash=native_hash_from_identity(slot->descriptor.path.data());if(native_hash.empty())return false;std::unique_ptr<NativeMidiInput,NativeMidiInputDeleter> native(new(std::nothrow)NativeMidiInput());if(!native||!native->attach(native_hash))return false;slot->native=std::move(native);slot->native_drops_seen=slot->native->dropped_bytes();
+#if defined(_WIN32)
+constexpr std::string_view native_backend="winmm";
+#else
+constexpr std::string_view native_backend="coremidi";
+#endif
+const auto native_hash=midi_native_hash_from_identity(slot->descriptor.path.data(),native_backend);if(native_hash.empty())return false;std::unique_ptr<NativeMidiInput,NativeMidiInputDeleter> native(new(std::nothrow)NativeMidiInput());if(!native||!native->attach(native_hash))return false;slot->native=std::move(native);slot->native_drops_seen=slot->native->dropped_bytes();
 #else
 return false;
 #endif
