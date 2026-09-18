@@ -112,7 +112,18 @@ std::size_t MidiInputManager::scan() noexcept {
     } catch (...) { found_count=0; }
 #endif
     for (std::size_t i=0;i<device_count_;++i) close_slot(devices_[i]);
-    devices_=std::move(found); device_count_=found_count; return device_count_;
+    devices_=std::move(found); device_count_=found_count;
+#if defined(_WIN32) || defined(__APPLE__)
+    // A rescan is the topology authority on target OSes. Callback bytes can have
+    // become queued immediately before an endpoint disappears, so discard any
+    // captured event whose exact hashed identity is no longer present. This keeps
+    // stale input from crossing into learn/mapped-action dispatch after revocation.
+    std::array<CapturedMidiInput,queue_capacity> retained{}; std::size_t retained_count=0;
+    while(queue_size_){CapturedMidiInput event{}; (void)pop(event); if(find_slot(event.device_id.data())!=nullptr) retained[retained_count++]=event;}
+    queue_head_=queue_tail_=queue_size_=0;
+    for(std::size_t i=0;i<retained_count;++i)(void)queue(retained[i]);
+#endif
+    return device_count_;
 }
 
 bool MidiInputManager::attach(std::string_view device_id,std::string_view player_id) noexcept {
