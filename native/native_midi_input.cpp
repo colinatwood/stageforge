@@ -78,6 +78,7 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
     if (native_hash.empty() || native_hash.rfind("sha256:", 0) != 0) return false;
     impl_->read.store(0, std::memory_order_relaxed);
     impl_->write.store(0, std::memory_order_relaxed);
+    impl_->drops.store(0, std::memory_order_relaxed);
 #ifdef _WIN32
     const auto count = midiInGetNumDevs();
     for (UINT index = 0; index < count; ++index) {
@@ -99,9 +100,6 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
                 }
             }
         }
-        // Only persistence-capable WinMM endpoints are attachable here. The
-        // monitor's volatile fallback includes topology revision and is
-        // intentionally not reconstructed from index/name guesses.
         if (interface_name.empty()) continue;
         const auto candidate = sha256_token("winmm-native:input:" + interface_name + ":" + std::to_string(index));
         if (candidate != native_hash) continue;
