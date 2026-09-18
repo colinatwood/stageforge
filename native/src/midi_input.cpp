@@ -124,7 +124,13 @@ std::size_t MidiInputManager::scan() noexcept {
 
 bool MidiInputManager::attach(std::string_view device_id,std::string_view player_id) noexcept {
     auto* slot=find_slot(device_id); if (!slot || player_id.empty() || player_id.size()>=slot->player_id.size()) return false;
-    if (slot->attached) { copy_text(slot->player_id,player_id); return true; }
+    if (slot->attached) {
+        if (player_id == slot->player_id.data()) return true;
+        // Attachment owns an exact device/player pair. Reassigning the player is
+        // a new ownership epoch and must explicitly detach first so queued bytes,
+        // parser running status, and native callbacks cannot cross owners.
+        return false;
+    }
 #if defined(__linux__)
     const auto handle=::open(slot->descriptor.path.data(),O_RDONLY|O_NONBLOCK|O_CLOEXEC); if (handle<0) return false;
     slot->handle=handle;
