@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation/test head: `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d`
-- Current implementation head: `df5b486c9672f965ed74cadc86e6ecb0c357dbdf`
+- Last fully green CP87 implementation/test head: `df5b486c9672f965ed74cadc86e6ecb0c357dbdf`
+- Current implementation/test head: `454425a9dba2b57a296fbb1d55fb247fe88a6526`
 
 ## Checkpoint 86 verified state
 
@@ -42,9 +42,11 @@ Commit `d64acca679e625e0f02965026e6f731b26577177` adds deterministic hosted-safe
 
 Commit `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d` adds an immediate WinMM callback-side revocation fence. `MIM_CLOSE`, `MIM_ERROR`, or `MIM_LONGERROR` atomically revoke the attachment; subsequent short-message callbacks are ignored, `attached()` reports false, and `poll_bytes()` refuses to drain stale queued bytes. The next `MidiInputManager::poll()` therefore closes the slot before parser/event dispatch. A new valid attach epoch clears the revocation flag. This implementation head is fully green: Platform Modules `35348050975`, Native Device Lifecycle `35348050977`, and StageForge CI `35348051004`.
 
-Commit `df5b486c9672f965ed74cadc86e6ecb0c357dbdf` adds the corresponding CoreMIDI notification fence. The MIDI client now receives topology notifications; removal of the exact selected source atomically revokes the attachment, subsequent packet callbacks are ignored, `attached()` fails closed, and `poll_bytes()` cannot release stale queued bytes. The selected `MIDIEndpointRef` is mirrored into an atomic integer solely for notification-thread identity comparison, while control-thread detach clears it before disposing CoreMIDI ownership. Linux and WinMM behavior are unchanged. Fresh CI had not appeared at the immediate post-commit inspection.
+Commit `df5b486c9672f965ed74cadc86e6ecb0c357dbdf` adds the corresponding CoreMIDI notification fence. The MIDI client now receives topology notifications; removal of the exact selected source atomically revokes the attachment, subsequent packet callbacks are ignored, `attached()` fails closed, and `poll_bytes()` cannot release stale queued bytes. The selected `MIDIEndpointRef` is mirrored into an atomic integer solely for notification-thread identity comparison, while control-thread detach clears it before disposing CoreMIDI ownership. Linux and WinMM behavior are unchanged. This implementation head is fully green: Platform Modules `35349322466`, Native Device Lifecycle `35349322471`, and StageForge CI `35349322591`.
 
-Next action: inspect/fix CI for `df5b486c...`; if green, add hosted-safe coverage for target-OS revocation state where it can be exercised without an identity-bypass production seam, then inspect remaining CP87 software-only gaps before reconciliation. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `454425a9dba2b57a296fbb1d55fb247fe88a6526` strengthens the target-OS `NativeMidiInput` hosted smoke around the revocation/cleanup contract without adding a production identity-bypass seam: null/zero-capacity polling fails closed, malformed and nonexistent exact hashes cannot acquire or release bytes, and repeated detach remains safe/idempotent for manager cleanup after asynchronous topology loss. Fresh CI is pending.
+
+Next action: inspect/fix CI for `454425a9...`; if green, inspect remaining CP87 software-only gaps and close any deterministic hosted-safe lifecycle coverage still missing. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
