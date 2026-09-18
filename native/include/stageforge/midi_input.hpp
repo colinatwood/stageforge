@@ -23,18 +23,11 @@ struct MidiDeviceDescriptor { std::array<char,128> id{}; std::array<char,128> na
 struct CapturedMidiInput { std::array<char,128> device_id{}; std::array<char,64> player_id{}; MidiInputMessage message{}; };
 struct MidiIngressAuditStatus { std::uint64_t polls{0},bytes{0},messages{0},queue_drops{0},injected_messages{0},max_poll_duration_ns{0}; bool physical_outputs_armed{false}; };
 
-// Pure ownership predicate shared by production attach logic and hosted tests.
-// It exposes no device-opening seam: an attached endpoint may only be reused by
-// its exact current player; any different or empty owner requires detach first.
 [[nodiscard]] constexpr bool midi_attachment_owner_matches(std::string_view current_player,
                                                             std::string_view requested_player) noexcept {
     return !current_player.empty() && current_player == requested_player;
 }
 
-// Pure queue-retention predicate for a target-OS detach ownership boundary.
-// Events from the detached exact identity are stale; unrelated devices survive
-// in their existing order. Keeping this decision pure makes the safety contract
-// host-testable without introducing a native endpoint-opening bypass.
 [[nodiscard]] constexpr bool midi_event_survives_detach(std::string_view detached_device,
                                                          std::string_view event_device) noexcept {
     return !detached_device.empty() && event_device != detached_device;
@@ -54,7 +47,11 @@ private:
         NullNativeMidiInput native{};
 #endif
         std::uint64_t native_drops_seen{0}; bool attached{false}; };
-    [[nodiscard]] DeviceSlot* find_slot(std::string_view) noexcept; [[nodiscard]] const DeviceSlot* find_slot(std::string_view) const noexcept; void close_slot(DeviceSlot&) noexcept; [[nodiscard]] bool queue(const CapturedMidiInput&) noexcept;
+    [[nodiscard]] DeviceSlot* find_slot(std::string_view) noexcept; [[nodiscard]] const DeviceSlot* find_slot(std::string_view) const noexcept; void close_slot(DeviceSlot&) noexcept;
+#if defined(_WIN32) || defined(__APPLE__)
+    void purge_queued_device(std::string_view) noexcept;
+#endif
+    [[nodiscard]] bool queue(const CapturedMidiInput&) noexcept;
     static constexpr std::size_t max_devices=32,queue_capacity=2048; std::array<DeviceSlot,max_devices> devices_{}; std::size_t device_count_{0}; std::array<CapturedMidiInput,queue_capacity> queue_{}; std::size_t queue_head_{0},queue_tail_{0},queue_size_{0};
     std::atomic<std::uint64_t> audit_polls_{0},audit_bytes_{0},audit_messages_{0},audit_queue_drops_{0},audit_injected_{0},audit_max_poll_ns_{0};
 };
