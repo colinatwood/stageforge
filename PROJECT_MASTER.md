@@ -12,7 +12,7 @@
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 test head: `464a99c8ff2d35b0d62dc844a46aed5f16717365`
-- Current implementation/test head: `b4a40fc8816b32aed7e1cf87ca6fe69697d88ff0`
+- Current implementation/test head: `9b5d0a969e9a261a2df2e4f4bad648a784307798`
 
 ## Checkpoint 86 verified state
 
@@ -34,9 +34,11 @@ Commit `5192e0aacf37a53afef3741be2656004a6dc1907` removes that second queue-capa
 
 Commit `15cecff1c919b8d0e2e3a3c7b409b63e490b9be8` adds a dedicated hosted-safe end-to-end software smoke wired into CTest. It injects a `CapturedMidiInput` through `MidiInputManager`, resolves the same stable device token used by the engine, matches it in `MidiLearnRouter`, converts the resulting action through `MidiMappedActionDispatcher`, submits it to `ShowExecutionLoop`, drains the due event, and verifies the authoritative automation payload plus fail-closed physical-output status. Continuity head `464a99c8ff2d35b0d62dc844a46aed5f16717365` is fully green: Platform Modules `35322139702`, Native Device Lifecycle `35322139630`, and StageForge CI `35322139628`.
 
-Commit `b4a40fc8816b32aed7e1cf87ca6fe69697d88ff0` bounds Windows/macOS native ingestion to 8192 bytes per attached device per `MidiInputManager::poll()` call. Previously the manager drained until `NativeMidiInput::poll_bytes()` returned empty; because the callback can refill the SPSC ring concurrently, a sustained producer could keep a poll iteration running without a deterministic service bound. The new target-OS-only budget matches the native callback-ring capacity, limits each read request to the remaining budget, preserves parser state across polls, and leaves the Linux raw-MIDI loop unchanged. No workflows were present at the immediate post-commit inspection, so this slice is pending CI verification.
+Commit `b4a40fc8816b32aed7e1cf87ca6fe69697d88ff0` bounds Windows/macOS native ingestion to 8192 bytes per attached device per `MidiInputManager::poll()` call. Previously the manager drained until `NativeMidiInput::poll_bytes()` returned empty; because the callback can refill the SPSC ring concurrently, a sustained producer could keep a poll iteration running without a deterministic service bound. The new target-OS-only budget matches the native callback-ring capacity, limits each read request to the remaining budget, preserves parser state across polls, and leaves the Linux raw-MIDI loop unchanged.
 
-Next action: inspect/fix CI for `b4a40fc...`. If green, inspect the remaining CP87 software acceptance gap for any missing deterministic attach/detach or topology-loss assertions and then reconcile backlog acceptance only from authoritative repository definitions. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `9b5d0a969e9a261a2df2e4f4bad648a784307798` tightens hosted-safe ownership coverage so failed target-OS attach/attached/detach checks use the same complete framed `midi:<backend>:hash:sha256:<64 hex>` identity shape produced by enumeration. The prior digest-only test token could fail before exact manager slot lookup and therefore did not directly fence accidental name/index/default substitution at the manager boundary. Fresh workflows for the bounded-poll and framed-identity slices were not yet available at the immediate post-commit inspections, so both remain pending CI verification.
+
+Next action: inspect/fix CI for `9b5d0a9...` (which contains `b4a40fc...`). If green, inspect the remaining CP87 software acceptance gap and reconcile backlog acceptance only from authoritative repository definitions. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
