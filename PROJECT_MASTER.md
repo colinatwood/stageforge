@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 manager/ingress continuity head: `731f3b2e3992fc958f816a862a6ea875241a2746`
-- Current test head: `a926393236304c1f897ab7c1159e110ccd8b55fb`
+- Last fully green CP87 test head: `a926393236304c1f897ab7c1159e110ccd8b55fb`
+- Current topology-revocation test head: `09ae96d2140d03505d72fdf67b1753152d4c6c3c`
 
 ## Checkpoint 86 verified state
 
@@ -28,9 +28,11 @@ Commit `b4487b00d55205bfa16410e969df8380f9b5c5cb` added a hosted-safe `MidiInput
 
 Commit `cdab498323c1a2fabd8c93220015daceed9a680a` extended the smoke across the software ingress boundary: deterministic injected Note On data emerges as the same `CapturedMidiInput` with exact device/player identity and timestamp/data, queue drain semantics and audit counters are checked, and physical outputs remain unarmed. Continuity head `731f3b2e3992fc958f816a862a6ea875241a2746` is fully green: StageForge CI `35301603223`, Platform Modules `35301603219`, and Native Device Lifecycle `35301603220` all completed successfully.
 
-This run compared the active branch with the prior continuity head and found no external advancement, then made concrete test progress. A provisional private topology-fence declaration commit `cac7a54d...` was immediately neutralized by `9fe8ad9...` before implementation because landing a declaration-only seam would create an unsafe intermediate build. Commit `a926393236304c1f897ab7c1159e110ccd8b55fb` then added hosted-safe target-OS enumeration assertions: any enumerated Windows/macOS MIDI endpoint must expose only the backend plus `sha256:` hash identity, never name/index identity, while the test remains vacuously safe on runners with no MIDI endpoints and never opens hardware. Fresh workflows are queued: StageForge CI `35305406823`, Native Device Lifecycle `35305406898`, Platform Modules `35305406885`.
+Commit `a926393236304c1f897ab7c1159e110ccd8b55fb` added hosted-safe target-OS enumeration assertions: any enumerated Windows/macOS MIDI endpoint exposes only backend plus `sha256:` hash identity, never name/index identity, while the test remains safe on runners with no MIDI endpoints and never opens hardware. It is fully green: StageForge CI `35305406823`, Native Device Lifecycle `35305406898`, and Platform Modules `35305406885` all completed successfully.
 
-Next action: inspect/fix CI for `a9263932...`. Then implement deterministic topology-loss fencing as a complete code+test slice, preferably by extracting reconciliation/purge logic that can be exercised without physical hardware; stale queued target-OS events for a disappeared exact identity must not reach mapped-action dispatch. After that, verify `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end. Do not infer physical MIDI qualification from hosted execution.
+This run compared the active branch head with the prior continuity head `48049a252641256eb419de8cb16523b38eae42ff` and found no external advancement, then implemented the next documented software gap. Commit `295befe88b2d635d97d0891d57b4a198fb0e0257` makes a target-OS rescan purge queued `CapturedMidiInput` records whose exact device identity is absent from the authoritative Windows/macOS snapshot, preventing callback bytes queued immediately before topology loss from crossing into learn/mapped-action dispatch after revocation. Linux queue behavior is unchanged. Commit `09ae96d2140d03505d72fdf67b1753152d4c6c3c` adds deterministic hosted-safe coverage by injecting an event for an impossible exact hashed identity, rescanning, and requiring the stale event to be unavailable to consumers. Fresh PR workflows had not appeared when checked, so this topology slice is implemented but not yet called green.
+
+Next action: inspect/fix CI for `09ae96d...`. Then verify the complete software route `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end with hosted-safe injection and no hardware claim. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
