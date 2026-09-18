@@ -23,6 +23,14 @@ struct MidiDeviceDescriptor { std::array<char,128> id{}; std::array<char,128> na
 struct CapturedMidiInput { std::array<char,128> device_id{}; std::array<char,64> player_id{}; MidiInputMessage message{}; };
 struct MidiIngressAuditStatus { std::uint64_t polls{0},bytes{0},messages{0},queue_drops{0},injected_messages{0},max_poll_duration_ns{0}; bool physical_outputs_armed{false}; };
 
+// Pure ownership predicate shared by production attach logic and hosted tests.
+// It exposes no device-opening seam: an attached endpoint may only be reused by
+// its exact current player; any different or empty owner requires detach first.
+[[nodiscard]] constexpr bool midi_attachment_owner_matches(std::string_view current_player,
+                                                            std::string_view requested_player) noexcept {
+    return !current_player.empty() && current_player == requested_player;
+}
+
 class MidiInputManager {
 public:
     MidiInputManager() noexcept; ~MidiInputManager(); MidiInputManager(const MidiInputManager&)=delete; MidiInputManager& operator=(const MidiInputManager&)=delete;
