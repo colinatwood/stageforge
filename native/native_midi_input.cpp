@@ -26,6 +26,7 @@ struct NativeMidiInput::Impl {
     std::atomic<std::size_t> read{0};
     std::atomic<std::uint64_t> drops{0};
 #ifdef _WIN32
+    std::atomic<bool> revoked{false};
     HMIDIIN input = nullptr;
 #elif defined(__APPLE__)
     MIDIClientRef client = 0;
@@ -46,9 +47,13 @@ struct NativeMidiInput::Impl {
 
 #ifdef _WIN32
     static void CALLBACK callback(HMIDIIN, UINT message, DWORD_PTR instance, DWORD_PTR first, DWORD_PTR) noexcept {
-        if (message != MIM_DATA) return;
         auto* self = reinterpret_cast<Impl*>(instance);
         if (!self) return;
+        if (message == MIM_CLOSE || message == MIM_ERROR || message == MIM_LONGERROR) {
+            self->revoked.store(true, std::memory_order_release);
+            return;
+        }
+        if (message != MIM_DATA || self->revoked.load(std::memory_order_acquire)) return;
         const auto packed = static_cast<std::uint32_t>(first);
         const auto status = static_cast<std::uint8_t>(packed & 0xffU);
         self->push(status);
@@ -80,6 +85,7 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
     impl_->write.store(0, std::memory_order_relaxed);
     impl_->drops.store(0, std::memory_order_relaxed);
 #ifdef _WIN32
+    impl_->revoked.store(false, std::memory_order_relaxed);
     const auto count = midiInGetNumDevs();
     for (UINT index = 0; index < count; ++index) {
         ULONG bytes = 0;
@@ -130,6 +136,7 @@ bool NativeMidiInput::attach(std::string_view native_hash) noexcept {
 void NativeMidiInput::detach() noexcept {
 #ifdef _WIN32
     if (impl_->input) { midiInStop(impl_->input); midiInReset(impl_->input); midiInClose(impl_->input); impl_->input = nullptr; }
+    impl_->revoked.store(false, std::memory_order_relaxed);
 #elif defined(__APPLE__)
     if (impl_->port && impl_->source) MIDIPortDisconnectSource(impl_->port, impl_->source);
     impl_->source = 0;
@@ -140,7 +147,7 @@ void NativeMidiInput::detach() noexcept {
 
 bool NativeMidiInput::attached() const noexcept {
 #ifdef _WIN32
-    return impl_->input != nullptr;
+    return impl_->input != nullptr && !impl_->revoked.load(std::memory_order_acquire);
 #elif defined(__APPLE__)
     return impl_->source != 0;
 #else
@@ -149,7 +156,7 @@ bool NativeMidiInput::attached() const noexcept {
 }
 
 std::size_t NativeMidiInput::poll_bytes(std::uint8_t* destination, std::size_t capacity) noexcept {
-    if (!destination || capacity == 0) return 0;
+    if (!destination || capacity == 0 || !attached()) return 0;
     std::size_t count = 0;
     auto current = impl_->read.load(std::memory_order_relaxed);
     const auto end = impl_->write.load(std::memory_order_acquire);
