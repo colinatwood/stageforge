@@ -13,7 +13,7 @@
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 ownership head: `7c27f84c85b37cfb807e68d8678acaf02f58593c`
 - Manager-integration continuity head: `cfef6391ad5ffba44c6eef328399efe45f1559bc`
-- Current manager-integration test head: `b4487b00d55205bfa16410e969df8380f9b5c5cb`
+- Current manager-integration test head: `cdab498323c1a2fabd8c93220015daceed9a680a`
 
 ## Checkpoint 86 verified state
 
@@ -39,9 +39,11 @@ Commit `d3f695fcd529fa7fe7713d411b350ab71f290215` fixed those API mismatches. Fr
 
 Commit `37165450d8832382c69851833c31612adf930a37` restores that parser contract by filtering MIDI realtime bytes before message-state handling, preserving running status and the partially received channel message. Continuity head `92d75d6b24bfa0e84cfff505e47887ee860dd449` is fully green: Platform Modules run `35294440263`, Native Device Lifecycle `35294440265`, and StageForge CI `35294440235` all completed successfully. This closes the hosted manager-integration regression gate only; it is not physical MIDI qualification.
 
-Commit `b4487b00d55205bfa16410e969df8380f9b5c5cb` adds a dedicated hosted-safe `MidiInputManager` smoke and build wiring. On Windows/macOS it scans the target-OS inventory, attempts a syntactically valid but nonexistent `sha256:` identity, and verifies attach remains fail-closed with zero attached owners, detach does not fabricate ownership, and `physical_outputs_armed` remains false. Linux compiles/runs the same smoke without changing or exercising its raw-MIDI ownership path. Fresh PR workflows had not appeared when this continuity entry was written.
+Commit `b4487b00d55205bfa16410e969df8380f9b5c5cb` added a dedicated hosted-safe `MidiInputManager` identity smoke and build wiring. Its fresh PR workflows are fully green: Platform Modules `35297780891`, Native Device Lifecycle `35297781074`, and StageForge CI `35297780879` all completed successfully. The smoke verifies only fail-closed nonexistent identity behavior and `physical_outputs_armed=false`; it does not qualify a physical MIDI endpoint.
 
-Next action: inspect/fix fresh CI for `b4487b00...`. Once green, add deterministic hosted coverage for topology-loss revocation (using a software seam rather than pretending hosted runners own physical MIDI devices), then verify the existing `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` path end-to-end without claiming physical MIDI qualification.
+Commit `cdab498323c1a2fabd8c93220015daceed9a680a` extends that hosted smoke across the software ingress boundary: a deterministic injected Note On must emerge as the same `CapturedMidiInput` with exact device/player identity and timestamp/data, queue depth must drain correctly, injection/message audit counters must increment, and physical outputs remain unarmed. This is software-only evidence for the queue boundary consumed by learn/mapped-action routing. Fresh PR workflows had not appeared when this continuity entry was written.
+
+Next action: inspect/fix fresh CI for `cdab4983...`. Once green, add deterministic hosted topology-loss revocation coverage using a software seam, then verify `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end. Do not infer physical MIDI qualification from hosted execution.
 
 ## Verification entry points
 
