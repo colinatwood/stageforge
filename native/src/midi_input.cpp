@@ -37,7 +37,7 @@ bool is_midi_path(const char* name) noexcept {
 std::string midi_id_from_path(std::string_view path) { return "alsa:" + std::string(path); }
 #elif defined(_WIN32) || defined(__APPLE__)
 std::string target_midi_identity(const DeviceRecord& record, std::string_view backend) {
-    return std::string(backend) + ":hash:" + std::to_string(record.identity_hash);
+    return std::string(backend) + ":hash:" + record.native_hash;
 }
 std::string target_midi_id(const DeviceRecord& record, std::string_view backend) {
     return "midi:" + target_midi_identity(record, backend);
@@ -85,14 +85,14 @@ std::size_t MidiInputManager::scan() noexcept {
     DIR* dir=::opendir("/dev/snd"); if(dir){while(auto* entry=::readdir(dir)){if(found_count>=max_devices)break;if(!is_midi_path(entry->d_name))continue;auto& slot=found[found_count++];std::string path="/dev/snd/";path+=entry->d_name;copy_text(slot.descriptor.path,path);copy_text(slot.descriptor.id,midi_id_from_path(path));copy_text(slot.descriptor.name,entry->d_name);slot.descriptor.connected=true;slot.descriptor.input=true;if(auto* existing=find_slot(slot.descriptor.id.data());existing&&existing->attached){slot.handle=existing->handle;existing->handle=-1;slot.attached=true;slot.player_id=existing->player_id;slot.parser=existing->parser;}}::closedir(dir);}
 #elif defined(_WIN32) || defined(__APPLE__)
     try {
-        DeviceMonitor monitor; const auto snapshot=monitor.scan();
+        DeviceMonitor monitor; monitor.start(); const auto snapshot=monitor.snapshot(); monitor.stop();
 #if defined(_WIN32)
         constexpr std::string_view backend="winmm";
 #else
         constexpr std::string_view backend="coremidi";
 #endif
         for (const auto& record:snapshot.devices) {
-            if (found_count>=max_devices) break; if (record.kind!=DeviceKind::Midi || !record.input) continue;
+            if (found_count>=max_devices) break; if (record.kind!=DeviceKind::Midi || !record.input || record.native_hash.empty()) continue;
             auto& slot=found[found_count++]; const auto id=target_midi_id(record,backend);
             copy_text(slot.descriptor.id,id); copy_text(slot.descriptor.path,target_midi_identity(record,backend));
 #if defined(_WIN32)
