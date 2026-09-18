@@ -13,7 +13,7 @@
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 ownership head: `7c27f84c85b37cfb807e68d8678acaf02f58593c`
 - Manager-integration continuity head: `cfef6391ad5ffba44c6eef328399efe45f1559bc`
-- Current manager-integration fix head: `d3f695fcd529fa7fe7713d411b350ab71f290215`
+- Current manager-integration fix head: `37165450d8832382c69851833c31612adf930a37`
 
 ## Checkpoint 86 verified state
 
@@ -33,9 +33,13 @@ PR workflows for `cfef6391...` completed with Platform Modules `35279980955` gre
 
 The first attempted portability fix `924f43c7...` referenced nonexistent `stageforge/native_midi_input.hpp` and is superseded. Commits `85d70047...` and `bd67c126...` replaced that approach with an incomplete-type-safe custom deleter.
 
-Fresh CI for continuity head `318910586b4f220111009b7b497e1fa27b782d63` proved that custom-deleter boundary itself compiles far enough to expose the next concrete manager errors. Platform Modules run `35287146757` and Native Device Lifecycle `35287146713` are green. StageForge CI `35287146739` fails Windows/macOS native-engine compilation because `midi_input.cpp` incorrectly referenced nonexistent `DeviceRecord::identity_hash` and `DeviceMonitor::scan()`; the actual APIs are `DeviceRecord::native_hash` and active-monitor `snapshot()`.
+Fresh CI for continuity head `318910586b4f220111009b7b497e1fa27b782d63` proved that custom-deleter boundary itself compiles far enough to expose the next concrete manager errors. Platform Modules run `35287146757` and Native Device Lifecycle `35287146713` are green. StageForge CI `35287146739` failed Windows/macOS native-engine compilation because `midi_input.cpp` incorrectly referenced nonexistent `DeviceRecord::identity_hash` and `DeviceMonitor::scan()`; the actual APIs are `DeviceRecord::native_hash` and active-monitor `snapshot()`.
 
-Commit `d3f695fcd529fa7fe7713d411b350ab71f290215` fixes those exact API mismatches: target MIDI identities now embed the existing `sha256:` `native_hash`, and target-OS scanning starts a `DeviceMonitor`, obtains `snapshot()`, stops the monitor, and ignores empty native hashes. This is an implementation fix only until fresh PR CI succeeds.
+Commit `d3f695fcd529fa7fe7713d411b350ab71f290215` fixed those API mismatches. Fresh PR CI on continuity head `fa4fa4c5decfb71e3340f55d98e52ba819012547` then built the native engine successfully on Windows and macOS, but StageForge CI run `35293794213` failed `stageforge_native_tests` on both targets at `test_midi_byte_parser`: realtime byte `0xF8` was emitted as a mapped MIDI event even though the existing parser contract requires realtime bytes to leave an in-progress channel message untouched and not enter the mapped-action path. Platform Modules `35293794250` and Native Device Lifecycle `35293794204` remained green. Linux's release gate failed in the same StageForge CI run and must be rechecked after the parser correction.
+
+Commit `37165450d8832382c69851833c31612adf930a37` restores that parser contract by filtering MIDI realtime bytes before message-state handling, preserving running status and the partially received channel message. This is a software-only correction; fresh PR CI is required before the manager-integration slice is called green.
+
+Next action: inspect fresh CI for `37165450...`; fix any remaining release/native-test failure. Once green, add hosted-safe manager-level tests for exact-hash attach rejection/topology revocation and verify the existing `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` path without claiming physical MIDI qualification.
 
 ## Verification entry points
 
@@ -58,7 +62,3 @@ Hosted/software evidence does not by itself qualify physical audio/MIDI hardware
 4. Verify CI before calling a checkpoint known-good.
 5. Update this file before ending or when context is crowded.
 6. If chat conflicts with Git, Git wins.
-
-## Exact next action
-
-Inspect all PR #23 workflows for fix head `d3f695fcd529fa7fe7713d411b350ab71f290215` and fix every compile/test failure before calling manager integration green. Once green, add hosted-safe `MidiInputManager` coverage proving malformed/nonexistent target identities fail closed, parser/queue injection remains bounded, rescans revoke disappeared identities, and audit counters remain coherent without requiring physical MIDI hardware. Then continue to the next repository-visible software backlog dependency. Do not infer physical hardware qualification from hosted CI.
