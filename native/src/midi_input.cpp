@@ -54,9 +54,6 @@ std::uint8_t MidiByteParser::data_length(std::uint8_t status) noexcept {
 }
 void MidiByteParser::reset() noexcept { running_status_=message_status_=expected_=received_=0; data_={}; in_sysex_=false; }
 bool MidiByteParser::feed(std::uint8_t byte,std::uint64_t show_time_ns,MidiInputMessage& out) noexcept {
-    // Realtime bytes may be interleaved anywhere in the stream. StageForge does not
-    // route realtime transport messages through the mapped-action path, so ignore
-    // them without disturbing an in-progress message or its running status.
     if(byte>=0xF8)return false;
     if(in_sysex_){if(byte==0xF7)in_sysex_=false;return false;}
     if(byte&0x80){if(byte==0xF0){in_sysex_=true;running_status_=message_status_=expected_=received_=0;return false;} if(byte==0xF7)return false;
@@ -114,10 +111,6 @@ std::size_t MidiInputManager::scan() noexcept {
     for (std::size_t i=0;i<device_count_;++i) close_slot(devices_[i]);
     devices_=std::move(found); device_count_=found_count;
 #if defined(_WIN32) || defined(__APPLE__)
-    // A rescan is the topology authority on target OSes. Callback bytes can have
-    // become queued immediately before an endpoint disappears, so discard any
-    // captured event whose exact hashed identity is no longer present. This keeps
-    // stale input from crossing into learn/mapped-action dispatch after revocation.
     std::array<CapturedMidiInput,queue_capacity> retained{}; std::size_t retained_count=0;
     while(queue_size_){CapturedMidiInput event{}; (void)pop(event); if(find_slot(event.device_id.data())!=nullptr) retained[retained_count++]=event;}
     queue_head_=queue_tail_=queue_size_=0;
@@ -151,8 +144,9 @@ bool MidiInputManager::queue(const CapturedMidiInput& event) noexcept {
 }
 bool MidiInputManager::pop(CapturedMidiInput& out) noexcept { if(!queue_size_) return false; out=queue_[queue_tail_]; queue_tail_=(queue_tail_+1)%queue_capacity; --queue_size_; return true; }
 bool MidiInputManager::inject(std::string_view device_id,std::string_view player_id,const MidiInputMessage& message) noexcept {
-    if(device_id.empty()||player_id.empty()||device_id.size()>=64||player_id.size()>=64)return false;
-    CapturedMidiInput event{}; copy_text(event.device_id,device_id); copy_text(event.player_id,player_id); event.message=message;
+    CapturedMidiInput event{};
+    if(device_id.empty()||player_id.empty()||device_id.size()>=event.device_id.size()||player_id.size()>=event.player_id.size())return false;
+    copy_text(event.device_id,device_id); copy_text(event.player_id,player_id); event.message=message;
     const auto accepted=queue(event); if(accepted){audit_injected_.fetch_add(1,std::memory_order_relaxed);audit_messages_.fetch_add(1,std::memory_order_relaxed);} return accepted;
 }
 
