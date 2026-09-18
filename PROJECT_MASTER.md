@@ -11,8 +11,8 @@
 - Active work: **Checkpoint 87 — target-OS MIDI input ownership and event ingestion**
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
-- Last fully green CP87 implementation/test head: `d64acca679e625e0f02965026e6f731b26577177`
-- Current implementation head: `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d`
+- Last fully green CP87 implementation/test head: `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d`
+- Current implementation head: `df5b486c9672f965ed74cadc86e6ecb0c357dbdf`
 
 ## Checkpoint 86 verified state
 
@@ -40,9 +40,11 @@ Commit `81ec3033c5ce8abc6c44576ae09beeba355ab23d` adds fail-closed parser handli
 
 Commit `d64acca679e625e0f02965026e6f731b26577177` adds deterministic hosted-safe parser-boundary coverage to `midi_manager_hosted_smoke`: a partial Note On is reset at the same parser seam used by overflow handling, trailing data bytes are proven unable to complete a synthetic message, and a subsequent complete status/data message still parses normally. This deliberately avoids adding a production identity-bypass hook merely for tests. It is fully green: Platform Modules `35342520810`, Native Device Lifecycle `35342520817`, and StageForge CI `35342520857`.
 
-Commit `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d` adds an immediate WinMM callback-side revocation fence. `MIM_CLOSE`, `MIM_ERROR`, or `MIM_LONGERROR` atomically revoke the attachment; subsequent short-message callbacks are ignored, `attached()` reports false, and `poll_bytes()` refuses to drain stale queued bytes. The next `MidiInputManager::poll()` therefore closes the slot before parser/event dispatch. A new valid attach epoch clears the revocation flag. This is Windows-only and leaves Linux/CoreMIDI behavior unchanged. Fresh CI for this implementation head was not yet available at inspection.
+Commit `26f8cd0dadda36568765a3c41a967cd3b6d1ce3d` adds an immediate WinMM callback-side revocation fence. `MIM_CLOSE`, `MIM_ERROR`, or `MIM_LONGERROR` atomically revoke the attachment; subsequent short-message callbacks are ignored, `attached()` reports false, and `poll_bytes()` refuses to drain stale queued bytes. The next `MidiInputManager::poll()` therefore closes the slot before parser/event dispatch. A new valid attach epoch clears the revocation flag. This implementation head is fully green: Platform Modules `35348050975`, Native Device Lifecycle `35348050977`, and StageForge CI `35348051004`.
 
-Next action: inspect/fix CI for `26f8cd0d...`; if green, add the corresponding CoreMIDI topology-removal/revocation notification fence without weakening exact selected identity ownership, then add hosted-safe coverage where it can avoid production identity bypasses. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+Commit `df5b486c9672f965ed74cadc86e6ecb0c357dbdf` adds the corresponding CoreMIDI notification fence. The MIDI client now receives topology notifications; removal of the exact selected source atomically revokes the attachment, subsequent packet callbacks are ignored, `attached()` fails closed, and `poll_bytes()` cannot release stale queued bytes. The selected `MIDIEndpointRef` is mirrored into an atomic integer solely for notification-thread identity comparison, while control-thread detach clears it before disposing CoreMIDI ownership. Linux and WinMM behavior are unchanged. Fresh CI had not appeared at the immediate post-commit inspection.
+
+Next action: inspect/fix CI for `df5b486c...`; if green, add hosted-safe coverage for target-OS revocation state where it can be exercised without an identity-bypass production seam, then inspect remaining CP87 software-only gaps before reconciliation. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
