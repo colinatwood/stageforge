@@ -33,6 +33,24 @@ struct MidiIngressAuditStatus { std::uint64_t polls{0},bytes{0},messages{0},queu
     return !detached_device.empty() && event_device != detached_device;
 }
 
+// Decode only the exact manager-owned target-OS identity framing. This prevents
+// an internal path containing a coincidental ":hash:" segment from being treated
+// as an attachable endpoint if descriptor construction ever regresses.
+[[nodiscard]] constexpr std::string_view midi_native_hash_from_identity(std::string_view identity,
+                                                                        std::string_view backend) noexcept {
+    constexpr std::string_view marker = ":hash:";
+    if (backend.empty() || identity.size() != backend.size() + marker.size() + 71 ||
+        identity.substr(0, backend.size()) != backend ||
+        identity.substr(backend.size(), marker.size()) != marker) return {};
+    const auto token = identity.substr(backend.size() + marker.size());
+    constexpr std::string_view prefix = "sha256:";
+    if (token.substr(0, prefix.size()) != prefix) return {};
+    for (const char ch : token.substr(prefix.size())) {
+        if (!((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f'))) return {};
+    }
+    return token;
+}
+
 class MidiInputManager {
 public:
     MidiInputManager() noexcept; ~MidiInputManager(); MidiInputManager(const MidiInputManager&)=delete; MidiInputManager& operator=(const MidiInputManager&)=delete;
