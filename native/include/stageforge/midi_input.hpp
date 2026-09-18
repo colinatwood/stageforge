@@ -16,8 +16,11 @@ struct NullNativeMidiInput { void reset() noexcept {} };
 #endif
 struct MidiInputMessage { std::uint64_t show_time_ns{0}; std::uint8_t status{0},data1{0},data2{0}; };
 class MidiByteParser { public: [[nodiscard]] bool feed(std::uint8_t,std::uint64_t,MidiInputMessage&) noexcept; void reset() noexcept; private: [[nodiscard]] static std::uint8_t data_length(std::uint8_t) noexcept; std::uint8_t running_status_{0},message_status_{0}; std::array<std::uint8_t,2> data_{}; std::uint8_t expected_{0},received_{0}; bool in_sysex_{false}; };
-struct MidiDeviceDescriptor { std::array<char,64> id{}; std::array<char,128> name{}; std::array<char,256> path{}; bool input{true}; bool connected{true}; };
-struct CapturedMidiInput { std::array<char,64> device_id{}; std::array<char,64> player_id{}; MidiInputMessage message{}; };
+// Target-OS IDs include backend/type/hash framing plus a 64-hex SHA-256 digest,
+// so 64 bytes is insufficient even though the digest alone fits. Keep the exact
+// identity intact end-to-end; truncating it would silently defeat ownership fences.
+struct MidiDeviceDescriptor { std::array<char,128> id{}; std::array<char,128> name{}; std::array<char,256> path{}; bool input{true}; bool connected{true}; };
+struct CapturedMidiInput { std::array<char,128> device_id{}; std::array<char,64> player_id{}; MidiInputMessage message{}; };
 struct MidiIngressAuditStatus { std::uint64_t polls{0},bytes{0},messages{0},queue_drops{0},injected_messages{0},max_poll_duration_ns{0}; bool physical_outputs_armed{false}; };
 
 class MidiInputManager {
