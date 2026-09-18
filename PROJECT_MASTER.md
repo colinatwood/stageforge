@@ -12,7 +12,7 @@
 - Active branch: `checkpoint-87-native-midi-input`
 - Active PR: **#23 — Checkpoint 87: add target-OS MIDI input ownership**
 - Last fully green CP87 test head: `a926393236304c1f897ab7c1159e110ccd8b55fb`
-- Current exact-identity/topology test head: `713c1959e1c112a64122d191d4b264aee2451f77`
+- Current exact-identity/topology implementation head: `5192e0aacf37a53afef3741be2656004a6dc1907`
 
 ## Checkpoint 86 verified state
 
@@ -26,9 +26,13 @@ The portability/API/parser repair chain is complete through `92d75d6b24bfa0e84cf
 
 Commit `295befe88b2d635d97d0891d57b4a198fb0e0257` makes a target-OS rescan purge queued `CapturedMidiInput` records whose exact device identity is absent from the authoritative Windows/macOS snapshot. Commit `09ae96d2140d03505d72fdf67b1753152d4c6c3c` added deterministic hosted-safe revocation coverage. Its Platform Modules `35309213737`, Native Device Lifecycle `35309213729`, and Linux StageForge CI job are green, but Windows and macOS native tests failed. Inspection found the test's full framed SHA-256 identity could not even enter `inject()`: both `MidiDeviceDescriptor::id` and `CapturedMidiInput::device_id` were only 64 bytes while a target-OS framed `midi:<backend>:hash:sha256:<64 hex>` identity is longer than 64 bytes. That also exposed a production correctness defect: enumerated target-OS IDs were silently truncated, defeating exact selected identity lookup even though the native path retained the hash.
 
-Commit `1f31808bf2f2ec988bb238c8c8beb071568bfbb2` expands descriptor/captured device identity storage to 128 bytes so complete framed SHA-256 identities survive end-to-end. Commit `381e318b0cf8a12d35504a7ba9977505de6bd883` makes hosted injection validate against the actual destination array sizes instead of the obsolete hard-coded 64-byte device limit. Commit `713c1959e1c112a64122d191d4b264aee2451f77` strengthens the target-OS smoke to require the exact prefix plus all 64 hash hex characters and exercises topology revocation with a complete backend-shaped identity. Fresh CI for this successor head is pending; do not call it green until workflows complete.
+Commit `1f31808bf2f2ec988bb238c8c8beb071568bfbb2` expands descriptor/captured device identity storage to 128 bytes so complete framed SHA-256 identities survive end-to-end. Commit `381e318b0cf8a12d35504a7ba9977505de6bd883` makes hosted injection validate against the actual destination array sizes instead of the obsolete hard-coded 64-byte device limit. Commit `713c1959e1c112a64122d191d4b264aee2451f77` strengthens the target-OS smoke to require the exact prefix plus all 64 hash hex characters and exercises topology revocation with a complete backend-shaped identity.
 
-Next action: inspect/fix CI for `713c1959...`; once green, verify the complete software route `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end with hosted-safe injection and no hardware claim. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
+CI for `713c1959...`: Platform Modules `35313308917` and Native Device Lifecycle `35313308915` are green. StageForge CI `35313308941` has a green Linux RT release gate and successful Windows/macOS native builds; macOS native tests and platform smoke are green, but Windows fails in native tests and macOS later fails the engine authentication/command-dispatch step. The widened `CapturedMidiInput` made the rescan's temporary `std::array<CapturedMidiInput, queue_capacity>` roughly 400+ KiB while the manager itself also owns a queue of that size. This is especially unsafe against the default Windows thread stack and is unnecessary for a bounded ring.
+
+Commit `5192e0aacf37a53afef3741be2656004a6dc1907` removes that second queue-capacity stack allocation. Target-OS topology revocation now filters the existing bounded ring in place over exactly the pre-scan queue count, preserving surviving events without heap allocation or queue reordering and leaving Linux behavior unchanged. Fresh CI for `5192e0a...` is pending; do not call this repair green until workflows complete. The macOS authentication/dispatch failure from `35313308941` may be independent of the MIDI native-test failure and must be inspected separately if it reproduces.
+
+Next action: inspect/fix fresh CI for `5192e0a...`; once the exact-identity/topology slice is green, verify the complete software route `CapturedMidiInput -> MidiLearnRouter -> MidiMappedActionDispatcher -> ShowExecutionLoop` end-to-end with hosted-safe injection and no hardware claim. Reconcile AUD-035/AUD-036/DEV-033/DEV-034 only from authoritative acceptance definitions; do not infer Done from checkpoint labels.
 
 ## Verification entry points
 
