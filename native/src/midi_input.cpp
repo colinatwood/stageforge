@@ -54,7 +54,10 @@ std::uint8_t MidiByteParser::data_length(std::uint8_t status) noexcept {
 }
 void MidiByteParser::reset() noexcept { running_status_=message_status_=expected_=received_=0; data_={}; in_sysex_=false; }
 bool MidiByteParser::feed(std::uint8_t byte,std::uint64_t show_time_ns,MidiInputMessage& out) noexcept {
-    if(byte>=0xF8){out={show_time_ns,byte,0,0};return true;}
+    // Realtime bytes may be interleaved anywhere in the stream. StageForge does not
+    // route realtime transport messages through the mapped-action path, so ignore
+    // them without disturbing an in-progress message or its running status.
+    if(byte>=0xF8)return false;
     if(in_sysex_){if(byte==0xF7)in_sysex_=false;return false;}
     if(byte&0x80){if(byte==0xF0){in_sysex_=true;running_status_=message_status_=expected_=received_=0;return false;} if(byte==0xF7)return false;
         message_status_=byte; expected_=data_length(byte); received_=0; running_status_=(byte<0xF0)?byte:0;
