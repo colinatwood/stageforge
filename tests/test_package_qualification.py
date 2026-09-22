@@ -16,6 +16,8 @@ class PackageQualificationTests(unittest.TestCase):
         for tool in ("systemd-sysusers", "systemd-tmpfiles", "systemd-analyze"):
             if shutil.which(tool) is None:
                 self.skipTest(f"missing {tool}")
+        if os.environ.get("STAGEFORGE_PACKAGE_QUALIFY_SUDO") != "1":
+            self.skipTest("isolated rootfs ownership test requires sudo")
         with tempfile.TemporaryDirectory() as raw:
             build = Path(raw) / "build"
             (build / "native").mkdir(parents=True)

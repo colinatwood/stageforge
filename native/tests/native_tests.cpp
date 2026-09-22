@@ -98,23 +98,24 @@ void test_plugin_delay_graph_swaps_complete_generations(){stageforge::PluginDela
 
 void test_realtime_audit_sheds_and_recovers_optional_work(){stageforge::RealtimeAudit audit;for(int i=0;i<3;++i)audit.finish(101,100);SF_CHECK(!audit.allow_optional()&&audit.status().overload_level==1);audit.note_optional_shed();audit.note_nonfinite(2);audit.note_queue_pressure();for(int i=0;i<128;++i)audit.finish(50,100);const auto s=audit.status();SF_CHECK(audit.allow_optional()&&s.deadline_misses==3&&s.optional_shed_blocks==1&&s.nonfinite_samples==2&&s.queue_pressure_events==1&&s.recovery_transitions==1&&!s.physical_outputs_armed);}
 void test_realtime_qualification_detects_allocation_and_lock_attempts(){
-    stageforge::RealtimeAudit audit;
-    {
-        stageforge::RealtimeQualificationScope scope(&audit);
-        auto* values=new int[16];
-        values[0]=7;
-        std::mutex mutex;
-        mutex.lock();
-        mutex.unlock();
-        delete[] values;
-    }
-    const auto status=audit.status();
+stageforge::RealtimeAudit audit;
+{
+stageforge::RealtimeQualificationScope scope(&audit);
+auto* values=new int[16];
+volatile int* observed_values=values;
+observed_values[0]=7;
+std::mutex mutex;
+mutex.lock();
+mutex.unlock();
+delete[] values;
+}
+const auto status=audit.status();
 #ifdef STAGEFORGE_RT_QUALIFICATION
-    SF_CHECK(status.qualification_enabled&&status.allocation_attempts>=1&&status.allocated_bytes>=sizeof(int)*16&&status.lock_attempts>=1);
+SF_CHECK(status.qualification_enabled&&status.allocation_attempts>=1&&status.allocated_bytes>=sizeof(int)*16&&status.lock_attempts>=1);
 #else
-    SF_CHECK(!status.qualification_enabled&&status.allocation_attempts==0&&status.lock_attempts==0);
+SF_CHECK(!status.qualification_enabled&&status.allocation_attempts==0&&status.lock_attempts==0);
 #endif
-    SF_CHECK(!status.physical_outputs_armed);
+SF_CHECK(!status.physical_outputs_armed);
 }
 void test_midi_learn_router_quantizes_maps_and_key_syncs(){stageforge::MidiLearnRouter<4,4> router;router.configure_master(120,0,0x0AB5);stageforge::MidiLearnBinding binding{};binding.mapping_id=1;binding.device_id=10;binding.target_id=20;binding.parameter_id=3;binding.channel=0;binding.number=61;binding.message=stageforge::MidiLearnMessage::note;binding.behavior=stageforge::MidiMapBehavior::trigger;binding.steps_per_beat=1;binding.key_sync=true;SF_CHECK(router.upsert(binding));router.process(10,0x90,61,100,260'000'000);stageforge::MidiMappedAction action{};SF_CHECK(router.pop(action));SF_CHECK(action.show_time_ns==500'000'000&&action.value==1&&action.input_note==61&&action.output_note==60&&action.key_synced&&!action.physical_outputs_armed);binding.mapping_id=2;binding.message=stageforge::MidiLearnMessage::control_change;binding.number=74;binding.behavior=stageforge::MidiMapBehavior::absolute;binding.minimum=20;binding.maximum=20'000;SF_CHECK(router.upsert(binding));router.process(10,0xB0,74,127,500'000'000);SF_CHECK(router.pop(action)&&action.value==20'000);SF_CHECK(router.status().matched==2&&router.status().bindings==2);}
 
