@@ -1,0 +1,26 @@
+{
+  "checks": {
+    "windowsNamedPipe": {
+      "aclKernelAttestationQualified": true,
+      "authorizedRoundtripQualified": true,
+      "currentUserSidHash": "7ae77c8803bf92f16a2627e49a4138191d6f709fdf17a88106d98b5beae8f14c",
+      "note": "Kernel DACL attestation and authorized client roundtrip passed; a separate denied principal is not available on the hosted runner.",
+      "unauthorizedClientDenialQualified": false
+    }
+  },
+  "documentType": "org.upp.platform-ci-smoke",
+  "host": {
+    "architecture": "AMD64",
+    "os": "Windows",
+    "release": "11"
+  },
+  "nativeEngine": {
+    "pathBasename": "stageforge_engine.exe",
+    "sha256": "8d7f4d4d1309be583b09cbb7f4fbd8b8e20adcb27ee3ce53ad32a38a7a3a74ce"
+  },
+  "physicalHardwareQualified": false,
+  "physicalOutputsArmed": false,
+  "platformExecutionQualified": true,
+  "python": "3.14.3",
+  "schemaVersion": 1
+}
