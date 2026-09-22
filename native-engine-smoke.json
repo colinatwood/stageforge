@@ -1,0 +1,23 @@
+{
+  "documentType": "org.upp.native-engine-stdio-smoke",
+  "schemaVersion": 2,
+  "sourceCommit": "e7f44518175fe513fdd69cdde116c60409a46f29",
+  "githubRunId": null,
+  "hostOs": "Windows",
+  "binarySha256": "8d7f4d4d1309be583b09cbb7f4fbd8b8e20adcb27ee3ce53ad32a38a7a3a74ce",
+  "status": "passed",
+  "unauthenticatedRejected": true,
+  "wrongTokenRejected": true,
+  "authenticatedCommands": true,
+  "unknownCommandRejected": true,
+  "quitCompleted": true,
+  "audioDeviceCount": 5,
+  "targetOsAudioDeviceCount": 4,
+  "midiInputDeviceCount": 1,
+  "targetOsMidiInputDeviceCount": 1,
+  "targetOsIdentityTokensHashOnly": true,
+  "physicalOutputsArmed": false,
+  "physicalHardwareQualified": false,
+  "audioStreamingQualified": false,
+  "midiInputQualified": false
+}
