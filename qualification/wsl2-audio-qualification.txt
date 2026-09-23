@@ -1,0 +1,3 @@
+Virtual ALSA loopback: unavailable in WSL2
+Reason: snd-aloop is not present in the WSL2 kernel
+Physical hardware qualification: pending
